@@ -12,4 +12,8 @@ impl SuperNintendo {
             cpu: Cpu::default(),
         }
     }
+
+    pub fn step(&mut self) -> u8 {
+        self.cpu.step(&mut self.bus)
+    }
 }

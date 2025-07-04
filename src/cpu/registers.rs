@@ -1,14 +1,14 @@
 #[derive(Debug)]
 pub struct Registers {
-    a: u16,  // accumulator
-    x: u16,  // index register
-    y: u16,  // index register
-    s: u16,  // stack pointer
-    d: u16,  // direct page,
-    pc: u16, // progran counter
-    pb: u8,  // program bank
-    db: u8,  // data bank
-    p: u8,   // processor status/flags
+    pub a: u16,  // accumulator
+    pub x: u16,  // index register
+    pub y: u16,  // index register
+    pub s: u16,  // stack pointer
+    pub d: u16,  // direct page,
+    pub pc: u16, // progran counter
+    pub pb: u8,  // program bank
+    pub db: u8,  // data bank
+    pub p: u8,   // processor status/flags
 }
 
 impl Default for Registers {
