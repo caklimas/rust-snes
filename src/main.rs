@@ -1,8 +1,11 @@
+use crate::super_nintendo::SuperNintendo;
+
 mod cpu;
 mod memory;
+mod super_nintendo;
 
 fn main() {
-    let cpu = cpu::Cpu::default();
+    let snes = SuperNintendo::new(vec![0; 100]);
 
-    println!("{cpu:?}");
+    println!("Loaded");
 }

@@ -1,5 +1,8 @@
-pub mod cpu;
 pub mod registers;
 
-pub use cpu::Cpu;
 pub use registers::Registers;
+
+#[derive(Debug, Default)]
+pub struct Cpu {
+    registers: Registers,
+}
