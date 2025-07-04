@@ -1,3 +1,4 @@
+pub mod processor_status;
 pub mod registers;
 
 pub use registers::Registers;
