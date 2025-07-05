@@ -7,49 +7,166 @@ use crate::{
     memory::bus::Bus,
 };
 
+pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let offset = read_byte(bus, (cpu.registers.pc + 1).into());
+    let target_address = (cpu.registers.d + offset as u16) as u32;
+    let mut cycles = 0;
+
+    if is_8bit_mode(cpu) {
+        let value = read_byte(bus, target_address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        cycles = 3;
+    } else {
+        let value_low = read_byte(bus, target_address) as u16;
+        let value_high = read_byte(bus, target_address + 1) as u16;
+        let value = get_value_u16(value_low, value_high);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        cycles = 4;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    cycles
+}
+
 pub fn lda_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let mut pc_increment = 2;
     let address = (cpu.registers.pc + 1) as u32;
     if is_8bit_mode(cpu) {
         let value = read_byte(bus, address);
-        cpu.registers.a = (cpu.registers.a & 0xFF00) | value as u16;
-        cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
-        cpu.registers
-            .p
-            .set(ProcessorStatus::NEGATIVE, is_negative_u8(value));
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
     } else {
         let value = read_word(bus, address);
-        cpu.registers.a = value;
-        cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
-        cpu.registers
-            .p
-            .set(ProcessorStatus::NEGATIVE, is_negative_u16(value));
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+
         pc_increment += 1;
     }
 
-    cpu.registers.pc += pc_increment;
+    increment_program_counter(cpu, pc_increment);
 
     if is_8bit_mode(cpu) { 2 } else { 3 }
 }
 
 pub fn lda_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let address_low = read_byte(bus, (cpu.registers.pc + 1) as u32);
-    let address_high = read_byte(bus, (cpu.registers.pc + 2) as u32);
-    let target_address = ((address_high as u16) << 8 | (address_low as u16)) as u32;
-    let is_8_bit_mode = is_8bit_mode(cpu);
+    let address_low = read_byte(bus, (cpu.registers.pc + 1).into());
+    let address_high = read_byte(bus, (cpu.registers.pc + 2).into());
+    let target_address = ((address_high as u16) << 8 | (address_low as u16)).into();
     let mut cycles = 0;
 
-    if is_8_bit_mode {
-        let value = read_byte(bus, target_address) as u16;
-        cpu.registers.a = (cpu.registers.a & 0xFF00) | value;
+    if is_8bit_mode(cpu) {
+        let value = read_byte(bus, target_address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
         cycles = 4
     } else {
         let value_low = read_byte(bus, target_address) as u16;
         let value_high = read_byte(bus, target_address + 1) as u16;
-        cpu.registers.a = (value_high << 8) | value_low;
+        let value = get_value_u16(value_low, value_high);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
 
         cycles = 5;
     }
 
+    increment_program_counter(cpu, 3);
+
     cycles
+}
+
+pub fn lda_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let address_low = read_byte(bus, (cpu.registers.pc + 1).into());
+    let address_high = read_byte(bus, (cpu.registers.pc + 2).into());
+    let base_address = ((address_high as u16) << 8 | (address_low as u16)) as u16;
+    let target_address = (base_address + cpu.registers.x) as u32;
+    let mut cycles = 0;
+
+    if is_8bit_mode(cpu) {
+        let value = read_byte(bus, target_address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        cycles = 4;
+    } else {
+        let value_low = read_byte(bus, target_address) as u16;
+        let value_high = read_byte(bus, target_address + 1) as u16;
+        let value = get_value_u16(value_low, value_high);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        cycles = 5;
+    }
+
+    increment_program_counter(cpu, 3);
+
+    if page_crossed(target_address as u16, base_address) {
+        cycles += 1;
+    }
+
+    cycles
+}
+
+pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let address_low = read_byte(bus, (cpu.registers.pc + 1).into());
+    let address_high = read_byte(bus, (cpu.registers.pc + 2).into());
+    let base_address = ((address_high as u16) << 8 | (address_low as u16)) as u16;
+    let target_address = (base_address + cpu.registers.y) as u32;
+    let mut cycles = 0;
+
+    if is_8bit_mode(cpu) {
+        let value = read_byte(bus, target_address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        cycles = 4;
+    } else {
+        let value_low = read_byte(bus, target_address) as u16;
+        let value_high = read_byte(bus, target_address + 1) as u16;
+        let value = get_value_u16(value_low, value_high);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        cycles = 5;
+    }
+
+    increment_program_counter(cpu, 3);
+
+    if page_crossed(target_address as u16, base_address) {
+        cycles += 1;
+    }
+
+    cycles
+}
+
+fn set_nz_flags_u8(cpu: &mut Cpu, value: u8) {
+    cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
+    cpu.registers
+        .p
+        .set(ProcessorStatus::NEGATIVE, is_negative_u8(value));
+}
+
+fn set_nz_flags_u16(cpu: &mut Cpu, value: u16) {
+    cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
+    cpu.registers
+        .p
+        .set(ProcessorStatus::NEGATIVE, is_negative_u16(value));
+}
+
+fn set_accumulator_u8(cpu: &mut Cpu, value: u8) {
+    cpu.registers.a = (cpu.registers.a & 0xFF00) | (value as u16);
+}
+
+fn set_accumulator_u16(cpu: &mut Cpu, value: u16) {
+    cpu.registers.a = value;
+}
+
+fn increment_program_counter(cpu: &mut Cpu, value: u16) {
+    cpu.registers.pc += value;
+}
+
+fn get_value_u16(value_low: u16, value_high: u16) -> u16 {
+    (value_high << 8) | value_low
+}
+
+fn page_crossed(target_address: u16, base_address: u16) -> bool {
+    (base_address & 0xFF00) != (target_address & 0xFF00)
 }

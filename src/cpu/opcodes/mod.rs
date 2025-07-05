@@ -7,7 +7,11 @@ pub mod lda;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
+        0xA5 => lda::lda_direct(cpu, bus),
         0xA9 => lda::lda_immediate(cpu, bus),
+        0xAD => lda::lda_absolute(cpu, bus),
+        0xB9 => lda::lda_absolute_y(cpu, bus),
+        0xBD => lda::lda_absolute_x(cpu, bus),
         _ => {
             println!(
                 "Unimplemented opcode: 0x{:02X} at PC: 0x{:04X}",
