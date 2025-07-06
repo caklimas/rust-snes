@@ -31,6 +31,35 @@ pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let offset = read_byte(bus, (cpu.registers.pc + 1).into());
+    let base_address = cpu.registers.d + offset as u16;
+    let target_address = (base_address + cpu.registers.x) as u32;
+    let mut cycles = 0;
+
+    if is_8bit_mode(cpu) {
+        let value = read_byte(bus, target_address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        cycles = 4;
+    } else {
+        let value_low = read_byte(bus, target_address) as u16;
+        let value_high = read_byte(bus, target_address + 1) as u16;
+        let value = get_value_u16(value_low, value_high);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        cycles = 5;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    if page_crossed(target_address as u16, base_address) {
+        cycles += 1;
+    }
+
+    cycles
+}
+
 pub fn lda_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let mut pc_increment = 2;
     let address = (cpu.registers.pc + 1) as u32;
@@ -131,6 +160,100 @@ pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     increment_program_counter(cpu, 3);
 
     if page_crossed(target_address as u16, base_address) {
+        cycles += 1;
+    }
+
+    cycles
+}
+
+pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let offset = read_byte(bus, (cpu.registers.pc + 1) as u32) as u16;
+    let pointer_address = (cpu.registers.d + offset) as u32;
+
+    let target_address_low = read_byte(bus, pointer_address) as u16;
+    let target_address_high = read_byte(bus, pointer_address + 1) as u16;
+    let target_address = ((target_address_high << 8) | target_address_low) as u32;
+    let mut cycles = 0;
+
+    if is_8bit_mode(cpu) {
+        let value = read_byte(bus, target_address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        cycles = 5;
+    } else {
+        let value_low = read_byte(bus, target_address) as u16;
+        let value_high = read_byte(bus, target_address + 1) as u16;
+        let value = get_value_u16(value_low, value_high);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        cycles = 6;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    cycles
+}
+
+pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let offset = read_byte(bus, (cpu.registers.pc + 1) as u32) as u16;
+    let base_pointer_address = (cpu.registers.d + offset) as u32;
+    let pointer_address = base_pointer_address + (cpu.registers.x as u32);
+
+    let target_address_low = read_byte(bus, pointer_address) as u16;
+    let target_address_high = read_byte(bus, pointer_address + 1) as u16;
+    let target_address = ((target_address_high << 8) | target_address_low) as u32;
+    let mut cycles = 0;
+
+    if is_8bit_mode(cpu) {
+        let value = read_byte(bus, target_address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        cycles = 6;
+    } else {
+        let value_low = read_byte(bus, target_address) as u16;
+        let value_high = read_byte(bus, target_address + 1) as u16;
+        let value = get_value_u16(value_low, value_high);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        cycles = 7;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    if page_crossed(base_pointer_address as u16, pointer_address as u16) {
+        cycles += 1;
+    }
+
+    cycles
+}
+
+pub fn lda_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let offset = read_byte(bus, (cpu.registers.pc + 1) as u32) as u16;
+    let pointer_address = (cpu.registers.d + offset) as u32;
+
+    let base_address_low = read_byte(bus, pointer_address) as u16;
+    let base_address_high = read_byte(bus, pointer_address + 1) as u16;
+    let base_address = ((base_address_high << 8) | base_address_low) as u32;
+    let target_address = base_address + (cpu.registers.y as u32);
+    let mut cycles = 0;
+
+    if is_8bit_mode(cpu) {
+        let value = read_byte(bus, target_address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        cycles = 5;
+    } else {
+        let value_low = read_byte(bus, target_address) as u16;
+        let value_high = read_byte(bus, target_address + 1) as u16;
+        let value = get_value_u16(value_low, value_high);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        cycles = 6;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    if page_crossed(base_address as u16, target_address as u16) {
         cycles += 1;
     }
 
