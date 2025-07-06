@@ -47,7 +47,7 @@ impl Bus {
 
     pub fn write(&mut self, address: u32, value: u8) {
         match address {
-            NMI_STATUS_REGISTER => self.write_nmi_status(),
+            NMI_STATUS_REGISTER => self.write_nmi_status(value),
             addr if WRAM_RANGE.contains(&addr) => self.wram.write(&address, value),
             addr if PPU_REGISTERS_RANGE.contains(&addr) => {}
             addr if APU_REGISTERS_RANGE.contains(&addr) => {}

@@ -8,6 +8,8 @@ pub mod sta;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
+        0x85 => sta::sta_direct(cpu, bus),
+        0x95 => sta::sta_direct_x(cpu, bus),
         0xA1 => lda::lda_indirect_x(cpu, bus),
         0xA5 => lda::lda_direct(cpu, bus),
         0xA9 => lda::lda_immediate(cpu, bus),
@@ -37,7 +39,10 @@ fn read_byte(bus: &mut Bus, address: u32) -> u8 {
     bus.read(address)
 }
 
-fn write_word(bus: &mut Bus, address: u32, value: u16) -> u16 {}
+fn write_word(bus: &mut Bus, address: u32, value: u16) {
+    write_byte(bus, address, (value as u8) & 0xFF);
+    write_byte(bus, address + 1, ((value >> 8) & 0xFF) as u8);
+}
 
 fn write_byte(bus: &mut Bus, address: u32, value: u8) {
     bus.write(address, value);
@@ -53,4 +58,8 @@ fn is_negative_u16(value: u16) -> bool {
 
 fn is_8bit_mode(cpu: &Cpu) -> bool {
     cpu.registers.p.contains(ProcessorStatus::MEMORY_WIDTH)
+}
+
+fn increment_program_counter(cpu: &mut Cpu, value: u16) {
+    cpu.registers.pc += value;
 }

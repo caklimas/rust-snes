@@ -1,7 +1,10 @@
 use crate::{
     cpu::{
         Cpu,
-        opcodes::{is_8bit_mode, is_negative_u8, is_negative_u16, read_byte, read_word},
+        opcodes::{
+            increment_program_counter, is_8bit_mode, is_negative_u8, is_negative_u16, read_byte,
+            read_word,
+        },
         processor_status::ProcessorStatus,
     },
     memory::bus::Bus,
@@ -280,10 +283,6 @@ fn set_accumulator_u8(cpu: &mut Cpu, value: u8) {
 
 fn set_accumulator_u16(cpu: &mut Cpu, value: u16) {
     cpu.registers.a = value;
-}
-
-fn increment_program_counter(cpu: &mut Cpu, value: u16) {
-    cpu.registers.pc += value;
 }
 
 fn get_value_u16(value_low: u16, value_high: u16) -> u16 {
