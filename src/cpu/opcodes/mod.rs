@@ -4,6 +4,7 @@ use crate::{
 };
 
 pub mod lda;
+pub mod sta;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
@@ -34,6 +35,12 @@ fn read_word(bus: &mut Bus, address: u32) -> u16 {
 
 fn read_byte(bus: &mut Bus, address: u32) -> u8 {
     bus.read(address)
+}
+
+fn write_word(bus: &mut Bus, address: u32, value: u16) -> u16 {}
+
+fn write_byte(bus: &mut Bus, address: u32, value: u8) {
+    bus.write(address, value);
 }
 
 fn is_negative_u8(value: u8) -> bool {

@@ -45,6 +45,17 @@ impl Bus {
         }
     }
 
+    pub fn write(&mut self, address: u32, value: u8) {
+        match address {
+            NMI_STATUS_REGISTER => self.write_nmi_status(),
+            addr if WRAM_RANGE.contains(&addr) => self.wram.write(&address, value),
+            addr if PPU_REGISTERS_RANGE.contains(&addr) => {}
+            addr if APU_REGISTERS_RANGE.contains(&addr) => {}
+            addr if CARTRIDGE_ROM_RANGE.contains(&addr) => {}
+            _ => {}
+        }
+    }
+
     fn read_nmi_status(&mut self) -> u8 {
         if self.nmi_status_value == 0x42 {
             self.nmi_status_value = 0xC2;
@@ -53,5 +64,9 @@ impl Bus {
         }
 
         self.nmi_status_value
+    }
+
+    fn write_nmi_status(&mut self, value: u8) {
+        self.nmi_status_value = value;
     }
 }
