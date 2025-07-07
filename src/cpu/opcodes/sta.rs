@@ -122,3 +122,48 @@ pub fn sta_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     cycles
 }
+
+pub fn sta_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let offset = read_byte(bus, (cpu.registers.pc + 1) as u32) as u16;
+    let base_pointer_address = (cpu.registers.d + offset) as u32;
+    let pointer_address = base_pointer_address + (cpu.registers.x as u32);
+
+    let target_address_low = read_byte(bus, pointer_address) as u16;
+    let target_address_high = read_byte(bus, pointer_address + 1) as u16;
+    let target_address = ((target_address_high << 8) | target_address_low) as u32;
+    let cycles;
+
+    if is_8bit_mode(cpu) {
+        write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
+        cycles = 6;
+    } else {
+        write_word(bus, target_address, cpu.registers.a);
+        cycles = 7;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    cycles
+}
+
+pub fn sta_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let offset = read_byte(bus, (cpu.registers.pc + 1).into());
+    let pointer_address = (cpu.registers.d + (offset as u16)) as u32;
+    let base_address_low = read_byte(bus, pointer_address) as u16;
+    let base_address_high = read_byte(bus, pointer_address + 1) as u16;
+    let base_address = ((base_address_high << 8) | base_address_low) as u32;
+    let target_address = base_address + (cpu.registers.y as u32);
+    let cycles;
+
+    if is_8bit_mode(cpu) {
+        write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
+        cycles = 6;
+    } else {
+        write_word(bus, target_address, cpu.registers.a);
+        cycles = 7;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    cycles
+}
