@@ -5,12 +5,15 @@ use crate::{
 
 pub mod lda;
 pub mod sta;
+pub mod stx;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
         0x81 => sta::sta_indirect_x(cpu, bus),
         0x85 => sta::sta_direct(cpu, bus),
+        0x86 => stx::stx_direct(cpu, bus),
         0x8D => sta::sta_absolute(cpu, bus),
+        0x8E => stx::stx_absolute(cpu, bus),
         0x91 => sta::sta_indirect_y(cpu, bus),
         0x92 => sta::sta_indirect(cpu, bus),
         0x95 => sta::sta_direct_x(cpu, bus),
@@ -62,8 +65,12 @@ fn is_negative_u16(value: u16) -> bool {
     value & 0x8000 != 0
 }
 
-fn is_8bit_mode(cpu: &Cpu) -> bool {
+fn is_8bit_mode_m(cpu: &Cpu) -> bool {
     cpu.registers.p.contains(ProcessorStatus::MEMORY_WIDTH)
+}
+
+fn is_8bit_mode_x(cpu: &Cpu) -> bool {
+    cpu.registers.p.contains(ProcessorStatus::INDEX_WIDTH)
 }
 
 fn increment_program_counter(cpu: &mut Cpu, value: u16) {

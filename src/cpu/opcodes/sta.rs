@@ -2,7 +2,7 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode, read_byte, read_word, write_byte, write_word,
+            increment_program_counter, is_8bit_mode_m, read_byte, read_word, write_byte, write_word,
         },
     },
     memory::bus::Bus,
@@ -13,7 +13,7 @@ pub fn sta_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_byte(bus, (cpu.registers.pc + 1) as u32);
     let target_address = (cpu.registers.d + (offset as u16)) as u32;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
         cycles = 3;
     } else {
@@ -32,7 +32,7 @@ pub fn sta_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let base_address = (cpu.registers.d + (offset as u16)) as u32;
     let target_address = base_address + cpu.registers.x as u32;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
         cycles = 4;
     } else {
@@ -51,7 +51,7 @@ pub fn sta_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = ((address_high as u16) << 8 | (address_low as u16)).into();
     let cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
         cycles = 4;
     } else {
@@ -71,7 +71,7 @@ pub fn sta_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = (base_address + cpu.registers.x) as u32;
     let cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
         cycles = 5;
     } else {
@@ -91,7 +91,7 @@ pub fn sta_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = (base_address + cpu.registers.y) as u32;
     let cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
         cycles = 5;
     } else {
@@ -110,7 +110,7 @@ pub fn sta_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = read_word(bus, pointer_address.into()) as u32;
     let cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
         cycles = 5;
     } else {
@@ -133,7 +133,7 @@ pub fn sta_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = ((target_address_high << 8) | target_address_low) as u32;
     let cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
         cycles = 6;
     } else {
@@ -155,7 +155,7 @@ pub fn sta_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = base_address + (cpu.registers.y as u32);
     let cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         write_byte(bus, target_address, (cpu.registers.a as u8) & 0xFF);
         cycles = 6;
     } else {

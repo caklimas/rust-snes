@@ -2,7 +2,7 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode, is_negative_u8, is_negative_u16, read_byte,
+            increment_program_counter, is_8bit_mode_m, is_negative_u8, is_negative_u16, read_byte,
             read_word,
         },
         processor_status::ProcessorStatus,
@@ -15,7 +15,7 @@ pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = (cpu.registers.d + offset as u16) as u32;
     let cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         let value = read_byte(bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
@@ -40,7 +40,7 @@ pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = (base_address + cpu.registers.x) as u32;
     let mut cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         let value = read_byte(bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
@@ -66,7 +66,7 @@ pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 pub fn lda_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let mut pc_increment = 2;
     let address = (cpu.registers.pc + 1) as u32;
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         let value = read_byte(bus, address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
@@ -80,7 +80,7 @@ pub fn lda_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     increment_program_counter(cpu, pc_increment);
 
-    if is_8bit_mode(cpu) { 2 } else { 3 }
+    if is_8bit_mode_m(cpu) { 2 } else { 3 }
 }
 
 pub fn lda_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
@@ -89,7 +89,7 @@ pub fn lda_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = ((address_high as u16) << 8 | (address_low as u16)).into();
     let cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         let value = read_byte(bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
@@ -116,7 +116,7 @@ pub fn lda_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = (base_address + cpu.registers.x) as u32;
     let mut cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         let value = read_byte(bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
@@ -146,7 +146,7 @@ pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = (base_address + cpu.registers.y) as u32;
     let mut cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         let value = read_byte(bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
@@ -178,7 +178,7 @@ pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = ((target_address_high << 8) | target_address_low) as u32;
     let cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         let value = read_byte(bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
@@ -207,7 +207,7 @@ pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = ((target_address_high << 8) | target_address_low) as u32;
     let mut cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         let value = read_byte(bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
@@ -240,7 +240,7 @@ pub fn lda_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = base_address + (cpu.registers.y as u32);
     let mut cycles;
 
-    if is_8bit_mode(cpu) {
+    if is_8bit_mode_m(cpu) {
         let value = read_byte(bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
