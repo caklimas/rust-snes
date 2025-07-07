@@ -9,7 +9,11 @@ pub mod sta;
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
         0x85 => sta::sta_direct(cpu, bus),
+        0x8D => sta::sta_absolute(cpu, bus),
+        0x92 => sta::sta_indirect(cpu, bus),
         0x95 => sta::sta_direct_x(cpu, bus),
+        0x99 => sta::sta_absolute_y(cpu, bus),
+        0x9D => sta::sta_absolute_x(cpu, bus),
         0xA1 => lda::lda_indirect_x(cpu, bus),
         0xA5 => lda::lda_direct(cpu, bus),
         0xA9 => lda::lda_immediate(cpu, bus),
