@@ -24,6 +24,24 @@ pub fn stx_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+pub fn stx_direct_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let offset = read_byte(bus, (cpu.registers.pc + 1) as u32);
+    let target_address = (cpu.registers.d + (offset as u16) + cpu.registers.y) as u32;
+    let cycles;
+
+    if is_8bit_mode_x(cpu) {
+        write_byte(bus, target_address, (cpu.registers.x as u8) & 0xFF);
+        cycles = 4;
+    } else {
+        write_word(bus, target_address, cpu.registers.x);
+        cycles = 5;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    cycles
+}
+
 pub fn stx_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let address_low = read_byte(bus, (cpu.registers.pc + 1).into());
     let address_high = read_byte(bus, (cpu.registers.pc + 2).into());

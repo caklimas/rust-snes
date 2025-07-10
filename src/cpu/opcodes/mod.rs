@@ -17,6 +17,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x91 => sta::sta_indirect_y(cpu, bus),
         0x92 => sta::sta_indirect(cpu, bus),
         0x95 => sta::sta_direct_x(cpu, bus),
+        0x96 => stx::stx_direct_y(cpu, bus),
         0x99 => sta::sta_absolute_y(cpu, bus),
         0x9D => sta::sta_absolute_x(cpu, bus),
         0xA1 => lda::lda_indirect_x(cpu, bus),
