@@ -3,7 +3,7 @@ use crate::{
         Cpu,
         opcodes::{
             increment_program_counter, is_8bit_mode_m, is_negative_u8, is_negative_u16, read_byte,
-            read_word,
+            read_offset, read_word,
         },
         processor_status::ProcessorStatus,
     },
@@ -11,8 +11,8 @@ use crate::{
 };
 
 pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_byte(bus, (cpu.registers.pc + 1).into());
-    let target_address = (cpu.registers.d + offset as u16) as u32;
+    let offset = read_offset(cpu, bus);
+    let target_address = (cpu.registers.d + offset) as u32;
     let cycles;
 
     if is_8bit_mode_m(cpu) {
@@ -35,8 +35,8 @@ pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_byte(bus, (cpu.registers.pc + 1).into());
-    let base_address = cpu.registers.d + offset as u16;
+    let offset = read_offset(cpu, bus);
+    let base_address = cpu.registers.d + offset;
     let target_address = (base_address + cpu.registers.x) as u32;
     let mut cycles;
 
@@ -170,7 +170,7 @@ pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_byte(bus, (cpu.registers.pc + 1) as u32) as u16;
+    let offset = read_offset(cpu, bus);
     let pointer_address = (cpu.registers.d + offset) as u32;
 
     let target_address_low = read_byte(bus, pointer_address) as u16;
@@ -198,7 +198,7 @@ pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_byte(bus, (cpu.registers.pc + 1) as u32) as u16;
+    let offset = read_offset(cpu, bus);
     let base_pointer_address = (cpu.registers.d + offset) as u32;
     let pointer_address = base_pointer_address + (cpu.registers.x as u32);
 
@@ -231,7 +231,7 @@ pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_byte(bus, (cpu.registers.pc + 1) as u32) as u16;
+    let offset = read_offset(cpu, bus);
     let pointer_address = (cpu.registers.d + offset) as u32;
 
     let base_address_low = read_byte(bus, pointer_address) as u16;

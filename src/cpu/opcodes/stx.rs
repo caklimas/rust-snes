@@ -1,14 +1,17 @@
 use crate::{
     cpu::{
         Cpu,
-        opcodes::{increment_program_counter, is_8bit_mode_x, read_byte, write_byte, write_word},
+        opcodes::{
+            increment_program_counter, is_8bit_mode_x, read_byte, read_offset, write_byte,
+            write_word,
+        },
     },
     memory::bus::Bus,
 };
 
 pub fn stx_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_byte(bus, (cpu.registers.pc + 1).into());
-    let target_address = (cpu.registers.d + (offset as u16)) as u32;
+    let offset = read_offset(cpu, bus);
+    let target_address = (cpu.registers.d + offset) as u32;
     let cycles;
 
     if is_8bit_mode_x(cpu) {
@@ -25,8 +28,8 @@ pub fn stx_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn stx_direct_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_byte(bus, (cpu.registers.pc + 1) as u32);
-    let target_address = (cpu.registers.d + (offset as u16) + cpu.registers.y) as u32;
+    let offset = read_offset(cpu, bus);
+    let target_address = (cpu.registers.d + offset + cpu.registers.y) as u32;
     let cycles;
 
     if is_8bit_mode_x(cpu) {

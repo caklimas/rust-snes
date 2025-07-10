@@ -6,16 +6,20 @@ use crate::{
 pub mod lda;
 pub mod sta;
 pub mod stx;
+pub mod sty;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
         0x81 => sta::sta_indirect_x(cpu, bus),
+        0x84 => sty::sty_direct(cpu, bus),
         0x85 => sta::sta_direct(cpu, bus),
         0x86 => stx::stx_direct(cpu, bus),
+        0x8C => sty::sty_absolute(cpu, bus),
         0x8D => sta::sta_absolute(cpu, bus),
         0x8E => stx::stx_absolute(cpu, bus),
         0x91 => sta::sta_indirect_y(cpu, bus),
         0x92 => sta::sta_indirect(cpu, bus),
+        0x94 => sty::sty_direct_x(cpu, bus),
         0x95 => sta::sta_direct_x(cpu, bus),
         0x96 => stx::stx_direct_y(cpu, bus),
         0x99 => sta::sta_absolute_y(cpu, bus),
@@ -37,6 +41,10 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
             std::process::exit(1);
         }
     }
+}
+
+fn read_offset(cpu: &Cpu, bus: &mut Bus) -> u16 {
+    read_byte(bus, (cpu.registers.pc + 1).into()).into()
 }
 
 fn read_word(bus: &mut Bus, address: u32) -> u16 {
