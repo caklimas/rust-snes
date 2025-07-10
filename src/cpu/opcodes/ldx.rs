@@ -2,7 +2,7 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode_x, read_byte, read_offset_byte,
+            increment_program_counter, is_8bit_mode_x, page_crossed, read_byte, read_offset_byte,
             read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
         },
     },
@@ -91,6 +91,32 @@ pub fn ldx_direct_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     }
 
     increment_program_counter(cpu, 2);
+
+    cycles
+}
+
+pub fn ldx_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let base_address = read_offset_word(cpu, bus);
+    let target_address = (base_address + cpu.registers.y) as u32;
+    let mut cycles;
+
+    if is_8bit_mode_x(cpu) {
+        let value = read_byte(bus, target_address);
+        cpu.registers.x = value as u16;
+        set_nz_flags_u8(cpu, value);
+        cycles = 4;
+    } else {
+        let value = read_word(bus, target_address);
+        cpu.registers.x = value;
+        set_nz_flags_u16(cpu, value);
+        cycles = 5;
+    }
+
+    if page_crossed(base_address, target_address as u16) {
+        cycles += 1;
+    }
+
+    increment_program_counter(cpu, 3);
 
     cycles
 }

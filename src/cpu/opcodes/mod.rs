@@ -38,6 +38,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xB6 => ldx::ldx_direct_y(cpu, bus),
         0xB9 => lda::lda_absolute_y(cpu, bus),
         0xBD => lda::lda_absolute_x(cpu, bus),
+        0xBE => ldx::ldx_absolute_y(cpu, bus),
         _ => {
             println!(
                 "Unimplemented opcode: 0x{:02X} at PC: 0x{:04X}",
@@ -110,4 +111,8 @@ fn set_nz_flags_u16(cpu: &mut Cpu, value: u16) {
     cpu.registers
         .p
         .set(ProcessorStatus::NEGATIVE, is_negative_u16(value));
+}
+
+fn page_crossed(base_address: u16, target_address: u16) -> bool {
+    (base_address & 0xFF00) != (target_address & 0xFF00)
 }

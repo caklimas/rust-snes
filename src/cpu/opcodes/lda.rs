@@ -2,8 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode_m, is_negative_u8, is_negative_u16, read_byte,
-            read_offset_byte, read_word, set_nz_flags_u8, set_nz_flags_u16,
+            increment_program_counter, is_8bit_mode_m, is_negative_u8, is_negative_u16,
+            page_crossed, read_byte, read_offset_byte, read_word, set_nz_flags_u8,
+            set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
     },
@@ -273,8 +274,4 @@ fn set_accumulator_u16(cpu: &mut Cpu, value: u16) {
 
 fn get_value_u16(value_low: u16, value_high: u16) -> u16 {
     (value_high << 8) | value_low
-}
-
-fn page_crossed(target_address: u16, base_address: u16) -> bool {
-    (base_address & 0xFF00) != (target_address & 0xFF00)
 }
