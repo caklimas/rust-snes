@@ -4,6 +4,7 @@ use crate::{
 };
 
 pub mod lda;
+pub mod ldx;
 pub mod sta;
 pub mod stx;
 pub mod sty;
@@ -25,12 +26,16 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x99 => sta::sta_absolute_y(cpu, bus),
         0x9D => sta::sta_absolute_x(cpu, bus),
         0xA1 => lda::lda_indirect_x(cpu, bus),
+        0xA2 => ldx::ldx_immediate(cpu, bus),
         0xA5 => lda::lda_direct(cpu, bus),
+        0xA6 => ldx::ldx_direct(cpu, bus),
         0xA9 => lda::lda_immediate(cpu, bus),
         0xAD => lda::lda_absolute(cpu, bus),
+        0xAE => ldx::ldx_absolute(cpu, bus),
         0xB1 => lda::lda_indirect_y(cpu, bus),
         0xB2 => lda::lda_indirect(cpu, bus),
         0xB5 => lda::lda_direct_x(cpu, bus),
+        0xB6 => ldx::ldx_direct_y(cpu, bus),
         0xB9 => lda::lda_absolute_y(cpu, bus),
         0xBD => lda::lda_absolute_x(cpu, bus),
         _ => {
@@ -43,8 +48,15 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     }
 }
 
-fn read_offset(cpu: &Cpu, bus: &mut Bus) -> u16 {
+fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
     read_byte(bus, (cpu.registers.pc + 1).into()).into()
+}
+
+fn read_offset_word(cpu: &Cpu, bus: &mut Bus) -> u16 {
+    let offset_low = read_byte(bus, (cpu.registers.pc + 1).into());
+    let offset_high = read_byte(bus, (cpu.registers.pc + 2).into());
+
+    (offset_high as u16) << 8 | (offset_low as u16)
 }
 
 fn read_word(bus: &mut Bus, address: u32) -> u16 {
@@ -84,4 +96,18 @@ fn is_8bit_mode_x(cpu: &Cpu) -> bool {
 
 fn increment_program_counter(cpu: &mut Cpu, value: u16) {
     cpu.registers.pc += value;
+}
+
+fn set_nz_flags_u8(cpu: &mut Cpu, value: u8) {
+    cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
+    cpu.registers
+        .p
+        .set(ProcessorStatus::NEGATIVE, is_negative_u8(value));
+}
+
+fn set_nz_flags_u16(cpu: &mut Cpu, value: u16) {
+    cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
+    cpu.registers
+        .p
+        .set(ProcessorStatus::NEGATIVE, is_negative_u16(value));
 }

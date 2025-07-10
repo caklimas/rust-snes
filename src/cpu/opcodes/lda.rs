@@ -3,7 +3,7 @@ use crate::{
         Cpu,
         opcodes::{
             increment_program_counter, is_8bit_mode_m, is_negative_u8, is_negative_u16, read_byte,
-            read_offset, read_word,
+            read_offset_byte, read_word, set_nz_flags_u8, set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
     },
@@ -11,7 +11,7 @@ use crate::{
 };
 
 pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let target_address = (cpu.registers.d + offset) as u32;
     let cycles;
 
@@ -35,7 +35,7 @@ pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let base_address = cpu.registers.d + offset;
     let target_address = (base_address + cpu.registers.x) as u32;
     let mut cycles;
@@ -170,7 +170,7 @@ pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let pointer_address = (cpu.registers.d + offset) as u32;
 
     let target_address_low = read_byte(bus, pointer_address) as u16;
@@ -198,7 +198,7 @@ pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let base_pointer_address = (cpu.registers.d + offset) as u32;
     let pointer_address = base_pointer_address + (cpu.registers.x as u32);
 
@@ -231,7 +231,7 @@ pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let pointer_address = (cpu.registers.d + offset) as u32;
 
     let base_address_low = read_byte(bus, pointer_address) as u16;
@@ -261,20 +261,6 @@ pub fn lda_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     }
 
     cycles
-}
-
-fn set_nz_flags_u8(cpu: &mut Cpu, value: u8) {
-    cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
-    cpu.registers
-        .p
-        .set(ProcessorStatus::NEGATIVE, is_negative_u8(value));
-}
-
-fn set_nz_flags_u16(cpu: &mut Cpu, value: u16) {
-    cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
-    cpu.registers
-        .p
-        .set(ProcessorStatus::NEGATIVE, is_negative_u16(value));
 }
 
 fn set_accumulator_u8(cpu: &mut Cpu, value: u8) {

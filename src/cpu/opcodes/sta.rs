@@ -2,7 +2,7 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode_m, read_byte, read_offset, read_word,
+            increment_program_counter, is_8bit_mode_m, read_byte, read_offset_byte, read_word,
             write_byte, write_word,
         },
     },
@@ -11,7 +11,7 @@ use crate::{
 
 pub fn sta_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let target_address = (cpu.registers.d + offset) as u32;
 
     if is_8bit_mode_m(cpu) {
@@ -29,7 +29,7 @@ pub fn sta_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
 pub fn sta_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let base_address = (cpu.registers.d + offset) as u32;
     let target_address = base_address + cpu.registers.x as u32;
 
@@ -106,7 +106,7 @@ pub fn sta_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn sta_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
     let target_address = read_word(bus, pointer_address.into()) as u32;
     let cycles;
@@ -125,7 +125,7 @@ pub fn sta_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn sta_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let base_pointer_address = (cpu.registers.d + offset) as u32;
     let pointer_address = base_pointer_address + (cpu.registers.x as u32);
 
@@ -148,7 +148,7 @@ pub fn sta_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn sta_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let pointer_address = (cpu.registers.d + offset) as u32;
     let base_address_low = read_byte(bus, pointer_address) as u16;
     let base_address_high = read_byte(bus, pointer_address + 1) as u16;

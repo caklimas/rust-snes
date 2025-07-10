@@ -2,7 +2,7 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode_x, read_byte, read_offset, write_byte,
+            increment_program_counter, is_8bit_mode_x, read_byte, read_offset_byte, write_byte,
             write_word,
         },
     },
@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub fn sty_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let target_address = (cpu.registers.d + offset) as u32;
     let cycles;
 
@@ -47,7 +47,7 @@ pub fn sty_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn sty_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset(cpu, bus);
+    let offset = read_offset_byte(cpu, bus);
     let target_address = (cpu.registers.d + offset + cpu.registers.x) as u32;
     let cycles;
 
