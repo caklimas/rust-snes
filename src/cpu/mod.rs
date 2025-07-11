@@ -4,10 +4,7 @@ pub mod registers;
 
 pub use registers::Registers;
 
-use crate::{
-    cpu::{opcodes::execute_opcode, processor_status::ProcessorStatus},
-    memory::{addresses, bus::Bus},
-};
+use crate::{cpu::opcodes::execute_opcode, memory::bus::Bus};
 
 #[derive(Debug, Default)]
 pub struct Cpu {

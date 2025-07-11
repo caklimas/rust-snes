@@ -190,8 +190,6 @@ pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
         set_nz_flags_u8(cpu, value);
         cycles = 6;
     } else {
-        let value_low = read_byte(cpu, bus, target_address) as u16;
-        let value_high = read_byte(cpu, bus, target_address + 1) as u16;
         let value = read_word(cpu, bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
@@ -242,8 +240,4 @@ fn set_accumulator_u8(cpu: &mut Cpu, value: u8) {
 
 fn set_accumulator_u16(cpu: &mut Cpu, value: u16) {
     cpu.registers.a = value;
-}
-
-fn get_value_u16(value_low: u16, value_high: u16) -> u16 {
-    (value_high << 8) | value_low
 }

@@ -16,13 +16,13 @@ pub fn adc_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
-        perform_addition_with_carry_u8(cpu, bus, value);
+        perform_addition_with_carry_u8(cpu, value);
 
         pc_increment = 2;
         cycles = 2;
     } else {
         let value = read_offset_word(cpu, bus);
-        perform_addition_with_carry_u16(cpu, bus, value);
+        perform_addition_with_carry_u16(cpu, value);
 
         pc_increment = 3;
         cycles = 3;
@@ -40,12 +40,12 @@ pub fn adc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, source_address) as u16;
-        perform_addition_with_carry_u8(cpu, bus, value);
+        perform_addition_with_carry_u8(cpu, value);
 
         cycles = 3;
     } else {
         let value = read_word(cpu, bus, source_address);
-        perform_addition_with_carry_u16(cpu, bus, value);
+        perform_addition_with_carry_u16(cpu, value);
 
         cycles = 4;
     }
@@ -55,23 +55,7 @@ pub fn adc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn adc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
-    let offset = read_offset_word(cpu, bus);
-
-    if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, offset);
-        cycles = 4;
-    } else {
-        cycles = 5;
-    }
-
-    increment_program_counter(cpu, 3);
-
-    cycles
-}
-
-fn perform_addition_with_carry_u8(cpu: &mut Cpu, bus: &mut Bus, value: u16) {
+fn perform_addition_with_carry_u8(cpu: &mut Cpu, value: u16) {
     let old_accumulator = cpu.registers.a;
     let carry_in = get_carry_in(cpu);
     let result = (old_accumulator & 0xFF) + value + carry_in;
@@ -82,7 +66,7 @@ fn perform_addition_with_carry_u8(cpu: &mut Cpu, bus: &mut Bus, value: u16) {
     set_v_flag_u8(cpu, old_accumulator, result, value);
 }
 
-fn perform_addition_with_carry_u16(cpu: &mut Cpu, bus: &mut Bus, value: u16) {
+fn perform_addition_with_carry_u16(cpu: &mut Cpu, value: u16) {
     let old_accumulator = cpu.registers.a;
     let carry_in = get_carry_in(cpu);
     let result = (old_accumulator as u32) + (value as u32) + (carry_in as u32);

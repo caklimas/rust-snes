@@ -15,7 +15,7 @@ pub fn sty_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
 
     if is_8bit_mode_x(cpu) {
-        write_byte(bus, target_address, (cpu.registers.y as u8 & 0xFF));
+        write_byte(bus, target_address, cpu.registers.y as u8 & 0xFF);
         cycles = 3;
     } else {
         write_word(bus, target_address, cpu.registers.y);
