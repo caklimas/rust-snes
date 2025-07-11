@@ -15,6 +15,9 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
         0x65 => adc::adc_direct(cpu, bus),
         0x69 => adc::adc_immediate(cpu, bus),
+        0x6D => adc::adc_absolute(cpu, bus),
+        0x75 => adc::adc_direct_x(cpu, bus),
+        0x7D => adc::adc_absolute_x(cpu, bus),
         0x81 => sta::sta_indirect_x(cpu, bus),
         0x84 => sty::sty_direct(cpu, bus),
         0x85 => sta::sta_direct(cpu, bus),

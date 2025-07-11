@@ -2,8 +2,8 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_carry_in, increment_program_counter, is_8bit_mode_m, read_byte, read_offset_byte,
-            read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
+            get_carry_in, increment_program_counter, is_8bit_mode_m, page_crossed, read_byte,
+            read_offset_byte, read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
     },
@@ -51,6 +51,75 @@ pub fn adc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     }
 
     increment_program_counter(cpu, 2);
+
+    cycles
+}
+
+pub fn adc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let cycles;
+    let address = read_offset_word(cpu, bus);
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_byte(cpu, bus, address) as u16;
+        perform_addition_with_carry_u8(cpu, value);
+
+        cycles = 4;
+    } else {
+        let value = read_word(cpu, bus, address);
+        perform_addition_with_carry_u16(cpu, value);
+
+        cycles = 5;
+    }
+
+    increment_program_counter(cpu, 3);
+
+    cycles
+}
+
+pub fn adc_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let cycles;
+    let offset = read_offset_byte(cpu, bus);
+    let address = cpu.registers.d + offset + cpu.registers.x;
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_byte(cpu, bus, address) as u16;
+        perform_addition_with_carry_u8(cpu, value);
+
+        cycles = 4;
+    } else {
+        let value = read_word(cpu, bus, address);
+        perform_addition_with_carry_u16(cpu, value);
+
+        cycles = 5;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    cycles
+}
+
+pub fn adc_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let mut cycles;
+    let base_address = read_offset_word(cpu, bus);
+    let address = base_address + cpu.registers.x;
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_byte(cpu, bus, address) as u16;
+        perform_addition_with_carry_u8(cpu, value);
+
+        cycles = 4;
+    } else {
+        let value = read_word(cpu, bus, address);
+        perform_addition_with_carry_u16(cpu, value);
+
+        cycles = 5;
+    }
+
+    if page_crossed(base_address, address) {
+        cycles += 1;
+    }
+
+    increment_program_counter(cpu, 3);
 
     cycles
 }
