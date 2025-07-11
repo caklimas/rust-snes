@@ -46,8 +46,8 @@ pub fn stx_direct_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn stx_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let address_low = read_byte(bus, (cpu.registers.pc + 1).into());
-    let address_high = read_byte(bus, (cpu.registers.pc + 2).into());
+    let address_low = read_byte(cpu, bus, (cpu.registers.pc + 1).into());
+    let address_high = read_byte(cpu, bus, (cpu.registers.pc + 2).into());
     let target_address = ((address_high as u16) << 8 | (address_low as u16)).into();
     let cycles;
 

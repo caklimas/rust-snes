@@ -59,24 +59,25 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
 }
 
 fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
-    read_byte(bus, (cpu.registers.pc + 1).into()).into()
+    read_byte(cpu, bus, (cpu.registers.pc + 1).into()).into()
 }
 
 fn read_offset_word(cpu: &Cpu, bus: &mut Bus) -> u16 {
-    let offset_low = read_byte(bus, (cpu.registers.pc + 1).into());
-    let offset_high = read_byte(bus, (cpu.registers.pc + 2).into());
+    let offset_low = read_byte(cpu, bus, (cpu.registers.pc + 1).into());
+    let offset_high = read_byte(cpu, bus, (cpu.registers.pc + 2).into());
 
     (offset_high as u16) << 8 | (offset_low as u16)
 }
 
-fn read_word(bus: &mut Bus, address: u32) -> u16 {
-    let low = read_byte(bus, address);
-    let high = read_byte(bus, address + 1);
+fn read_word(cpu: &Cpu, bus: &mut Bus, address: u16) -> u16 {
+    let low = read_byte(cpu, bus, address);
+    let high = read_byte(cpu, bus, address + 1);
     (high as u16) << 8 | (low as u16)
 }
 
-fn read_byte(bus: &mut Bus, address: u32) -> u8 {
-    bus.read(address)
+fn read_byte(cpu: &Cpu, bus: &mut Bus, address: u16) -> u8 {
+    let physical_address = ((cpu.registers.db as u32) << 16) | (address as u32);
+    bus.read(physical_address)
 }
 
 fn write_word(bus: &mut Bus, address: u32, value: u16) {

@@ -2,29 +2,25 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode_m, is_negative_u8, is_negative_u16,
-            page_crossed, read_byte, read_offset_byte, read_word, set_nz_flags_u8,
-            set_nz_flags_u16,
+            increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_offset_byte,
+            read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
         },
-        processor_status::ProcessorStatus,
     },
     memory::bus::Bus,
 };
 
 pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
-    let target_address = (cpu.registers.d + offset) as u32;
+    let target_address = cpu.registers.d + offset;
     let cycles;
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, target_address);
+        let value = read_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         cycles = 3;
     } else {
-        let value_low = read_byte(bus, target_address) as u16;
-        let value_high = read_byte(bus, target_address + 1) as u16;
-        let value = get_value_u16(value_low, value_high);
+        let value = read_word(cpu, bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         cycles = 4;
@@ -38,18 +34,16 @@ pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let base_address = cpu.registers.d + offset;
-    let target_address = (base_address + cpu.registers.x) as u32;
+    let target_address = base_address + cpu.registers.x;
     let mut cycles;
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, target_address);
+        let value = read_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         cycles = 4;
     } else {
-        let value_low = read_byte(bus, target_address) as u16;
-        let value_high = read_byte(bus, target_address + 1) as u16;
-        let value = get_value_u16(value_low, value_high);
+        let value = read_word(cpu, bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         cycles = 5;
@@ -66,13 +60,13 @@ pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
 pub fn lda_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let mut pc_increment = 2;
-    let address = (cpu.registers.pc + 1) as u32;
+    let address = cpu.registers.pc + 1;
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, address);
+        let value = read_byte(cpu, bus, address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
     } else {
-        let value = read_word(bus, address);
+        let value = read_word(cpu, bus, address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
 
@@ -85,20 +79,16 @@ pub fn lda_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let address_low = read_byte(bus, (cpu.registers.pc + 1).into());
-    let address_high = read_byte(bus, (cpu.registers.pc + 2).into());
-    let target_address = ((address_high as u16) << 8 | (address_low as u16)).into();
+    let target_address = read_offset_word(cpu, bus);
     let cycles;
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, target_address);
+        let value = read_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         cycles = 4
     } else {
-        let value_low = read_byte(bus, target_address) as u16;
-        let value_high = read_byte(bus, target_address + 1) as u16;
-        let value = get_value_u16(value_low, value_high);
+        let value = read_word(cpu, bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
 
@@ -111,21 +101,17 @@ pub fn lda_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let address_low = read_byte(bus, (cpu.registers.pc + 1).into());
-    let address_high = read_byte(bus, (cpu.registers.pc + 2).into());
-    let base_address = ((address_high as u16) << 8 | (address_low as u16)) as u16;
-    let target_address = (base_address + cpu.registers.x) as u32;
+    let base_address = read_offset_word(cpu, bus);
+    let target_address = base_address + cpu.registers.x;
     let mut cycles;
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, target_address);
+        let value = read_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         cycles = 4;
     } else {
-        let value_low = read_byte(bus, target_address) as u16;
-        let value_high = read_byte(bus, target_address + 1) as u16;
-        let value = get_value_u16(value_low, value_high);
+        let value = read_word(cpu, bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         cycles = 5;
@@ -133,7 +119,7 @@ pub fn lda_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     increment_program_counter(cpu, 3);
 
-    if page_crossed(target_address as u16, base_address) {
+    if page_crossed(base_address, target_address) {
         cycles += 1;
     }
 
@@ -141,21 +127,17 @@ pub fn lda_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let address_low = read_byte(bus, (cpu.registers.pc + 1).into());
-    let address_high = read_byte(bus, (cpu.registers.pc + 2).into());
-    let base_address = ((address_high as u16) << 8 | (address_low as u16)) as u16;
-    let target_address = (base_address + cpu.registers.y) as u32;
+    let offet = read_offset_word(cpu, bus);
+    let target_address = offet + cpu.registers.y;
     let mut cycles;
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, target_address);
+        let value = read_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         cycles = 4;
     } else {
-        let value_low = read_byte(bus, target_address) as u16;
-        let value_high = read_byte(bus, target_address + 1) as u16;
-        let value = get_value_u16(value_low, value_high);
+        let value = read_word(cpu, bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         cycles = 5;
@@ -163,7 +145,7 @@ pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     increment_program_counter(cpu, 3);
 
-    if page_crossed(target_address as u16, base_address) {
+    if page_crossed(offet as u16, target_address) {
         cycles += 1;
     }
 
@@ -172,22 +154,18 @@ pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
 pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
-    let pointer_address = (cpu.registers.d + offset) as u32;
+    let pointer_address = cpu.registers.d + offset;
 
-    let target_address_low = read_byte(bus, pointer_address) as u16;
-    let target_address_high = read_byte(bus, pointer_address + 1) as u16;
-    let target_address = ((target_address_high << 8) | target_address_low) as u32;
+    let target_address = read_word(cpu, bus, pointer_address);
     let cycles;
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, target_address);
+        let value = read_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         cycles = 5;
     } else {
-        let value_low = read_byte(bus, target_address) as u16;
-        let value_high = read_byte(bus, target_address + 1) as u16;
-        let value = get_value_u16(value_low, value_high);
+        let value = read_word(cpu, bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         cycles = 6;
@@ -200,23 +178,21 @@ pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
 pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
-    let base_pointer_address = (cpu.registers.d + offset) as u32;
-    let pointer_address = base_pointer_address + (cpu.registers.x as u32);
+    let base_pointer_address = cpu.registers.d + offset;
+    let pointer_address = base_pointer_address + cpu.registers.x;
 
-    let target_address_low = read_byte(bus, pointer_address) as u16;
-    let target_address_high = read_byte(bus, pointer_address + 1) as u16;
-    let target_address = ((target_address_high << 8) | target_address_low) as u32;
+    let target_address = read_word(cpu, bus, pointer_address);
     let mut cycles;
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, target_address);
+        let value = read_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         cycles = 6;
     } else {
-        let value_low = read_byte(bus, target_address) as u16;
-        let value_high = read_byte(bus, target_address + 1) as u16;
-        let value = get_value_u16(value_low, value_high);
+        let value_low = read_byte(cpu, bus, target_address) as u16;
+        let value_high = read_byte(cpu, bus, target_address + 1) as u16;
+        let value = read_word(cpu, bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         cycles = 7;
@@ -233,23 +209,19 @@ pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
 pub fn lda_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
-    let pointer_address = (cpu.registers.d + offset) as u32;
+    let pointer_address = cpu.registers.d + offset;
 
-    let base_address_low = read_byte(bus, pointer_address) as u16;
-    let base_address_high = read_byte(bus, pointer_address + 1) as u16;
-    let base_address = ((base_address_high << 8) | base_address_low) as u32;
-    let target_address = base_address + (cpu.registers.y as u32);
+    let base_address = read_word(cpu, bus, pointer_address);
+    let target_address = base_address + cpu.registers.y;
     let mut cycles;
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, target_address);
+        let value = read_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         cycles = 5;
     } else {
-        let value_low = read_byte(bus, target_address) as u16;
-        let value_high = read_byte(bus, target_address + 1) as u16;
-        let value = get_value_u16(value_low, value_high);
+        let value = read_word(cpu, bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         cycles = 6;

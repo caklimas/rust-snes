@@ -36,21 +36,37 @@ pub fn adc_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 pub fn adc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
     let offset = read_offset_byte(cpu, bus);
-    let source_address = (cpu.registers.d + offset) as u32;
+    let source_address = cpu.registers.d + offset;
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, source_address) as u16;
+        let value = read_byte(cpu, bus, source_address) as u16;
         perform_addition_with_carry_u8(cpu, bus, value);
 
         cycles = 3;
     } else {
-        let value = read_word(bus, source_address);
+        let value = read_word(cpu, bus, source_address);
         perform_addition_with_carry_u16(cpu, bus, value);
 
         cycles = 4;
     }
 
     increment_program_counter(cpu, 2);
+
+    cycles
+}
+
+pub fn adc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let cycles;
+    let offset = read_offset_word(cpu, bus);
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_byte(cpu, bus, offset);
+        cycles = 4;
+    } else {
+        cycles = 5;
+    }
+
+    increment_program_counter(cpu, 3);
 
     cycles
 }
