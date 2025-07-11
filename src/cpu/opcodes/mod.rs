@@ -3,6 +3,7 @@ use crate::{
     memory::bus::Bus,
 };
 
+pub mod adc;
 pub mod lda;
 pub mod ldx;
 pub mod ldy;
@@ -12,6 +13,8 @@ pub mod sty;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
+        0x65 => adc::adc_direct(cpu, bus),
+        0x69 => adc::adc_immediate(cpu, bus),
         0x81 => sta::sta_indirect_x(cpu, bus),
         0x84 => sty::sty_direct(cpu, bus),
         0x85 => sta::sta_direct(cpu, bus),
@@ -85,14 +88,6 @@ fn write_byte(bus: &mut Bus, address: u32, value: u8) {
     bus.write(address, value);
 }
 
-fn is_negative_u8(value: u8) -> bool {
-    value & 0x80 != 0
-}
-
-fn is_negative_u16(value: u16) -> bool {
-    value & 0x8000 != 0
-}
-
 fn is_8bit_mode_m(cpu: &Cpu) -> bool {
     cpu.registers.p.contains(ProcessorStatus::MEMORY_WIDTH)
 }
@@ -119,6 +114,22 @@ fn set_nz_flags_u16(cpu: &mut Cpu, value: u16) {
         .set(ProcessorStatus::NEGATIVE, is_negative_u16(value));
 }
 
+fn is_negative_u8(value: u8) -> bool {
+    value & 0x80 != 0
+}
+
+fn is_negative_u16(value: u16) -> bool {
+    value & 0x8000 != 0
+}
+
 fn page_crossed(base_address: u16, target_address: u16) -> bool {
     (base_address & 0xFF00) != (target_address & 0xFF00)
+}
+
+fn get_carry_in(cpu: &Cpu) -> u16 {
+    if cpu.registers.p.contains(ProcessorStatus::CARRY) {
+        1
+    } else {
+        0
+    }
 }
