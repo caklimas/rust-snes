@@ -5,6 +5,7 @@ use crate::{
 
 pub mod lda;
 pub mod ldx;
+pub mod ldy;
 pub mod sta;
 pub mod stx;
 pub mod sty;
@@ -25,18 +26,23 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x96 => stx::stx_direct_y(cpu, bus),
         0x99 => sta::sta_absolute_y(cpu, bus),
         0x9D => sta::sta_absolute_x(cpu, bus),
+        0xA0 => ldy::ldy_immediate(cpu, bus),
         0xA1 => lda::lda_indirect_x(cpu, bus),
         0xA2 => ldx::ldx_immediate(cpu, bus),
+        0xA4 => ldy::ldy_direct(cpu, bus),
         0xA5 => lda::lda_direct(cpu, bus),
         0xA6 => ldx::ldx_direct(cpu, bus),
         0xA9 => lda::lda_immediate(cpu, bus),
+        0xAC => ldy::ldy_absolute(cpu, bus),
         0xAD => lda::lda_absolute(cpu, bus),
         0xAE => ldx::ldx_absolute(cpu, bus),
         0xB1 => lda::lda_indirect_y(cpu, bus),
         0xB2 => lda::lda_indirect(cpu, bus),
+        0xB4 => ldy::ldy_direct_x(cpu, bus),
         0xB5 => lda::lda_direct_x(cpu, bus),
         0xB6 => ldx::ldx_direct_y(cpu, bus),
         0xB9 => lda::lda_absolute_y(cpu, bus),
+        0xBC => ldy::ldy_absolute_x(cpu, bus),
         0xBD => lda::lda_absolute_x(cpu, bus),
         0xBE => ldx::ldx_absolute_y(cpu, bus),
         _ => {
