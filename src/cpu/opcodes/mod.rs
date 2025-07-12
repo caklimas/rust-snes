@@ -1,5 +1,5 @@
 use crate::{
-    cpu::{Cpu, opcodes::adc::adc_indirect_y, processor_status::ProcessorStatus},
+    cpu::{Cpu, processor_status::ProcessorStatus},
     memory::bus::Bus,
 };
 
@@ -7,6 +7,7 @@ pub mod adc;
 pub mod lda;
 pub mod ldx;
 pub mod ldy;
+pub mod sbc;
 pub mod sta;
 pub mod stx;
 pub mod sty;
@@ -55,6 +56,15 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xBC => ldy::ldy_absolute_x(cpu, bus),
         0xBD => lda::lda_absolute_x(cpu, bus),
         0xBE => ldx::ldx_absolute_y(cpu, bus),
+        0xE9 => sbc::sbc_immediate(cpu, bus),
+        0xE5 => sbc::sbc_direct(cpu, bus),
+        0xED => sbc::sbc_absolute(cpu, bus),
+        0xF5 => sbc::sbc_direct_x(cpu, bus),
+        0xFD => sbc::sbc_absolute_x(cpu, bus),
+        0xF9 => sbc::sbc_absolute_y(cpu, bus),
+        0xE1 => sbc::sbc_indirect_x(cpu, bus),
+        0xF1 => sbc::sbc_indirect_y(cpu, bus),
+        0xF2 => sbc::sbc_indirect(cpu, bus),
         _ => {
             println!(
                 "Unimplemented opcode: 0x{:02X} at PC: 0x{:04X}",
