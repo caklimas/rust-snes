@@ -1,5 +1,5 @@
 use crate::{
-    cpu::{Cpu, processor_status::ProcessorStatus},
+    cpu::{Cpu, opcodes::adc::adc_indirect_y, processor_status::ProcessorStatus},
     memory::bus::Bus,
 };
 
@@ -17,6 +17,8 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x65 => adc::adc_direct(cpu, bus),
         0x69 => adc::adc_immediate(cpu, bus),
         0x6D => adc::adc_absolute(cpu, bus),
+        0x71 => adc::adc_indirect_y(cpu, bus),
+        0x72 => adc::adc_indirect(cpu, bus),
         0x75 => adc::adc_direct_x(cpu, bus),
         0x79 => adc::adc_absolute_y(cpu, bus),
         0x7D => adc::adc_absolute_x(cpu, bus),
