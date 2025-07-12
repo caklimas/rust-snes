@@ -124,6 +124,55 @@ pub fn adc_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+pub fn adc_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let mut cycles;
+    let base_address = read_offset_word(cpu, bus);
+    let address = base_address + cpu.registers.y;
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_byte(cpu, bus, address) as u16;
+        perform_addition_with_carry_u8(cpu, value);
+
+        cycles = 4;
+    } else {
+        let value = read_word(cpu, bus, address);
+        perform_addition_with_carry_u16(cpu, value);
+
+        cycles = 5;
+    }
+
+    if page_crossed(base_address, address) {
+        cycles += 1;
+    }
+
+    increment_program_counter(cpu, 3);
+
+    cycles
+}
+
+pub fn adc_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let cycles;
+    let offset = read_offset_byte(cpu, bus);
+    let pointer_address = cpu.registers.d + offset + cpu.registers.x;
+    let address = read_word(cpu, bus, pointer_address);
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_byte(cpu, bus, address) as u16;
+        perform_addition_with_carry_u8(cpu, value);
+
+        cycles = 6;
+    } else {
+        let value = read_word(cpu, bus, address);
+        perform_addition_with_carry_u16(cpu, value);
+
+        cycles = 7;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    cycles
+}
+
 fn perform_addition_with_carry_u8(cpu: &mut Cpu, value: u16) {
     let old_accumulator = cpu.registers.a;
     let carry_in = get_carry_in(cpu);
