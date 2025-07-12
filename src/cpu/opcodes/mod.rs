@@ -4,6 +4,7 @@ use crate::{
 };
 
 pub mod adc;
+pub mod cmp;
 pub mod lda;
 pub mod ldx;
 pub mod ldy;
@@ -56,6 +57,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xBC => ldy::ldy_absolute_x(cpu, bus),
         0xBD => lda::lda_absolute_x(cpu, bus),
         0xBE => ldx::ldx_absolute_y(cpu, bus),
+        0xC9 => cmp::cmp_immediate(cpu, bus),
         0xE9 => sbc::sbc_immediate(cpu, bus),
         0xE5 => sbc::sbc_direct(cpu, bus),
         0xED => sbc::sbc_absolute(cpu, bus),
