@@ -1,7 +1,10 @@
 use crate::{
     cpu::{
         Cpu,
-        opcodes::{is_8bit_mode_m, read_offset_byte, set_nz_flags_u8, set_nz_flags_u16},
+        opcodes::{
+            increment_program_counter, is_8bit_mode_m, read_byte, read_offset_byte,
+            read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
+        },
         processor_status::ProcessorStatus,
     },
     memory::bus::Bus,
@@ -9,23 +12,74 @@ use crate::{
 
 pub fn cmp_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
+    let program_increment;
 
     if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
-        let accumulator_value = cpu.registers.a & 0xFF;
-        let result = accumulator_value - value;
+        perform_compare_with_carry_u8(cpu, value);
 
-        perform_compare_with_carry_u8(cpu, result, accumulator_value, value);
-
+        program_increment = 2;
         cycles = 2;
     } else {
+        let value = read_offset_word(cpu, bus);
+        perform_compare_with_carry_u16(cpu, value);
+
+        program_increment = 3;
         cycles = 3;
     }
+
+    increment_program_counter(cpu, program_increment);
 
     cycles
 }
 
-fn perform_compare_with_carry_u8(cpu: &mut Cpu, result: u16, accumulator_value: u16, value: u16) {
+pub fn cmp_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let cycles;
+    let offset = read_offset_byte(cpu, bus);
+    let address = cpu.registers.d + offset;
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_byte(cpu, bus, address);
+        perform_compare_with_carry_u8(cpu, value as u16);
+
+        cycles = 3;
+    } else {
+        let value = read_word(cpu, bus, address);
+        perform_compare_with_carry_u16(cpu, value);
+
+        cycles = 4;
+    }
+
+    increment_program_counter(cpu, 2);
+
+    cycles
+}
+
+pub fn cmp_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let cycles;
+    let address = read_offset_word(cpu, bus);
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_byte(cpu, bus, address) as u16;
+        perform_compare_with_carry_u8(cpu, value);
+
+        cycles = 4;
+    } else {
+        let value = read_word(cpu, bus, address);
+        perform_compare_with_carry_u16(cpu, value);
+
+        cycles = 5;
+    }
+
+    increment_program_counter(cpu, 3);
+
+    cycles
+}
+
+fn perform_compare_with_carry_u8(cpu: &mut Cpu, value: u16) {
+    let accumulator_value = cpu.registers.a & 0xFF;
+    let result = accumulator_value - value;
+
     set_nz_flags_u8(cpu, (result & 0xFF) as u8);
     set_c_flag_u8(cpu, accumulator_value, value);
 }
@@ -33,18 +87,18 @@ fn perform_compare_with_carry_u8(cpu: &mut Cpu, result: u16, accumulator_value: 
 fn set_c_flag_u8(cpu: &mut Cpu, accumulator_value: u16, value: u16) {
     cpu.registers
         .p
-        .set(ProcessorStatus::CARRY, accumulator_value > value);
+        .set(ProcessorStatus::CARRY, accumulator_value >= value);
 }
 
-fn perform_compare_with_carry_u16(cpu: &mut Cpu, result: u32, accumulator_value: u32, value: u32) {
-    let result_u16 = result as u16;
+fn perform_compare_with_carry_u16(cpu: &mut Cpu, value: u16) {
+    let result = value - cpu.registers.a;
 
-    set_nz_flags_u16(cpu, result_u16);
-    set_c_flag_u16(cpu, accumulator_value, value);
+    set_nz_flags_u16(cpu, result);
+    set_c_flag_u16(cpu, cpu.registers.a, value);
 }
 
-fn set_c_flag_u16(cpu: &mut Cpu, accumulator_value: u32, value: u32) {
+fn set_c_flag_u16(cpu: &mut Cpu, accumulator_value: u16, value: u16) {
     cpu.registers
         .p
-        .set(ProcessorStatus::CARRY, accumulator_value > value);
+        .set(ProcessorStatus::CARRY, accumulator_value >= value);
 }
