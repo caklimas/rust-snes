@@ -2,8 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_offset_byte,
-            read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
+            get_address_absolute_x, increment_program_counter, is_8bit_mode_m, page_crossed,
+            read_byte, read_offset_byte, read_offset_word, read_word, set_nz_flags_u8,
+            set_nz_flags_u16,
         },
     },
     memory::bus::Bus,
@@ -101,8 +102,7 @@ pub fn lda_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let base_address = read_offset_word(cpu, bus);
-    let target_address = base_address + cpu.registers.x;
+    let (base_address, target_address) = get_address_absolute_x(cpu, bus);
     let mut cycles;
 
     if is_8bit_mode_m(cpu) {
