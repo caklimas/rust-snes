@@ -2,9 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_address_absolute_x, get_address_absolute_y, increment_program_counter,
-            is_8bit_mode_m, page_crossed, read_byte, read_offset_byte, read_offset_word, read_word,
-            set_nz_flags_u8, set_nz_flags_u16,
+            get_address_absolute_x, get_address_absolute_y, get_address_indirect_x,
+            increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_offset_byte,
+            read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
     },
@@ -145,6 +145,27 @@ pub fn cmp_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     if page_crossed(base_address, address) {
         cycles += 1;
     }
+
+    cycles
+}
+
+pub fn cmp_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    let cycles;
+    let address = get_address_indirect_x(cpu, bus);
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_byte(cpu, bus, address) as u16;
+        perform_compare_with_carry_u8(cpu, value);
+
+        cycles = 6;
+    } else {
+        let value = read_word(cpu, bus, address);
+        perform_compare_with_carry_u16(cpu, value);
+
+        cycles = 7;
+    }
+
+    increment_program_counter(cpu, 2);
 
     cycles
 }

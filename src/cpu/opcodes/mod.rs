@@ -57,6 +57,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xBC => ldy::ldy_absolute_x(cpu, bus),
         0xBD => lda::lda_absolute_x(cpu, bus),
         0xBE => ldx::ldx_absolute_y(cpu, bus),
+        0xC1 => cmp::cmp_indirect_x(cpu, bus),
         0xC5 => cmp::cmp_direct(cpu, bus),
         0xC9 => cmp::cmp_immediate(cpu, bus),
         0xCD => cmp::cmp_absolute(cpu, bus),
@@ -92,6 +93,12 @@ fn get_address_absolute_y(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
     let address = base_address + cpu.registers.y;
 
     (base_address, address)
+}
+
+fn get_address_indirect_x(cpu: &Cpu, bus: &mut Bus) -> u16 {
+    let offset = read_offset_byte(cpu, bus);
+    let pointer_address = cpu.registers.d + offset + cpu.registers.x;
+    read_word(cpu, bus, pointer_address)
 }
 
 fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
