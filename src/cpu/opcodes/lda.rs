@@ -2,9 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_address_absolute_x, increment_program_counter, is_8bit_mode_m, page_crossed,
-            read_byte, read_offset_byte, read_offset_word, read_word, set_nz_flags_u8,
-            set_nz_flags_u16,
+            get_address_absolute_x, get_address_indirect_y, increment_program_counter,
+            is_8bit_mode_m, page_crossed, read_byte, read_offset_byte, read_offset_word, read_word,
+            set_nz_flags_u8, set_nz_flags_u16,
         },
     },
     memory::bus::Bus,
@@ -206,11 +206,7 @@ pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn lda_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let pointer_address = cpu.registers.d + offset;
-
-    let base_address = read_word(cpu, bus, pointer_address);
-    let target_address = base_address + cpu.registers.y;
+    let (base_address, target_address) = get_address_indirect_y(cpu, bus);
     let mut cycles;
 
     if is_8bit_mode_m(cpu) {

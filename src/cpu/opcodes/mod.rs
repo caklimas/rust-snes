@@ -61,6 +61,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xC5 => cmp::cmp_direct(cpu, bus),
         0xC9 => cmp::cmp_immediate(cpu, bus),
         0xCD => cmp::cmp_absolute(cpu, bus),
+        0xD1 => cmp::cmp_indirect_y(cpu, bus),
         0xD5 => cmp::cmp_direct_x(cpu, bus),
         0xD9 => cmp::cmp_absolute_y(cpu, bus),
         0xDD => cmp::cmp_absolute_x(cpu, bus),
@@ -99,6 +100,15 @@ fn get_address_indirect_x(cpu: &Cpu, bus: &mut Bus) -> u16 {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset + cpu.registers.x;
     read_word(cpu, bus, pointer_address)
+}
+
+fn get_address_indirect_y(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
+    let offset = read_offset_byte(cpu, bus);
+    let pointer_address = cpu.registers.d + offset;
+    let base_address = read_word(cpu, bus, pointer_address);
+    let address = base_address + cpu.registers.y;
+
+    (base_address, address)
 }
 
 fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
