@@ -2,6 +2,16 @@ use std::ops::RangeInclusive;
 
 pub const NMI_STATUS_REGISTER: u32 = 0x004210;
 
+// Direct Page (Zero Page) - controlled by D register, default 0x000000
+pub const DIRECT_PAGE_START: u32 = 0x000000;
+pub const DIRECT_PAGE_END: u32 = 0x0000FF;
+pub const DIRECT_PAGE_RANGE: RangeInclusive<u32> = DIRECT_PAGE_START..=DIRECT_PAGE_END;
+
+// Stack area (Bank 0 only)
+pub const STACK_START: u32 = 0x000100;
+pub const STACK_END: u32 = 0x001FFF; // 6502 emulation mode (page 1 only)
+pub const STACK_RANGE: RangeInclusive<u32> = STACK_START..=STACK_END;
+
 // WRAM ranges
 pub const WRAM_START: u32 = 0x7E0000;
 pub const WRAM_END: u32 = 0x7FFFFF;

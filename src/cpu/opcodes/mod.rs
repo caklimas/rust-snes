@@ -1,11 +1,15 @@
 use crate::{
     cpu::{Cpu, processor_status::ProcessorStatus},
-    memory::bus::Bus,
+    memory::{
+        addresses::{DIRECT_PAGE_START, STACK_START},
+        bus::Bus,
+    },
 };
 
 pub mod adc;
 pub mod cmp;
 pub mod jmp;
+pub mod jsr;
 pub mod lda;
 pub mod ldx;
 pub mod ldy;
@@ -16,6 +20,7 @@ pub mod sty;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
+        0x20 => jsr::jsr_absolute(cpu, bus),
         0x4C => jmp::jmp_absolute(cpu, bus),
         0x5C => jmp::jmp_absolute_long(cpu, bus),
         0x61 => adc::adc_indirect_x(cpu, bus),
@@ -152,6 +157,17 @@ fn read_word(cpu: &Cpu, bus: &mut Bus, address: u16) -> u16 {
 fn read_byte(cpu: &Cpu, bus: &mut Bus, address: u16) -> u8 {
     let physical_address = ((cpu.registers.db as u32) << 16) | (address as u32);
     bus.read(physical_address)
+}
+
+fn push_byte(cpu: &mut Cpu, bus: &mut Bus, value: u8) {
+    let stack_address = if cpu.emulation_mode {
+        STACK_START | ((cpu.registers.s as u32) & 0xFF)
+    } else {
+        DIRECT_PAGE_START | (cpu.registers.s as u32)
+    };
+
+    write_byte(bus, stack_address, value);
+    cpu.registers.s = cpu.registers.s.wrapping_sub(1);
 }
 
 fn write_word(bus: &mut Bus, address: u32, value: u16) {
