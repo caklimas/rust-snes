@@ -5,6 +5,7 @@ use crate::{
 
 pub mod adc;
 pub mod cmp;
+pub mod jmp;
 pub mod lda;
 pub mod ldx;
 pub mod ldy;
@@ -15,14 +16,18 @@ pub mod sty;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
+        0x4C => jmp::jmp_absolute(cpu, bus),
+        0x5C => jmp::jmp_absolute_long(cpu, bus),
         0x61 => adc::adc_indirect_x(cpu, bus),
         0x65 => adc::adc_direct(cpu, bus),
         0x69 => adc::adc_immediate(cpu, bus),
+        0x6C => jmp::jmp_absolute_indirect(cpu, bus),
         0x6D => adc::adc_absolute(cpu, bus),
         0x71 => adc::adc_indirect_y(cpu, bus),
         0x72 => adc::adc_indirect(cpu, bus),
         0x75 => adc::adc_direct_x(cpu, bus),
         0x79 => adc::adc_absolute_y(cpu, bus),
+        0x7C => jmp::jmp_absolute_indexed_direct(cpu, bus),
         0x7D => adc::adc_absolute_x(cpu, bus),
         0x81 => sta::sta_indirect_x(cpu, bus),
         0x84 => sty::sty_direct(cpu, bus),
@@ -62,8 +67,10 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xC9 => cmp::cmp_immediate(cpu, bus),
         0xCD => cmp::cmp_absolute(cpu, bus),
         0xD1 => cmp::cmp_indirect_y(cpu, bus),
+        0xD2 => cmp::cmp_indirect(cpu, bus),
         0xD5 => cmp::cmp_direct_x(cpu, bus),
         0xD9 => cmp::cmp_absolute_y(cpu, bus),
+        0xDC => jmp::jmp_absolute_indirect_long(cpu, bus),
         0xDD => cmp::cmp_absolute_x(cpu, bus),
         0xE9 => sbc::sbc_immediate(cpu, bus),
         0xE5 => sbc::sbc_direct(cpu, bus),
@@ -86,7 +93,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
 
 fn get_address_absolute_x(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
     let base_address = read_offset_word(cpu, bus);
-    (base_address, base_address + cpu.registers.x)
+    (base_address, base_address + get_x_register_value(cpu))
 }
 
 fn get_address_absolute_y(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
@@ -98,7 +105,7 @@ fn get_address_absolute_y(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
 
 fn get_address_indirect_x(cpu: &Cpu, bus: &mut Bus) -> u16 {
     let offset = read_offset_byte(cpu, bus);
-    let pointer_address = cpu.registers.d + offset + cpu.registers.x;
+    let pointer_address = cpu.registers.d + offset + get_x_register_value(cpu);
     read_word(cpu, bus, pointer_address)
 }
 
@@ -109,6 +116,20 @@ fn get_address_indirect_y(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
     let address = base_address + cpu.registers.y;
 
     (base_address, address)
+}
+
+fn get_address_indirect(cpu: &Cpu, bus: &mut Bus) -> u16 {
+    let offset = read_offset_byte(cpu, bus);
+    let pointer_address = cpu.registers.d + offset;
+    read_word(cpu, bus, pointer_address)
+}
+
+fn get_x_register_value(cpu: &Cpu) -> u16 {
+    if is_8bit_mode_x(cpu) {
+        cpu.registers.x & 0xFF
+    } else {
+        cpu.registers.x
+    }
 }
 
 fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
