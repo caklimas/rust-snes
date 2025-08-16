@@ -21,6 +21,7 @@ pub mod sty;
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
         0x20 => jsr::jsr_absolute(cpu, bus),
+        0x22 => jsr::jsr_absolute_long(cpu, bus),
         0x4C => jmp::jmp_absolute(cpu, bus),
         0x5C => jmp::jmp_absolute_long(cpu, bus),
         0x61 => adc::adc_indirect_x(cpu, bus),
@@ -129,6 +130,14 @@ fn get_address_indirect(cpu: &Cpu, bus: &mut Bus) -> u16 {
     read_word(cpu, bus, pointer_address)
 }
 
+fn get_address_absolute_long(cpu: &Cpu, bus: &mut Bus) -> u32 {
+    let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
+    let address_mid = read_byte(cpu, bus, cpu.registers.pc + 2);
+    let address_high = read_byte(cpu, bus, cpu.registers.pc + 3);
+
+    (address_high as u32) << 16 | (address_mid as u32) << 8 | (address_low as u32)
+}
+
 fn get_x_register_value(cpu: &Cpu) -> u16 {
     if is_8bit_mode_x(cpu) {
         cpu.registers.x & 0xFF
@@ -169,7 +178,7 @@ fn read_word(cpu: &Cpu, bus: &mut Bus, address: u16) -> u16 {
 }
 
 fn read_byte(cpu: &Cpu, bus: &mut Bus, address: u16) -> u8 {
-    let physical_address = ((cpu.registers.db as u32) << 16) | (address as u32);
+    let physical_address = get_physical_address(cpu, address);
     bus.read(physical_address)
 }
 

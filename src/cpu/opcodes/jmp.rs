@@ -1,7 +1,9 @@
 use crate::{
     cpu::{
         Cpu,
-        opcodes::{get_x_register_value, read_byte, read_offset_word, read_word},
+        opcodes::{
+            get_address_absolute_long, get_x_register_value, read_byte, read_offset_word, read_word,
+        },
     },
     memory::bus::Bus,
 };
@@ -15,11 +17,7 @@ pub fn jmp_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub fn jmp_absolute_long(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
-    let address_mid = read_byte(cpu, bus, cpu.registers.pc + 2);
-    let address_high = read_byte(cpu, bus, cpu.registers.pc + 3);
-    let target_address =
-        (address_high as u32) << 16 | (address_mid as u32) << 8 | (address_low as u32);
+    let target_address = get_address_absolute_long(cpu, bus);
 
     cpu.registers.pc = (target_address & 0xFFFF) as u16;
     cpu.registers.pb = ((target_address >> 16) & 0xFF) as u8;
