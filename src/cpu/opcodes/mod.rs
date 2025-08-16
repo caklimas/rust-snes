@@ -137,6 +137,20 @@ fn get_x_register_value(cpu: &Cpu) -> u16 {
     }
 }
 
+fn push_byte(cpu: &mut Cpu, bus: &mut Bus, value: u8) {
+    let stack_address = get_stack_address(cpu);
+
+    write_byte(cpu, bus, stack_address, value);
+    cpu.registers.s = cpu.registers.s.wrapping_sub(1);
+}
+
+fn pull_byte(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+    cpu.registers.s = cpu.registers.s.wrapping_add(1);
+    let stack_address = get_stack_address(cpu);
+
+    read_byte(cpu, bus, stack_address)
+}
+
 fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
     read_byte(cpu, bus, (cpu.registers.pc + 1).into()).into()
 }
@@ -159,24 +173,14 @@ fn read_byte(cpu: &Cpu, bus: &mut Bus, address: u16) -> u8 {
     bus.read(physical_address)
 }
 
-fn push_byte(cpu: &mut Cpu, bus: &mut Bus, value: u8) {
-    let stack_address = if cpu.emulation_mode {
-        STACK_START | ((cpu.registers.s as u32) & 0xFF)
-    } else {
-        DIRECT_PAGE_START | (cpu.registers.s as u32)
-    };
-
-    write_byte(bus, stack_address, value);
-    cpu.registers.s = cpu.registers.s.wrapping_sub(1);
+fn write_word(cpu: &Cpu, bus: &mut Bus, address: u16, value: u16) {
+    write_byte(cpu, bus, address, (value as u8) & 0xFF);
+    write_byte(cpu, bus, address + 1, ((value >> 8) & 0xFF) as u8);
 }
 
-fn write_word(bus: &mut Bus, address: u32, value: u16) {
-    write_byte(bus, address, (value as u8) & 0xFF);
-    write_byte(bus, address + 1, ((value >> 8) & 0xFF) as u8);
-}
-
-fn write_byte(bus: &mut Bus, address: u32, value: u8) {
-    bus.write(address, value);
+fn write_byte(cpu: &Cpu, bus: &mut Bus, address: u16, value: u8) {
+    let physical_address = get_physical_address(cpu, address);
+    bus.write(physical_address, value);
 }
 
 fn is_8bit_mode_m(cpu: &Cpu) -> bool {
@@ -222,5 +226,17 @@ fn get_carry_in(cpu: &Cpu) -> u16 {
         1
     } else {
         0
+    }
+}
+
+fn get_physical_address(cpu: &Cpu, address: u16) -> u32 {
+    ((cpu.registers.db as u32) << 16) | (address as u32)
+}
+
+fn get_stack_address(cpu: &Cpu) -> u16 {
+    if cpu.emulation_mode {
+        STACK_START as u16 | (cpu.registers.s & 0xFF)
+    } else {
+        DIRECT_PAGE_START as u16 | cpu.registers.s
     }
 }
