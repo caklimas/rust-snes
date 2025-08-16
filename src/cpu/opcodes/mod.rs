@@ -7,6 +7,7 @@ use crate::{
 };
 
 pub mod adc;
+pub mod bra;
 pub mod cmp;
 pub mod jmp;
 pub mod jsr;
@@ -20,28 +21,35 @@ pub mod sty;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
+        0x10 => bra::bpl(cpu, bus),
         0x20 => jsr::jsr_absolute(cpu, bus),
         0x22 => jsr::jsr_absolute_long(cpu, bus),
+        0x30 => bra::bmi(cpu, bus),
         0x4C => jmp::jmp_absolute(cpu, bus),
+        0x50 => bra::bvc(cpu, bus),
         0x5C => jmp::jmp_absolute_long(cpu, bus),
         0x61 => adc::adc_indirect_x(cpu, bus),
         0x65 => adc::adc_direct(cpu, bus),
         0x69 => adc::adc_immediate(cpu, bus),
         0x6C => jmp::jmp_absolute_indirect(cpu, bus),
         0x6D => adc::adc_absolute(cpu, bus),
+        0x70 => bra::bvs(cpu, bus),
         0x71 => adc::adc_indirect_y(cpu, bus),
         0x72 => adc::adc_indirect(cpu, bus),
         0x75 => adc::adc_direct_x(cpu, bus),
         0x79 => adc::adc_absolute_y(cpu, bus),
         0x7C => jmp::jmp_absolute_indexed_direct(cpu, bus),
         0x7D => adc::adc_absolute_x(cpu, bus),
+        0x80 => bra::bra_relative(cpu, bus),
         0x81 => sta::sta_indirect_x(cpu, bus),
+        0x82 => bra::bra_relative_long(cpu, bus),
         0x84 => sty::sty_direct(cpu, bus),
         0x85 => sta::sta_direct(cpu, bus),
         0x86 => stx::stx_direct(cpu, bus),
         0x8C => sty::sty_absolute(cpu, bus),
         0x8D => sta::sta_absolute(cpu, bus),
         0x8E => stx::stx_absolute(cpu, bus),
+        0x90 => bra::bcc(cpu, bus),
         0x91 => sta::sta_indirect_y(cpu, bus),
         0x92 => sta::sta_indirect(cpu, bus),
         0x94 => sty::sty_direct_x(cpu, bus),
@@ -59,6 +67,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xAC => ldy::ldy_absolute(cpu, bus),
         0xAD => lda::lda_absolute(cpu, bus),
         0xAE => ldx::ldx_absolute(cpu, bus),
+        0xB0 => bra::bcs(cpu, bus),
         0xB1 => lda::lda_indirect_y(cpu, bus),
         0xB2 => lda::lda_indirect(cpu, bus),
         0xB4 => ldy::ldy_direct_x(cpu, bus),
@@ -72,6 +81,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xC5 => cmp::cmp_direct(cpu, bus),
         0xC9 => cmp::cmp_immediate(cpu, bus),
         0xCD => cmp::cmp_absolute(cpu, bus),
+        0xD0 => bra::bne(cpu, bus),
         0xD1 => cmp::cmp_indirect_y(cpu, bus),
         0xD2 => cmp::cmp_indirect(cpu, bus),
         0xD5 => cmp::cmp_direct_x(cpu, bus),
@@ -81,6 +91,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xE9 => sbc::sbc_immediate(cpu, bus),
         0xE5 => sbc::sbc_direct(cpu, bus),
         0xED => sbc::sbc_absolute(cpu, bus),
+        0xF0 => bra::beq(cpu, bus),
         0xF5 => sbc::sbc_direct_x(cpu, bus),
         0xFD => sbc::sbc_absolute_x(cpu, bus),
         0xF9 => sbc::sbc_absolute_y(cpu, bus),
