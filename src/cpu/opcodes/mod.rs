@@ -16,24 +16,34 @@ pub mod ldx;
 pub mod ldy;
 pub mod sbc;
 pub mod sta;
+pub mod stack;
 pub mod stx;
 pub mod sty;
 pub mod transfer;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
+        0x08 => stack::php(cpu, bus),
+        0x0B => stack::phd(cpu, bus),
         0x10 => bra::bpl(cpu, bus),
         0x1B => transfer::tcs(cpu, bus),
         0x20 => jsr::jsr_absolute(cpu, bus),
         0x22 => jsr::jsr_absolute_long(cpu, bus),
+        0x28 => stack::plp(cpu, bus),
+        0x2B => stack::pld(cpu, bus),
         0x30 => bra::bmi(cpu, bus),
         0x3B => transfer::tsc(cpu, bus),
+        0x48 => stack::pha(cpu, bus),
+        0x4B => stack::phk(cpu, bus),
         0x4C => jmp::jmp_absolute(cpu, bus),
         0x50 => bra::bvc(cpu, bus),
+        0x5A => stack::phy(cpu, bus),
         0x5B => transfer::tcd(cpu, bus),
         0x5C => jmp::jmp_absolute_long(cpu, bus),
         0x61 => adc::adc_indirect_x(cpu, bus),
+        0x62 => stack::per(cpu, bus),
         0x65 => adc::adc_direct(cpu, bus),
+        0x68 => stack::pla(cpu, bus),
         0x69 => adc::adc_immediate(cpu, bus),
         0x6C => jmp::jmp_absolute_indirect(cpu, bus),
         0x6D => adc::adc_absolute(cpu, bus),
@@ -42,6 +52,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x72 => adc::adc_indirect(cpu, bus),
         0x75 => adc::adc_direct_x(cpu, bus),
         0x79 => adc::adc_absolute_y(cpu, bus),
+        0x7A => stack::ply(cpu, bus),
         0x7B => transfer::tdc(cpu, bus),
         0x7C => jmp::jmp_absolute_indexed_direct(cpu, bus),
         0x7D => adc::adc_absolute_x(cpu, bus),
@@ -52,6 +63,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x85 => sta::sta_direct(cpu, bus),
         0x86 => stx::stx_direct(cpu, bus),
         0x8A => transfer::txa(cpu, bus),
+        0x8B => stack::phb(cpu, bus),
         0x8C => sty::sty_absolute(cpu, bus),
         0x8D => sta::sta_absolute(cpu, bus),
         0x8E => stx::stx_absolute(cpu, bus),
@@ -75,6 +87,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xA8 => transfer::tay(cpu, bus),
         0xA9 => lda::lda_immediate(cpu, bus),
         0xAA => transfer::tax(cpu, bus),
+        0xAB => stack::plb(cpu, bus),
         0xAC => ldy::ldy_absolute(cpu, bus),
         0xAD => lda::lda_absolute(cpu, bus),
         0xAE => ldx::ldx_absolute(cpu, bus),
@@ -97,20 +110,24 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xD0 => bra::bne(cpu, bus),
         0xD1 => cmp::cmp_indirect_y(cpu, bus),
         0xD2 => cmp::cmp_indirect(cpu, bus),
+        0xD4 => stack::pei(cpu, bus),
         0xD5 => cmp::cmp_direct_x(cpu, bus),
         0xD9 => cmp::cmp_absolute_y(cpu, bus),
+        0xDA => stack::phx(cpu, bus),
         0xDC => jmp::jmp_absolute_indirect_long(cpu, bus),
         0xDD => cmp::cmp_absolute_x(cpu, bus),
         0xE9 => sbc::sbc_immediate(cpu, bus),
         0xE5 => sbc::sbc_direct(cpu, bus),
         0xED => sbc::sbc_absolute(cpu, bus),
-        0xF0 => bra::beq(cpu, bus),
-        0xF5 => sbc::sbc_direct_x(cpu, bus),
-        0xFD => sbc::sbc_absolute_x(cpu, bus),
-        0xF9 => sbc::sbc_absolute_y(cpu, bus),
         0xE1 => sbc::sbc_indirect_x(cpu, bus),
+        0xF0 => bra::beq(cpu, bus),
         0xF1 => sbc::sbc_indirect_y(cpu, bus),
         0xF2 => sbc::sbc_indirect(cpu, bus),
+        0xF4 => stack::pea(cpu, bus),
+        0xF5 => sbc::sbc_direct_x(cpu, bus),
+        0xF9 => sbc::sbc_absolute_y(cpu, bus),
+        0xFA => stack::plx(cpu, bus),
+        0xFD => sbc::sbc_absolute_x(cpu, bus),
         _ => {
             println!(
                 "Unimplemented opcode: 0x{:02X} at PC: 0x{:04X}",
@@ -170,32 +187,32 @@ fn get_x_register_value(cpu: &Cpu) -> u16 {
     }
 }
 
-fn push_byte(cpu: &mut Cpu, bus: &mut Bus, value: u8) {
+pub(crate) fn push_byte(cpu: &mut Cpu, bus: &mut Bus, value: u8) {
     let stack_address = get_stack_address(cpu);
 
     write_byte(cpu, bus, stack_address, value);
     cpu.registers.s = cpu.registers.s.wrapping_sub(1);
 }
 
-fn pull_byte(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub(crate) fn pull_byte(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cpu.registers.s = cpu.registers.s.wrapping_add(1);
     let stack_address = get_stack_address(cpu);
 
     read_byte(cpu, bus, stack_address)
 }
 
-fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
+pub(crate) fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
     read_byte(cpu, bus, (cpu.registers.pc + 1)).into()
 }
 
-fn read_offset_word(cpu: &Cpu, bus: &mut Bus) -> u16 {
+pub(crate) fn read_offset_word(cpu: &Cpu, bus: &mut Bus) -> u16 {
     let offset_low = read_byte(cpu, bus, cpu.registers.pc + 1);
     let offset_high = read_byte(cpu, bus, cpu.registers.pc + 2);
 
     (offset_high as u16) << 8 | (offset_low as u16)
 }
 
-fn read_word(cpu: &Cpu, bus: &mut Bus, address: u16) -> u16 {
+pub(crate) fn read_word(cpu: &Cpu, bus: &mut Bus, address: u16) -> u16 {
     let low = read_byte(cpu, bus, address);
     let high = read_byte(cpu, bus, address + 1);
     (high as u16) << 8 | (low as u16)
@@ -216,26 +233,26 @@ fn write_byte(cpu: &Cpu, bus: &mut Bus, address: u16, value: u8) {
     bus.write(physical_address, value);
 }
 
-fn is_8bit_mode_m(cpu: &Cpu) -> bool {
+pub(crate) fn is_8bit_mode_m(cpu: &Cpu) -> bool {
     cpu.registers.p.contains(ProcessorStatus::MEMORY_WIDTH)
 }
 
-fn is_8bit_mode_x(cpu: &Cpu) -> bool {
+pub(crate) fn is_8bit_mode_x(cpu: &Cpu) -> bool {
     cpu.registers.p.contains(ProcessorStatus::INDEX_WIDTH)
 }
 
-fn increment_program_counter(cpu: &mut Cpu, value: u16) {
+pub(crate) fn increment_program_counter(cpu: &mut Cpu, value: u16) {
     cpu.registers.pc += value;
 }
 
-fn set_nz_flags_u8(cpu: &mut Cpu, value: u8) {
+pub(crate) fn set_nz_flags_u8(cpu: &mut Cpu, value: u8) {
     cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
     cpu.registers
         .p
         .set(ProcessorStatus::NEGATIVE, is_negative_u8(value));
 }
 
-fn set_nz_flags_u16(cpu: &mut Cpu, value: u16) {
+pub(crate) fn set_nz_flags_u16(cpu: &mut Cpu, value: u16) {
     cpu.registers.p.set(ProcessorStatus::ZERO, value == 0);
     cpu.registers
         .p
