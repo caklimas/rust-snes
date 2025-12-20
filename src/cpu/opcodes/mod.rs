@@ -18,15 +18,19 @@ pub mod sbc;
 pub mod sta;
 pub mod stx;
 pub mod sty;
+pub mod transfer;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
         0x10 => bra::bpl(cpu, bus),
+        0x1B => transfer::tcs(cpu, bus),
         0x20 => jsr::jsr_absolute(cpu, bus),
         0x22 => jsr::jsr_absolute_long(cpu, bus),
         0x30 => bra::bmi(cpu, bus),
+        0x3B => transfer::tsc(cpu, bus),
         0x4C => jmp::jmp_absolute(cpu, bus),
         0x50 => bra::bvc(cpu, bus),
+        0x5B => transfer::tcd(cpu, bus),
         0x5C => jmp::jmp_absolute_long(cpu, bus),
         0x61 => adc::adc_indirect_x(cpu, bus),
         0x65 => adc::adc_direct(cpu, bus),
@@ -38,6 +42,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x72 => adc::adc_indirect(cpu, bus),
         0x75 => adc::adc_direct_x(cpu, bus),
         0x79 => adc::adc_absolute_y(cpu, bus),
+        0x7B => transfer::tdc(cpu, bus),
         0x7C => jmp::jmp_absolute_indexed_direct(cpu, bus),
         0x7D => adc::adc_absolute_x(cpu, bus),
         0x80 => bra::bra_relative(cpu, bus),
@@ -46,6 +51,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x84 => sty::sty_direct(cpu, bus),
         0x85 => sta::sta_direct(cpu, bus),
         0x86 => stx::stx_direct(cpu, bus),
+        0x8A => transfer::txa(cpu, bus),
         0x8C => sty::sty_absolute(cpu, bus),
         0x8D => sta::sta_absolute(cpu, bus),
         0x8E => stx::stx_absolute(cpu, bus),
@@ -55,7 +61,10 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x94 => sty::sty_direct_x(cpu, bus),
         0x95 => sta::sta_direct_x(cpu, bus),
         0x96 => stx::stx_direct_y(cpu, bus),
+        0x98 => transfer::tya(cpu, bus),
         0x99 => sta::sta_absolute_y(cpu, bus),
+        0x9A => transfer::txs(cpu, bus),
+        0x9B => transfer::txy(cpu, bus),
         0x9D => sta::sta_absolute_x(cpu, bus),
         0xA0 => ldy::ldy_immediate(cpu, bus),
         0xA1 => lda::lda_indirect_x(cpu, bus),
@@ -63,7 +72,9 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xA4 => ldy::ldy_direct(cpu, bus),
         0xA5 => lda::lda_direct(cpu, bus),
         0xA6 => ldx::ldx_direct(cpu, bus),
+        0xA8 => transfer::tay(cpu, bus),
         0xA9 => lda::lda_immediate(cpu, bus),
+        0xAA => transfer::tax(cpu, bus),
         0xAC => ldy::ldy_absolute(cpu, bus),
         0xAD => lda::lda_absolute(cpu, bus),
         0xAE => ldx::ldx_absolute(cpu, bus),
@@ -74,6 +85,8 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xB5 => lda::lda_direct_x(cpu, bus),
         0xB6 => ldx::ldx_direct_y(cpu, bus),
         0xB9 => lda::lda_absolute_y(cpu, bus),
+        0xBA => transfer::tsx(cpu, bus),
+        0xBB => transfer::tyx(cpu, bus),
         0xBC => ldy::ldy_absolute_x(cpu, bus),
         0xBD => lda::lda_absolute_x(cpu, bus),
         0xBE => ldx::ldx_absolute_y(cpu, bus),
@@ -176,8 +189,8 @@ fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
 }
 
 fn read_offset_word(cpu: &Cpu, bus: &mut Bus) -> u16 {
-    let offset_low = read_byte(cpu, bus, (cpu.registers.pc + 1).into());
-    let offset_high = read_byte(cpu, bus, (cpu.registers.pc + 2).into());
+    let offset_low = read_byte(cpu, bus, cpu.registers.pc + 1);
+    let offset_high = read_byte(cpu, bus, cpu.registers.pc + 2);
 
     (offset_high as u16) << 8 | (offset_low as u16)
 }
@@ -194,7 +207,7 @@ fn read_byte(cpu: &Cpu, bus: &mut Bus, address: u16) -> u8 {
 }
 
 fn write_word(cpu: &Cpu, bus: &mut Bus, address: u16, value: u16) {
-    write_byte(cpu, bus, address, (value as u8) & 0xFF);
+    write_byte(cpu, bus, address, value as u8);
     write_byte(cpu, bus, address + 1, ((value >> 8) & 0xFF) as u8);
 }
 
