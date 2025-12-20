@@ -12,6 +12,10 @@ use crate::{
     memory::bus::Bus,
 };
 
+// ADC - Add with Carry
+// Adds a value from memory to the accumulator plus the carry flag. Sets N, Z, C, and V flags.
+// Used for multi-byte addition and arithmetic operations. Supports 8-bit and 16-bit modes.
+
 pub fn adc_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
     let pc_increment;

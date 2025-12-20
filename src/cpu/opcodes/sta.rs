@@ -9,6 +9,9 @@ use crate::{
     memory::bus::Bus,
 };
 
+// STA - Store Accumulator
+// Stores the accumulator value to memory. Does not affect any processor flags.
+
 pub fn sta_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
     let offset = read_offset_byte(cpu, bus);

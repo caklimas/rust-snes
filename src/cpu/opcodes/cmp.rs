@@ -12,6 +12,10 @@ use crate::{
     memory::bus::Bus,
 };
 
+// CMP - Compare Accumulator with Memory
+// Compares the accumulator with a value from memory by performing A - M. Sets N, Z, and C flags but does not modify the accumulator.
+// The carry flag is set if A >= M (unsigned comparison). Commonly used before conditional branches.
+
 pub fn cmp_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
     let program_increment;

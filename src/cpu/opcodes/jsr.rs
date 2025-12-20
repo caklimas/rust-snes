@@ -6,6 +6,8 @@ use crate::{
     memory::bus::Bus,
 };
 
+// JSR (0x20) - Jump to Subroutine Absolute
+// Pushes the return address onto the stack and jumps to the specified 16-bit address, used for calling subroutines.
 pub fn jsr_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let address = read_offset_word(cpu, bus);
     let return_address = cpu.registers.pc + 2;
@@ -17,6 +19,8 @@ pub fn jsr_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     6
 }
 
+// JSL (0x22) - Jump to Subroutine Long
+// Pushes the program bank and return address onto the stack, then jumps to a 24-bit address for cross-bank subroutine calls.
 pub fn jsr_absolute_long(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = get_address_absolute_long(cpu, bus);
     let return_address = cpu.registers.pc + 3;

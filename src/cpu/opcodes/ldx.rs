@@ -9,6 +9,11 @@ use crate::{
     memory::bus::Bus,
 };
 
+// LDX - Load X Register
+// Loads a value from memory into the X index register. Sets N and Z flags based on the loaded value.
+// Supports 8-bit and 16-bit modes depending on the X flag.
+
+// LDX (0xA2) - Immediate
 pub fn ldx_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
     let mut pc_increment = 2;
@@ -30,6 +35,7 @@ pub fn ldx_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDX (0xA6) - Direct Page
 pub fn ldx_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let source_address = cpu.registers.d + offset;
@@ -52,6 +58,7 @@ pub fn ldx_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDX (0xAE) - Absolute
 pub fn ldx_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let absolute_address = read_offset_word(cpu, bus);
     let cycles;
@@ -73,6 +80,7 @@ pub fn ldx_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDX (0xB6) - Direct Page Indexed by Y
 pub fn ldx_direct_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let source_address = cpu.registers.d + offset + cpu.registers.y;
@@ -95,6 +103,7 @@ pub fn ldx_direct_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDX (0xBE) - Absolute Indexed by Y
 pub fn ldx_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let target_address = base_address + cpu.registers.y;

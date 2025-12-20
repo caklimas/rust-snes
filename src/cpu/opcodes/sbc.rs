@@ -11,6 +11,10 @@ use crate::{
     memory::bus::Bus,
 };
 
+// SBC - Subtract with Carry (Borrow)
+// Subtracts a value from memory and the inverse of the carry flag from the accumulator. Sets N, Z, C, and V flags.
+// Used for multi-byte subtraction and arithmetic operations. Supports 8-bit and 16-bit modes.
+
 pub fn sbc_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
     let pc_increment;

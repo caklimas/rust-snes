@@ -10,6 +10,12 @@ use crate::{
     memory::bus::Bus,
 };
 
+// LDA - Load Accumulator
+// Loads a value from memory into the accumulator register. Sets N and Z flags based on the loaded value.
+// Supports 8-bit and 16-bit modes depending on the M flag.
+
+// LDA (0xA5) - Direct Page
+// Loads from memory at (Direct Page + offset).
 pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let target_address = cpu.registers.d + offset;
@@ -32,6 +38,8 @@ pub fn lda_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDA (0xB5) - Direct Page Indexed by X
+// Loads from memory at (Direct Page + offset + X).
 pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let base_address = cpu.registers.d + offset;
@@ -59,6 +67,8 @@ pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDA (0xA9) - Immediate
+// Loads an immediate value directly from the instruction stream into the accumulator.
 pub fn lda_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let mut pc_increment = 2;
     let address = cpu.registers.pc + 1;
@@ -79,6 +89,8 @@ pub fn lda_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     if is_8bit_mode_m(cpu) { 2 } else { 3 }
 }
 
+// LDA (0xAD) - Absolute
+// Loads from a 16-bit absolute memory address.
 pub fn lda_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let target_address = read_offset_word(cpu, bus);
     let cycles;
@@ -101,6 +113,8 @@ pub fn lda_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDA (0xBD) - Absolute Indexed by X
+// Loads from memory at (absolute address + X).
 pub fn lda_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let (base_address, target_address) = get_address_absolute_x(cpu, bus);
     let mut cycles;
@@ -126,6 +140,8 @@ pub fn lda_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDA (0xB9) - Absolute Indexed by Y
+// Loads from memory at (absolute address + Y).
 pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offet = read_offset_word(cpu, bus);
     let target_address = offet + cpu.registers.y;
@@ -152,6 +168,8 @@ pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDA (0xB2) - Direct Page Indirect
+// Loads from the address stored at (Direct Page + offset).
 pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
@@ -176,6 +194,8 @@ pub fn lda_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDA (0xA1) - Direct Page Indexed Indirect
+// Loads from the address stored at (Direct Page + offset + X).
 pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let base_pointer_address = cpu.registers.d + offset;
@@ -205,6 +225,8 @@ pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
+// LDA (0xB1) - Direct Page Indirect Indexed by Y
+// Loads from the address (stored at Direct Page + offset) + Y.
 pub fn lda_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let (base_address, target_address) = get_address_indirect_y(cpu, bus);
     let mut cycles;
