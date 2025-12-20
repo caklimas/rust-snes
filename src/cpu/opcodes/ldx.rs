@@ -121,7 +121,7 @@ pub fn ldx_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
         cycles = 5;
     }
 
-    if page_crossed(base_address, target_address as u16) {
+    if page_crossed(base_address, target_address) {
         cycles += 1;
     }
 

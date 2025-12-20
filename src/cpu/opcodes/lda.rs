@@ -60,7 +60,7 @@ pub fn lda_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     increment_program_counter(cpu, 2);
 
-    if page_crossed(target_address as u16, base_address) {
+    if page_crossed(target_address, base_address) {
         cycles += 1;
     }
 
@@ -161,7 +161,7 @@ pub fn lda_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     increment_program_counter(cpu, 3);
 
-    if page_crossed(offet as u16, target_address) {
+    if page_crossed(offet, target_address) {
         cycles += 1;
     }
 
@@ -218,7 +218,7 @@ pub fn lda_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     increment_program_counter(cpu, 2);
 
-    if page_crossed(base_pointer_address as u16, pointer_address as u16) {
+    if page_crossed(base_pointer_address, pointer_address) {
         cycles += 1;
     }
 
@@ -245,7 +245,7 @@ pub fn lda_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
     increment_program_counter(cpu, 2);
 
-    if page_crossed(base_address as u16, target_address as u16) {
+    if page_crossed(base_address, target_address) {
         cycles += 1;
     }
 

@@ -1,10 +1,10 @@
 use crate::{
     cpu::{
         Cpu,
-        opcodes::{increment_program_counter, read_byte, read_offset_byte, read_offset_word},
+        opcodes::{increment_program_counter, read_offset_byte, read_offset_word},
         processor_status::ProcessorStatus,
     },
-    memory::{addresses, bus::Bus},
+    memory::bus::Bus,
 };
 
 // BRA (0x80) - Branch Always

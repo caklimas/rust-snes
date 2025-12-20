@@ -19,7 +19,7 @@ pub fn sty_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
 
     if is_8bit_mode_x(cpu) {
-        write_byte(cpu, bus, target_address, cpu.registers.y as u8 & 0xFF);
+        write_byte(cpu, bus, target_address, (cpu.registers.y as u8));
         cycles = 3;
     } else {
         write_word(cpu, bus, target_address, cpu.registers.y);
@@ -33,13 +33,13 @@ pub fn sty_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 
 // STY (0x8C) - Absolute
 pub fn sty_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let address_low = read_byte(cpu, bus, (cpu.registers.pc + 1).into());
-    let address_high = read_byte(cpu, bus, (cpu.registers.pc + 2).into());
+    let address_low = read_byte(cpu, bus, (cpu.registers.pc + 1));
+    let address_high = read_byte(cpu, bus, (cpu.registers.pc + 2));
     let target_address = (address_high as u16) << 8 | (address_low as u16);
     let cycles;
 
     if is_8bit_mode_x(cpu) {
-        write_byte(cpu, bus, target_address, (cpu.registers.y as u8) & 0xFF);
+        write_byte(cpu, bus, target_address, ((cpu.registers.y as u8)));
         cycles = 4;
     } else {
         write_word(cpu, bus, target_address, cpu.registers.y);
@@ -58,7 +58,7 @@ pub fn sty_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let cycles;
 
     if is_8bit_mode_x(cpu) {
-        write_byte(cpu, bus, target_address, (cpu.registers.y as u8) & 0xFF);
+        write_byte(cpu, bus, target_address, ((cpu.registers.y as u8)));
         cycles = 4;
     } else {
         write_word(cpu, bus, target_address, cpu.registers.y);

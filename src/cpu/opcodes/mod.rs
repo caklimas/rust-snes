@@ -185,7 +185,7 @@ fn pull_byte(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
-    read_byte(cpu, bus, (cpu.registers.pc + 1).into()).into()
+    read_byte(cpu, bus, (cpu.registers.pc + 1)).into()
 }
 
 fn read_offset_word(cpu: &Cpu, bus: &mut Bus) -> u16 {
