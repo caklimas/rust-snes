@@ -9,7 +9,7 @@ impl MemoryRegion {
     }
 
     pub fn read(&self, address: &u32) -> u8 {
-        self.data[self.get_index(&address)]
+        self.data[self.get_index(address)]
     }
 
     pub fn write(&mut self, address: &u32, data: u8) {
