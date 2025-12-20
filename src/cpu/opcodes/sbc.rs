@@ -16,216 +16,176 @@ use crate::{
 // Used for multi-byte subtraction and arithmetic operations. Supports 8-bit and 16-bit modes.
 
 pub fn sbc_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
-    let pc_increment;
-
-    if is_8bit_mode_m(cpu) {
+    let (pc_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
         perform_subtraction_with_carry_u8(cpu, value);
-
-        pc_increment = 2;
-        cycles = 2;
+        (2, 2)
     } else {
         let value = read_offset_word(cpu, bus);
         perform_subtraction_with_carry_u16(cpu, value);
-
-        pc_increment = 3;
-        cycles = 3;
-    }
+        (3, 3)
+    };
 
     increment_program_counter(cpu, pc_increment);
-
     cycles
 }
 
 pub fn sbc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let offset = read_offset_byte(cpu, bus);
     let source_address = cpu.registers.d + offset;
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, source_address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
-
-        cycles = 3;
+        3
     } else {
         let value = read_word(cpu, bus, source_address);
         perform_subtraction_with_carry_u16(cpu, value);
-
-        cycles = 4;
-    }
+        4
+    };
 
     increment_program_counter(cpu, 2);
-
     cycles
 }
 
 pub fn sbc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let address = read_offset_word(cpu, bus);
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
-
-        cycles = 4;
+        4
     } else {
         let value = read_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
-
-        cycles = 5;
-    }
+        5
+    };
 
     increment_program_counter(cpu, 3);
-
     cycles
 }
 
 pub fn sbc_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset + get_x_register_value(cpu);
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
-
-        cycles = 4;
+        4
     } else {
         let value = read_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
-
-        cycles = 5;
-    }
+        5
+    };
 
     increment_program_counter(cpu, 2);
-
     cycles
 }
 
 pub fn sbc_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let mut cycles;
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + get_x_register_value(cpu);
 
-    if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
-
-        cycles = 4;
+        4
     } else {
         let value = read_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
-
-        cycles = 5;
-    }
+        5
+    };
 
     if page_crossed(base_address, address) {
         cycles += 1;
     }
 
     increment_program_counter(cpu, 3);
-
     cycles
 }
 
 pub fn sbc_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let mut cycles;
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + cpu.registers.y;
 
-    if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
-
-        cycles = 4;
+        4
     } else {
         let value = read_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
-
-        cycles = 5;
-    }
+        5
+    };
 
     if page_crossed(base_address, address) {
         cycles += 1;
     }
 
     increment_program_counter(cpu, 3);
-
     cycles
 }
 
 pub fn sbc_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset + get_x_register_value(cpu);
     let address = read_word(cpu, bus, pointer_address);
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
-
-        cycles = 6;
+        6
     } else {
         let value = read_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
-
-        cycles = 7;
-    }
+        7
+    };
 
     increment_program_counter(cpu, 2);
-
     cycles
 }
 
 pub fn sbc_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let mut cycles;
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
     let base_address = read_word(cpu, bus, pointer_address);
     let address = base_address + cpu.registers.y;
 
-    if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
-
-        cycles = 5;
+        5
     } else {
         let value = read_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
-
-        cycles = 6;
-    }
+        6
+    };
 
     if page_crossed(base_address, address) {
         cycles += 1;
     }
 
     increment_program_counter(cpu, 2);
-
     cycles
 }
 
 pub fn sbc_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
     let address = read_word(cpu, bus, pointer_address);
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
-
-        cycles = 5;
+        5
     } else {
         let value = read_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
-
-        cycles = 6;
-    }
+        6
+    };
 
     increment_program_counter(cpu, 2);
-
     cycles
 }
 

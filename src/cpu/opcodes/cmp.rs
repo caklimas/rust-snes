@@ -17,207 +17,167 @@ use crate::{
 // The carry flag is set if A >= M (unsigned comparison). Commonly used before conditional branches.
 
 pub fn cmp_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
-    let program_increment;
-
-    if is_8bit_mode_m(cpu) {
+    let (program_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
         perform_compare_with_carry_u8(cpu, value);
-
-        program_increment = 2;
-        cycles = 2;
+        (2, 2)
     } else {
         let value = read_offset_word(cpu, bus);
         perform_compare_with_carry_u16(cpu, value);
-
-        program_increment = 3;
-        cycles = 3;
-    }
+        (3, 3)
+    };
 
     increment_program_counter(cpu, program_increment);
-
     cycles
 }
 
 pub fn cmp_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address);
         perform_compare_with_carry_u8(cpu, value as u16);
-
-        cycles = 3;
+        3
     } else {
         let value = read_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
-
-        cycles = 4;
-    }
+        4
+    };
 
     increment_program_counter(cpu, 2);
-
     cycles
 }
 
 pub fn cmp_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let address = read_offset_word(cpu, bus);
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
-
-        cycles = 4;
+        4
     } else {
         let value = read_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
-
-        cycles = 5;
-    }
+        5
+    };
 
     increment_program_counter(cpu, 3);
-
     cycles
 }
 
 pub fn cmp_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset + get_x_register_value(cpu);
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
-
-        cycles = 4;
+        4
     } else {
         let value = read_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
-
-        cycles = 5;
-    }
+        5
+    };
 
     increment_program_counter(cpu, 2);
-
     cycles
 }
 
 pub fn cmp_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let (base_address, address) = get_address_absolute_x(cpu, bus);
-    let mut cycles;
 
-    if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
-
-        cycles = 4;
+        4
     } else {
         let value = read_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
-
-        cycles = 5;
-    }
-
-    increment_program_counter(cpu, 3);
+        5
+    };
 
     if page_crossed(base_address, address) {
         cycles += 1;
     }
 
+    increment_program_counter(cpu, 3);
     cycles
 }
 
 pub fn cmp_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let (base_address, address) = get_address_absolute_y(cpu, bus);
-    let mut cycles;
 
-    if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
-
-        cycles = 4;
+        4
     } else {
         let value = read_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
-
-        cycles = 5;
-    }
-
-    increment_program_counter(cpu, 3);
+        5
+    };
 
     if page_crossed(base_address, address) {
         cycles += 1;
     }
 
+    increment_program_counter(cpu, 3);
     cycles
 }
 
 pub fn cmp_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let address = get_address_indirect_x(cpu, bus);
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
-
-        cycles = 6;
+        6
     } else {
         let value = read_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
-
-        cycles = 7;
-    }
+        7
+    };
 
     increment_program_counter(cpu, 2);
-
     cycles
 }
 
 pub fn cmp_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let mut cycles;
     let (base_address, address) = get_address_indirect_y(cpu, bus);
 
-    if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
-
-        cycles = 5;
+        5
     } else {
         let value = read_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
-
-        cycles = 6;
-    }
-
-    increment_program_counter(cpu, 2);
+        6
+    };
 
     if page_crossed(base_address, address) {
         cycles += 1;
     }
 
+    increment_program_counter(cpu, 2);
     cycles
 }
 
 pub fn cmp_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let cycles;
     let address = get_address_indirect(cpu, bus);
 
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
-
-        cycles = 5;
+        5
     } else {
         let value = read_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
-
-        cycles = 6;
-    }
+        6
+    };
 
     increment_program_counter(cpu, 2);
-
     cycles
 }
 

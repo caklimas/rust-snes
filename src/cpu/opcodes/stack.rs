@@ -16,46 +16,49 @@ use crate::{
 // PHA (0x48) - Push Accumulator
 // Pushes the accumulator onto the stack. Pushes 1 byte in 8-bit mode, 2 bytes in 16-bit mode.
 pub fn pha(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         push_byte(cpu, bus, cpu.registers.a as u8);
-        increment_program_counter(cpu, 1);
         3
     } else {
         push_byte(cpu, bus, (cpu.registers.a >> 8) as u8);
         push_byte(cpu, bus, cpu.registers.a as u8);
-        increment_program_counter(cpu, 1);
         4
-    }
+    };
+
+    increment_program_counter(cpu, 1);
+    cycles
 }
 
 // PHX (0xDA) - Push X Register
 // Pushes the X register onto the stack. Pushes 1 byte in 8-bit mode, 2 bytes in 16-bit mode.
 pub fn phx(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    if is_8bit_mode_x(cpu) {
+    let cycles = if is_8bit_mode_x(cpu) {
         push_byte(cpu, bus, cpu.registers.x as u8);
-        increment_program_counter(cpu, 1);
         3
     } else {
         push_byte(cpu, bus, (cpu.registers.x >> 8) as u8);
         push_byte(cpu, bus, cpu.registers.x as u8);
-        increment_program_counter(cpu, 1);
         4
-    }
+    };
+
+    increment_program_counter(cpu, 1);
+    cycles
 }
 
 // PHY (0x5A) - Push Y Register
 // Pushes the Y register onto the stack. Pushes 1 byte in 8-bit mode, 2 bytes in 16-bit mode.
 pub fn phy(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    if is_8bit_mode_x(cpu) {
+    let cycles = if is_8bit_mode_x(cpu) {
         push_byte(cpu, bus, cpu.registers.y as u8);
-        increment_program_counter(cpu, 1);
         3
     } else {
         push_byte(cpu, bus, (cpu.registers.y >> 8) as u8);
         push_byte(cpu, bus, cpu.registers.y as u8);
-        increment_program_counter(cpu, 1);
         4
-    }
+    };
+
+    increment_program_counter(cpu, 1);
+    cycles
 }
 
 // PHP (0x08) - Push Processor Status
@@ -94,11 +97,10 @@ pub fn phk(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // PLA (0x68) - Pull Accumulator
 // Pulls a value from the stack into the accumulator. Sets N and Z flags.
 pub fn pla(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    if is_8bit_mode_m(cpu) {
+    let cycles = if is_8bit_mode_m(cpu) {
         let value = pull_byte(cpu, bus);
         cpu.registers.a = (cpu.registers.a & 0xFF00) | (value as u16);
         set_nz_flags_u8(cpu, value);
-        increment_program_counter(cpu, 1);
         4
     } else {
         let low = pull_byte(cpu, bus);
@@ -106,19 +108,20 @@ pub fn pla(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
         let value = ((high as u16) << 8) | (low as u16);
         cpu.registers.a = value;
         set_nz_flags_u16(cpu, value);
-        increment_program_counter(cpu, 1);
         5
-    }
+    };
+
+    increment_program_counter(cpu, 1);
+    cycles
 }
 
 // PLX (0xFA) - Pull X Register
 // Pulls a value from the stack into the X register. Sets N and Z flags.
 pub fn plx(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    if is_8bit_mode_x(cpu) {
+    let cycles = if is_8bit_mode_x(cpu) {
         let value = pull_byte(cpu, bus);
         cpu.registers.x = (cpu.registers.x & 0xFF00) | (value as u16);
         set_nz_flags_u8(cpu, value);
-        increment_program_counter(cpu, 1);
         4
     } else {
         let low = pull_byte(cpu, bus);
@@ -126,19 +129,20 @@ pub fn plx(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
         let value = ((high as u16) << 8) | (low as u16);
         cpu.registers.x = value;
         set_nz_flags_u16(cpu, value);
-        increment_program_counter(cpu, 1);
         5
-    }
+    };
+
+    increment_program_counter(cpu, 1);
+    cycles
 }
 
 // PLY (0x7A) - Pull Y Register
 // Pulls a value from the stack into the Y register. Sets N and Z flags.
 pub fn ply(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    if is_8bit_mode_x(cpu) {
+    let cycles = if is_8bit_mode_x(cpu) {
         let value = pull_byte(cpu, bus);
         cpu.registers.y = (cpu.registers.y & 0xFF00) | (value as u16);
         set_nz_flags_u8(cpu, value);
-        increment_program_counter(cpu, 1);
         4
     } else {
         let low = pull_byte(cpu, bus);
@@ -146,9 +150,11 @@ pub fn ply(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
         let value = ((high as u16) << 8) | (low as u16);
         cpu.registers.y = value;
         set_nz_flags_u16(cpu, value);
-        increment_program_counter(cpu, 1);
         5
-    }
+    };
+
+    increment_program_counter(cpu, 1);
+    cycles
 }
 
 // PLP (0x28) - Pull Processor Status
