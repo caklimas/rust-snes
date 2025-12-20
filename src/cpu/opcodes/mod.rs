@@ -7,13 +7,16 @@ use crate::{
 };
 
 pub mod adc;
+pub mod and;
 pub mod bra;
 pub mod cmp;
+pub mod eor;
 pub mod jmp;
 pub mod jsr;
 pub mod lda;
 pub mod ldx;
 pub mod ldy;
+pub mod ora;
 pub mod sbc;
 pub mod sta;
 pub mod stack;
@@ -23,11 +26,38 @@ pub mod transfer;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
+        0x01 => ora::ora_indirect_x(cpu, bus),
+        0x05 => ora::ora_direct(cpu, bus),
         0x08 => stack::php(cpu, bus),
+        0x09 => ora::ora_immediate(cpu, bus),
         0x0B => stack::phd(cpu, bus),
+        0x0D => ora::ora_absolute(cpu, bus),
         0x10 => bra::bpl(cpu, bus),
+        0x11 => ora::ora_indirect_y(cpu, bus),
+        0x12 => ora::ora_indirect(cpu, bus),
+        0x15 => ora::ora_direct_x(cpu, bus),
+        0x19 => ora::ora_absolute_y(cpu, bus),
         0x1B => transfer::tcs(cpu, bus),
+        0x1D => ora::ora_absolute_x(cpu, bus),
         0x20 => jsr::jsr_absolute(cpu, bus),
+        0x21 => and::and_indirect_x(cpu, bus),
+        0x25 => and::and_direct(cpu, bus),
+        0x29 => and::and_immediate(cpu, bus),
+        0x2D => and::and_absolute(cpu, bus),
+        0x31 => and::and_indirect_y(cpu, bus),
+        0x32 => and::and_indirect(cpu, bus),
+        0x35 => and::and_direct_x(cpu, bus),
+        0x39 => and::and_absolute_y(cpu, bus),
+        0x3D => and::and_absolute_x(cpu, bus),
+        0x41 => eor::eor_indirect_x(cpu, bus),
+        0x45 => eor::eor_direct(cpu, bus),
+        0x49 => eor::eor_immediate(cpu, bus),
+        0x4D => eor::eor_absolute(cpu, bus),
+        0x51 => eor::eor_indirect_y(cpu, bus),
+        0x52 => eor::eor_indirect(cpu, bus),
+        0x55 => eor::eor_direct_x(cpu, bus),
+        0x59 => eor::eor_absolute_y(cpu, bus),
+        0x5D => eor::eor_absolute_x(cpu, bus),
         0x22 => jsr::jsr_absolute_long(cpu, bus),
         0x28 => stack::plp(cpu, bus),
         0x2B => stack::pld(cpu, bus),
