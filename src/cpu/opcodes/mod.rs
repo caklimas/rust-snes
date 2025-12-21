@@ -10,6 +10,8 @@ pub mod adc;
 pub mod and;
 pub mod bra;
 pub mod cmp;
+pub mod cpx;
+pub mod cpy;
 pub mod dec;
 pub mod eor;
 pub mod inc;
@@ -138,12 +140,15 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xBC => ldy::ldy_absolute_x(cpu, bus),
         0xBD => lda::lda_absolute_x(cpu, bus),
         0xBE => ldx::ldx_absolute_y(cpu, bus),
+        0xC0 => cpy::cpy_immediate(cpu, bus),
         0xC1 => cmp::cmp_indirect_x(cpu, bus),
+        0xC4 => cpy::cpy_direct(cpu, bus),
         0xC5 => cmp::cmp_direct(cpu, bus),
         0xC6 => dec::dec_direct(cpu, bus),
         0xC8 => inc::iny(cpu, bus),
         0xC9 => cmp::cmp_immediate(cpu, bus),
         0xCA => dec::dex(cpu, bus),
+        0xCC => cpy::cpy_absolute(cpu, bus),
         0xCD => cmp::cmp_absolute(cpu, bus),
         0xCE => dec::dec_absolute(cpu, bus),
         0xD0 => bra::bne(cpu, bus),
@@ -157,13 +162,16 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xDC => jmp::jmp_absolute_indirect_long(cpu, bus),
         0xDD => cmp::cmp_absolute_x(cpu, bus),
         0xDE => dec::dec_absolute_x(cpu, bus),
+        0xE0 => cpx::cpx_immediate(cpu, bus),
         0xE1 => sbc::sbc_indirect_x(cpu, bus),
+        0xE4 => cpx::cpx_direct(cpu, bus),
         0xE5 => sbc::sbc_direct(cpu, bus),
         0xE6 => inc::inc_direct(cpu, bus),
         0xE8 => inc::inx(cpu, bus),
         0xE9 => sbc::sbc_immediate(cpu, bus),
         0xED => sbc::sbc_absolute(cpu, bus),
         0xEE => inc::inc_absolute(cpu, bus),
+        0xEC => cpx::cpx_absolute(cpu, bus),
         0xF0 => bra::beq(cpu, bus),
         0xF1 => sbc::sbc_indirect_y(cpu, bus),
         0xF2 => sbc::sbc_indirect(cpu, bus),
