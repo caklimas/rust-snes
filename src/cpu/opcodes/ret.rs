@@ -45,7 +45,7 @@ pub fn rti(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     let status_byte = pull_byte(cpu, bus);
     cpu.registers.p = ProcessorStatus::from_bits_truncate(status_byte);
 
-    let cycles = if cpu.emulation_mode {
+    if cpu.emulation_mode {
         // Emulation mode: pull 16-bit address only
         let return_address_low = pull_byte(cpu, bus) as u16;
         let return_address_high = pull_byte(cpu, bus) as u16;
@@ -59,7 +59,5 @@ pub fn rti(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
         cpu.registers.pc = (return_address_high << 8) | return_address_low;
         cpu.registers.pb = return_bank;
         7
-    };
-
-    cycles
+    }
 }
