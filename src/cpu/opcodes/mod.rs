@@ -10,7 +10,9 @@ pub mod adc;
 pub mod and;
 pub mod bra;
 pub mod cmp;
+pub mod dec;
 pub mod eor;
+pub mod inc;
 pub mod jmp;
 pub mod jsr;
 pub mod lda;
@@ -37,6 +39,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x12 => ora::ora_indirect(cpu, bus),
         0x15 => ora::ora_direct_x(cpu, bus),
         0x19 => ora::ora_absolute_y(cpu, bus),
+        0x1A => inc::ina(cpu, bus),
         0x1B => transfer::tcs(cpu, bus),
         0x1D => ora::ora_absolute_x(cpu, bus),
         0x20 => jsr::jsr_absolute(cpu, bus),
@@ -48,6 +51,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x32 => and::and_indirect(cpu, bus),
         0x35 => and::and_direct_x(cpu, bus),
         0x39 => and::and_absolute_y(cpu, bus),
+        0x3A => dec::dea(cpu, bus),
         0x3D => and::and_absolute_x(cpu, bus),
         0x41 => eor::eor_indirect_x(cpu, bus),
         0x45 => eor::eor_direct(cpu, bus),
@@ -92,6 +96,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x84 => sty::sty_direct(cpu, bus),
         0x85 => sta::sta_direct(cpu, bus),
         0x86 => stx::stx_direct(cpu, bus),
+        0x88 => dec::dey(cpu, bus),
         0x8A => transfer::txa(cpu, bus),
         0x8B => stack::phb(cpu, bus),
         0x8C => sty::sty_absolute(cpu, bus),
@@ -135,29 +140,40 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xBE => ldx::ldx_absolute_y(cpu, bus),
         0xC1 => cmp::cmp_indirect_x(cpu, bus),
         0xC5 => cmp::cmp_direct(cpu, bus),
+        0xC6 => dec::dec_direct(cpu, bus),
+        0xC8 => inc::iny(cpu, bus),
         0xC9 => cmp::cmp_immediate(cpu, bus),
+        0xCA => dec::dex(cpu, bus),
         0xCD => cmp::cmp_absolute(cpu, bus),
+        0xCE => dec::dec_absolute(cpu, bus),
         0xD0 => bra::bne(cpu, bus),
         0xD1 => cmp::cmp_indirect_y(cpu, bus),
         0xD2 => cmp::cmp_indirect(cpu, bus),
         0xD4 => stack::pei(cpu, bus),
         0xD5 => cmp::cmp_direct_x(cpu, bus),
+        0xD6 => dec::dec_direct_x(cpu, bus),
         0xD9 => cmp::cmp_absolute_y(cpu, bus),
         0xDA => stack::phx(cpu, bus),
         0xDC => jmp::jmp_absolute_indirect_long(cpu, bus),
         0xDD => cmp::cmp_absolute_x(cpu, bus),
-        0xE9 => sbc::sbc_immediate(cpu, bus),
-        0xE5 => sbc::sbc_direct(cpu, bus),
-        0xED => sbc::sbc_absolute(cpu, bus),
+        0xDE => dec::dec_absolute_x(cpu, bus),
         0xE1 => sbc::sbc_indirect_x(cpu, bus),
+        0xE5 => sbc::sbc_direct(cpu, bus),
+        0xE6 => inc::inc_direct(cpu, bus),
+        0xE8 => inc::inx(cpu, bus),
+        0xE9 => sbc::sbc_immediate(cpu, bus),
+        0xED => sbc::sbc_absolute(cpu, bus),
+        0xEE => inc::inc_absolute(cpu, bus),
         0xF0 => bra::beq(cpu, bus),
         0xF1 => sbc::sbc_indirect_y(cpu, bus),
         0xF2 => sbc::sbc_indirect(cpu, bus),
         0xF4 => stack::pea(cpu, bus),
         0xF5 => sbc::sbc_direct_x(cpu, bus),
+        0xF6 => inc::inc_direct_x(cpu, bus),
         0xF9 => sbc::sbc_absolute_y(cpu, bus),
         0xFA => stack::plx(cpu, bus),
         0xFD => sbc::sbc_absolute_x(cpu, bus),
+        0xFE => inc::inc_absolute_x(cpu, bus),
         _ => {
             println!(
                 "Unimplemented opcode: 0x{:02X} at PC: 0x{:04X}",
