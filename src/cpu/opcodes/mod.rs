@@ -22,6 +22,7 @@ pub mod jsr;
 pub mod lda;
 pub mod ldx;
 pub mod ldy;
+pub mod misc;
 pub mod ora;
 pub mod ret;
 pub mod sbc;
@@ -34,7 +35,9 @@ pub mod transfer;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     match opcode {
+        0x00 => misc::brk(cpu, bus),
         0x01 => ora::ora_indirect_x(cpu, bus),
+        0x02 => misc::cop(cpu, bus),
         0x04 => bit::tsb_direct(cpu, bus),
         0x05 => ora::ora_direct(cpu, bus),
         0x06 => shift::asl_direct(cpu, bus),
@@ -81,6 +84,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x3E => shift::rol_absolute_x(cpu, bus),
         0x40 => ret::rti(cpu, bus),
         0x41 => eor::eor_indirect_x(cpu, bus),
+        0x42 => misc::wdm(cpu, bus),
         0x45 => eor::eor_direct(cpu, bus),
         0x46 => shift::lsr_direct(cpu, bus),
         0x49 => eor::eor_immediate(cpu, bus),
@@ -190,6 +194,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xC8 => inc::iny(cpu, bus),
         0xC9 => cmp::cmp_immediate(cpu, bus),
         0xCA => dec::dex(cpu, bus),
+        0xCB => misc::wai(cpu, bus),
         0xCC => cpy::cpy_absolute(cpu, bus),
         0xCD => cmp::cmp_absolute(cpu, bus),
         0xCE => dec::dec_absolute(cpu, bus),
@@ -202,6 +207,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xD8 => flags::cld(cpu, bus),
         0xD9 => cmp::cmp_absolute_y(cpu, bus),
         0xDA => stack::phx(cpu, bus),
+        0xDB => misc::stp(cpu, bus),
         0xDC => jmp::jmp_absolute_indirect_long(cpu, bus),
         0xDD => cmp::cmp_absolute_x(cpu, bus),
         0xDE => dec::dec_absolute_x(cpu, bus),
@@ -213,6 +219,8 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xE6 => inc::inc_direct(cpu, bus),
         0xE8 => inc::inx(cpu, bus),
         0xE9 => sbc::sbc_immediate(cpu, bus),
+        0xEA => misc::nop(cpu, bus),
+        0xEB => misc::xba(cpu, bus),
         0xED => sbc::sbc_absolute(cpu, bus),
         0xEE => inc::inc_absolute(cpu, bus),
         0xEC => cpx::cpx_absolute(cpu, bus),
@@ -225,6 +233,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xF8 => flags::sed(cpu, bus),
         0xF9 => sbc::sbc_absolute_y(cpu, bus),
         0xFA => stack::plx(cpu, bus),
+        0xFB => misc::xce(cpu, bus),
         0xFD => sbc::sbc_absolute_x(cpu, bus),
         0xFE => inc::inc_absolute_x(cpu, bus),
         _ => {
