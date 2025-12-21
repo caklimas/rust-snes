@@ -15,7 +15,6 @@ pub struct Cpu {
 impl Cpu {
     pub fn step(&mut self, bus: &mut Bus) -> u8 {
         let opcode = bus.read(self.registers.pc as u32);
-        
 
         execute_opcode(self, bus, opcode)
     }

@@ -14,6 +14,7 @@ pub mod cpx;
 pub mod cpy;
 pub mod dec;
 pub mod eor;
+pub mod flags;
 pub mod inc;
 pub mod jmp;
 pub mod jsr;
@@ -40,6 +41,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x11 => ora::ora_indirect_y(cpu, bus),
         0x12 => ora::ora_indirect(cpu, bus),
         0x15 => ora::ora_direct_x(cpu, bus),
+        0x18 => flags::clc(cpu, bus),
         0x19 => ora::ora_absolute_y(cpu, bus),
         0x1A => inc::ina(cpu, bus),
         0x1B => transfer::tcs(cpu, bus),
@@ -52,6 +54,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x31 => and::and_indirect_y(cpu, bus),
         0x32 => and::and_indirect(cpu, bus),
         0x35 => and::and_direct_x(cpu, bus),
+        0x38 => flags::sec(cpu, bus),
         0x39 => and::and_absolute_y(cpu, bus),
         0x3A => dec::dea(cpu, bus),
         0x3D => and::and_absolute_x(cpu, bus),
@@ -62,6 +65,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x51 => eor::eor_indirect_y(cpu, bus),
         0x52 => eor::eor_indirect(cpu, bus),
         0x55 => eor::eor_direct_x(cpu, bus),
+        0x58 => flags::cli(cpu, bus),
         0x59 => eor::eor_absolute_y(cpu, bus),
         0x5D => eor::eor_absolute_x(cpu, bus),
         0x22 => jsr::jsr_absolute_long(cpu, bus),
@@ -87,6 +91,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x71 => adc::adc_indirect_y(cpu, bus),
         0x72 => adc::adc_indirect(cpu, bus),
         0x75 => adc::adc_direct_x(cpu, bus),
+        0x78 => flags::sei(cpu, bus),
         0x79 => adc::adc_absolute_y(cpu, bus),
         0x7A => stack::ply(cpu, bus),
         0x7B => transfer::tdc(cpu, bus),
@@ -134,6 +139,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xB4 => ldy::ldy_direct_x(cpu, bus),
         0xB5 => lda::lda_direct_x(cpu, bus),
         0xB6 => ldx::ldx_direct_y(cpu, bus),
+        0xB8 => flags::clv(cpu, bus),
         0xB9 => lda::lda_absolute_y(cpu, bus),
         0xBA => transfer::tsx(cpu, bus),
         0xBB => transfer::tyx(cpu, bus),
@@ -142,6 +148,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xBE => ldx::ldx_absolute_y(cpu, bus),
         0xC0 => cpy::cpy_immediate(cpu, bus),
         0xC1 => cmp::cmp_indirect_x(cpu, bus),
+        0xC2 => flags::rep(cpu, bus),
         0xC4 => cpy::cpy_direct(cpu, bus),
         0xC5 => cmp::cmp_direct(cpu, bus),
         0xC6 => dec::dec_direct(cpu, bus),
@@ -157,6 +164,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xD4 => stack::pei(cpu, bus),
         0xD5 => cmp::cmp_direct_x(cpu, bus),
         0xD6 => dec::dec_direct_x(cpu, bus),
+        0xD8 => flags::cld(cpu, bus),
         0xD9 => cmp::cmp_absolute_y(cpu, bus),
         0xDA => stack::phx(cpu, bus),
         0xDC => jmp::jmp_absolute_indirect_long(cpu, bus),
@@ -164,6 +172,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xDE => dec::dec_absolute_x(cpu, bus),
         0xE0 => cpx::cpx_immediate(cpu, bus),
         0xE1 => sbc::sbc_indirect_x(cpu, bus),
+        0xE2 => flags::sep(cpu, bus),
         0xE4 => cpx::cpx_direct(cpu, bus),
         0xE5 => sbc::sbc_direct(cpu, bus),
         0xE6 => inc::inc_direct(cpu, bus),
@@ -178,6 +187,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0xF4 => stack::pea(cpu, bus),
         0xF5 => sbc::sbc_direct_x(cpu, bus),
         0xF6 => inc::inc_direct_x(cpu, bus),
+        0xF8 => flags::sed(cpu, bus),
         0xF9 => sbc::sbc_absolute_y(cpu, bus),
         0xFA => stack::plx(cpu, bus),
         0xFD => sbc::sbc_absolute_x(cpu, bus),
@@ -256,7 +266,7 @@ pub(crate) fn pull_byte(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 pub(crate) fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
-    read_byte(cpu, bus, cpu.registers.pc + 1 ).into()
+    read_byte(cpu, bus, cpu.registers.pc + 1).into()
 }
 
 pub(crate) fn read_offset_word(cpu: &Cpu, bus: &mut Bus) -> u16 {
