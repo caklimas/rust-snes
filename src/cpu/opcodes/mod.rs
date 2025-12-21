@@ -22,6 +22,7 @@ pub mod lda;
 pub mod ldx;
 pub mod ldy;
 pub mod ora;
+pub mod ret;
 pub mod sbc;
 pub mod shift;
 pub mod sta;
@@ -69,6 +70,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x3A => dec::dea(cpu, bus),
         0x3D => and::and_absolute_x(cpu, bus),
         0x3E => shift::rol_absolute_x(cpu, bus),
+        0x40 => ret::rti(cpu, bus),
         0x41 => eor::eor_indirect_x(cpu, bus),
         0x45 => eor::eor_direct(cpu, bus),
         0x46 => shift::lsr_direct(cpu, bus),
@@ -96,6 +98,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x5A => stack::phy(cpu, bus),
         0x5B => transfer::tcd(cpu, bus),
         0x5C => jmp::jmp_absolute_long(cpu, bus),
+        0x60 => ret::rts(cpu, bus),
         0x61 => adc::adc_indirect_x(cpu, bus),
         0x62 => stack::per(cpu, bus),
         0x65 => adc::adc_direct(cpu, bus),
@@ -103,6 +106,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x68 => stack::pla(cpu, bus),
         0x69 => adc::adc_immediate(cpu, bus),
         0x6A => shift::ror_accumulator(cpu, bus),
+        0x6B => ret::rtl(cpu, bus),
         0x6C => jmp::jmp_absolute_indirect(cpu, bus),
         0x6D => adc::adc_absolute(cpu, bus),
         0x6E => shift::ror_absolute(cpu, bus),
