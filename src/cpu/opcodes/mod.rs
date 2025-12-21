@@ -9,6 +9,7 @@ use crate::{
 pub mod adc;
 pub mod and;
 pub mod bit;
+pub mod block_move;
 pub mod bra;
 pub mod cmp;
 pub mod cpx;
@@ -31,6 +32,7 @@ pub mod sta;
 pub mod stack;
 pub mod stx;
 pub mod sty;
+pub mod stz;
 pub mod transfer;
 
 pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
@@ -85,6 +87,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x40 => ret::rti(cpu, bus),
         0x41 => eor::eor_indirect_x(cpu, bus),
         0x42 => misc::wdm(cpu, bus),
+        0x44 => block_move::mvp(cpu, bus),
         0x45 => eor::eor_direct(cpu, bus),
         0x46 => shift::lsr_direct(cpu, bus),
         0x49 => eor::eor_immediate(cpu, bus),
@@ -93,6 +96,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x4E => shift::lsr_absolute(cpu, bus),
         0x51 => eor::eor_indirect_y(cpu, bus),
         0x52 => eor::eor_indirect(cpu, bus),
+        0x54 => block_move::mvn(cpu, bus),
         0x55 => eor::eor_direct_x(cpu, bus),
         0x56 => shift::lsr_direct_x(cpu, bus),
         0x58 => flags::cli(cpu, bus),
@@ -114,6 +118,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x60 => ret::rts(cpu, bus),
         0x61 => adc::adc_indirect_x(cpu, bus),
         0x62 => stack::per(cpu, bus),
+        0x64 => stz::stz_direct(cpu, bus),
         0x65 => adc::adc_direct(cpu, bus),
         0x66 => shift::ror_direct(cpu, bus),
         0x68 => stack::pla(cpu, bus),
@@ -126,6 +131,7 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x70 => bra::bvs(cpu, bus),
         0x71 => adc::adc_indirect_y(cpu, bus),
         0x72 => adc::adc_indirect(cpu, bus),
+        0x74 => stz::stz_direct_x(cpu, bus),
         0x75 => adc::adc_direct_x(cpu, bus),
         0x76 => shift::ror_direct_x(cpu, bus),
         0x78 => flags::sei(cpu, bus),
@@ -158,7 +164,9 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
         0x99 => sta::sta_absolute_y(cpu, bus),
         0x9A => transfer::txs(cpu, bus),
         0x9B => transfer::txy(cpu, bus),
+        0x9C => stz::stz_absolute(cpu, bus),
         0x9D => sta::sta_absolute_x(cpu, bus),
+        0x9E => stz::stz_absolute_x(cpu, bus),
         0xA0 => ldy::ldy_immediate(cpu, bus),
         0xA1 => lda::lda_indirect_x(cpu, bus),
         0xA2 => ldx::ldx_immediate(cpu, bus),
