@@ -6,14 +6,14 @@ use crate::{
             write_word,
         },
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // STX - Store X Register
 // Stores the X register value to memory. Does not affect any processor flags.
 
 // STX (0x86) - Direct Page
-pub fn stx_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn stx_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let target_address = cpu.registers.d + offset;
 
@@ -30,7 +30,7 @@ pub fn stx_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 // STX (0x96) - Direct Page Indexed by Y
-pub fn stx_direct_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn stx_direct_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let target_address = cpu.registers.d + offset + cpu.registers.y;
 
@@ -47,7 +47,7 @@ pub fn stx_direct_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 // STX (0x8E) - Absolute
-pub fn stx_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn stx_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
     let address_high = read_byte(cpu, bus, cpu.registers.pc + 2);
     let target_address = (address_high as u16) << 8 | (address_low as u16);

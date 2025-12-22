@@ -4,7 +4,7 @@ pub mod registers;
 
 pub use registers::Registers;
 
-use crate::{cpu::opcodes::execute_opcode, memory::bus::Bus};
+use crate::{cpu::opcodes::execute_opcode, memory::MemoryBus};
 
 #[derive(Debug, Default)]
 pub struct Cpu {
@@ -15,7 +15,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn step(&mut self, bus: &mut Bus) -> u8 {
+    pub fn step<B: MemoryBus>(&mut self, bus: &mut B) -> u8 {
         // If CPU is stopped, do nothing
         if self.stopped {
             return 1;

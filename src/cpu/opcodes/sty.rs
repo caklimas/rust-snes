@@ -6,14 +6,14 @@ use crate::{
             read_offset_byte, write_byte, write_word,
         },
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // STY - Store Y Register
 // Stores the Y register value to memory. Does not affect any processor flags.
 
 // STY (0x84) - Direct Page
-pub fn sty_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sty_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let target_address = cpu.registers.d + offset;
 
@@ -30,7 +30,7 @@ pub fn sty_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 // STY (0x8C) - Absolute
-pub fn sty_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sty_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
     let address_high = read_byte(cpu, bus, cpu.registers.pc + 2);
     let target_address = (address_high as u16) << 8 | (address_low as u16);
@@ -48,7 +48,7 @@ pub fn sty_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 // STY (0x94) - Direct Page Indexed by X
-pub fn sty_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sty_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let target_address = cpu.registers.d + offset + get_x_register_value(cpu);
 

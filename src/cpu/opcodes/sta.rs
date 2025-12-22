@@ -6,13 +6,13 @@ use crate::{
             read_offset_byte, read_word, write_byte, write_word,
         },
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // STA - Store Accumulator
 // Stores the accumulator value to memory. Does not affect any processor flags.
 
-pub fn sta_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sta_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let target_address = cpu.registers.d + offset;
 
@@ -28,7 +28,7 @@ pub fn sta_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sta_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sta_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let base_address = cpu.registers.d + offset;
     let target_address = base_address + get_x_register_value(cpu);
@@ -45,7 +45,7 @@ pub fn sta_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sta_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sta_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
     let address_high = read_byte(cpu, bus, cpu.registers.pc + 2);
     let target_address = (address_high as u16) << 8 | (address_low as u16);
@@ -62,7 +62,7 @@ pub fn sta_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sta_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sta_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
     let address_high = read_byte(cpu, bus, cpu.registers.pc + 2);
     let base_address = (address_high as u16) << 8 | (address_low as u16);
@@ -80,7 +80,7 @@ pub fn sta_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sta_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sta_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
     let address_high = read_byte(cpu, bus, cpu.registers.pc + 2);
     let base_address = (address_high as u16) << 8 | (address_low as u16);
@@ -98,7 +98,7 @@ pub fn sta_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sta_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sta_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
     let target_address = read_word(cpu, bus, pointer_address);
@@ -115,7 +115,7 @@ pub fn sta_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sta_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sta_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let base_pointer_address = cpu.registers.d + offset;
     let pointer_address = base_pointer_address + get_x_register_value(cpu);
@@ -136,7 +136,7 @@ pub fn sta_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sta_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sta_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
     let base_address = read_word(cpu, bus, pointer_address);

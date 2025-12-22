@@ -8,14 +8,14 @@ use crate::{
         },
         processor_status::ProcessorStatus,
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // SBC - Subtract with Carry (Borrow)
 // Subtracts a value from memory and the inverse of the carry flag from the accumulator. Sets N, Z, C, and V flags.
 // Used for multi-byte subtraction and arithmetic operations. Supports 8-bit and 16-bit modes.
 
-pub fn sbc_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sbc_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (pc_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
         perform_subtraction_with_carry_u8(cpu, value);
@@ -30,7 +30,7 @@ pub fn sbc_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sbc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sbc_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let source_address = cpu.registers.d + offset;
 
@@ -48,7 +48,7 @@ pub fn sbc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sbc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sbc_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -65,7 +65,7 @@ pub fn sbc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sbc_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sbc_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset + get_x_register_value(cpu);
 
@@ -83,7 +83,7 @@ pub fn sbc_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sbc_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sbc_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + get_x_register_value(cpu);
 
@@ -105,7 +105,7 @@ pub fn sbc_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sbc_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sbc_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + cpu.registers.y;
 
@@ -127,7 +127,7 @@ pub fn sbc_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sbc_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sbc_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset + get_x_register_value(cpu);
     let address = read_word(cpu, bus, pointer_address);
@@ -146,7 +146,7 @@ pub fn sbc_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sbc_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sbc_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
     let base_address = read_word(cpu, bus, pointer_address);
@@ -170,7 +170,7 @@ pub fn sbc_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn sbc_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sbc_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
     let address = read_word(cpu, bus, pointer_address);

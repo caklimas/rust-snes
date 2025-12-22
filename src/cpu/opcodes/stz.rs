@@ -6,13 +6,13 @@ use crate::{
             write_byte, write_word,
         },
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // STZ - Store Zero to Memory
 // Stores a zero value to memory. More efficient than loading zero into A and then storing.
 // Does not affect any flags.
-pub fn stz_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn stz_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
@@ -28,7 +28,7 @@ pub fn stz_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn stz_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn stz_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let x_value = if cpu
         .registers
@@ -53,7 +53,7 @@ pub fn stz_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn stz_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn stz_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -68,7 +68,7 @@ pub fn stz_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn stz_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn stz_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + cpu.registers.x;
 

@@ -1,6 +1,6 @@
 use crate::{
     cpu::{Cpu, opcodes::read_offset_byte},
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // MVP - Block Move Positive
@@ -9,7 +9,7 @@ use crate::{
 // Increments X and Y after each byte. Decrements A.
 // If A != $FFFF after transfer, repeats (doesn't advance PC).
 // Operands specify source bank and destination bank.
-pub fn mvp(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn mvp<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let dest_bank = read_offset_byte(cpu, bus) as u8;
     let source_bank = read_offset_byte(cpu, bus) as u8;
 
@@ -46,7 +46,7 @@ pub fn mvp(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // Decrements X and Y after each byte. Decrements A.
 // If A != $FFFF after transfer, repeats (doesn't advance PC).
 // Operands specify source bank and destination bank.
-pub fn mvn(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn mvn<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let dest_bank = read_offset_byte(cpu, bus) as u8;
     let source_bank = read_offset_byte(cpu, bus) as u8;
 

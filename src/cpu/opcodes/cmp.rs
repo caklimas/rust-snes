@@ -9,14 +9,14 @@ use crate::{
         },
         processor_status::ProcessorStatus,
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // CMP - Compare Accumulator with Memory
 // Compares the accumulator with a value from memory by performing A - M. Sets N, Z, and C flags but does not modify the accumulator.
 // The carry flag is set if A >= M (unsigned comparison). Commonly used before conditional branches.
 
-pub fn cmp_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cmp_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (program_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
         perform_compare_with_carry_u8(cpu, value);
@@ -31,7 +31,7 @@ pub fn cmp_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cmp_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cmp_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
@@ -49,7 +49,7 @@ pub fn cmp_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cmp_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cmp_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -66,7 +66,7 @@ pub fn cmp_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cmp_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cmp_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset + get_x_register_value(cpu);
 
@@ -84,7 +84,7 @@ pub fn cmp_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cmp_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cmp_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base_address, address) = get_address_absolute_x(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
@@ -105,7 +105,7 @@ pub fn cmp_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cmp_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cmp_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base_address, address) = get_address_absolute_y(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
@@ -126,7 +126,7 @@ pub fn cmp_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cmp_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cmp_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = get_address_indirect_x(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -143,7 +143,7 @@ pub fn cmp_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cmp_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cmp_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base_address, address) = get_address_indirect_y(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
@@ -164,7 +164,7 @@ pub fn cmp_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cmp_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cmp_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = get_address_indirect(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {

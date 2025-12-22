@@ -9,14 +9,14 @@ use crate::{
         },
         processor_status::ProcessorStatus,
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // ADC - Add with Carry
 // Adds a value from memory to the accumulator plus the carry flag. Sets N, Z, C, and V flags.
 // Used for multi-byte addition and arithmetic operations. Supports 8-bit and 16-bit modes.
 
-pub fn adc_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn adc_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (pc_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
         perform_addition_with_carry_u8(cpu, value);
@@ -31,7 +31,7 @@ pub fn adc_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn adc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn adc_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let source_address = cpu.registers.d + offset;
 
@@ -49,7 +49,7 @@ pub fn adc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn adc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn adc_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -66,7 +66,7 @@ pub fn adc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn adc_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn adc_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset + get_x_register_value(cpu);
 
@@ -84,7 +84,7 @@ pub fn adc_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn adc_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn adc_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base_address, address) = get_address_absolute_x(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
@@ -105,7 +105,7 @@ pub fn adc_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn adc_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn adc_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + cpu.registers.y;
 
@@ -127,7 +127,7 @@ pub fn adc_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn adc_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn adc_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = get_address_indirect_x(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -144,7 +144,7 @@ pub fn adc_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn adc_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn adc_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base_address, address) = get_address_indirect_y(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
@@ -165,7 +165,7 @@ pub fn adc_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn adc_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn adc_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = get_address_indirect(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {

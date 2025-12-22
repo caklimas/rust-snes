@@ -7,14 +7,14 @@ use crate::{
         },
         processor_status::ProcessorStatus,
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // CPX - Compare X Register with Memory
 // Compares the X register with a value from memory by performing X - M. Sets N, Z, and C flags but does not modify the X register.
 // The carry flag is set if X >= M (unsigned comparison). Commonly used before conditional branches in loops.
 
-pub fn cpx_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cpx_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (pc_increment, cycles) = if is_8bit_mode_x(cpu) {
         let value = read_offset_byte(cpu, bus);
         perform_compare_u8(cpu, value);
@@ -29,7 +29,7 @@ pub fn cpx_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cpx_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cpx_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
@@ -47,7 +47,7 @@ pub fn cpx_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cpx_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cpx_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_x(cpu) {

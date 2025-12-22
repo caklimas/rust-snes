@@ -7,14 +7,14 @@ use crate::{
         },
         processor_status::ProcessorStatus,
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // BIT - Bit Test
 // Tests bits in memory against the accumulator using AND operation.
 // Sets Z flag if (A AND M) == 0. In non-immediate modes, also copies bit 7 of M to N flag and bit 6 of M to V flag.
 // Does not modify the accumulator or memory.
-pub fn bit_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn bit_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (pc_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus) as u8;
         let a_value = (cpu.registers.a & 0xFF) as u8;
@@ -32,7 +32,7 @@ pub fn bit_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn bit_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn bit_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
@@ -51,7 +51,7 @@ pub fn bit_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn bit_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn bit_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -69,7 +69,7 @@ pub fn bit_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn bit_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn bit_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let x_value = if cpu.registers.p.contains(ProcessorStatus::INDEX_WIDTH) {
         cpu.registers.x & 0xFF
@@ -93,7 +93,7 @@ pub fn bit_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn bit_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn bit_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + cpu.registers.x;
 
@@ -137,7 +137,7 @@ fn perform_bit_test_u16(cpu: &mut Cpu, a_value: u16, value: u16) {
 // TSB - Test and Set Bits
 // Tests bits in memory against accumulator (sets Z flag if (A AND M) == 0).
 // Then sets bits in memory: M = M OR A. Modifies memory, not accumulator.
-pub fn tsb_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn tsb_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
@@ -162,7 +162,7 @@ pub fn tsb_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn tsb_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn tsb_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -189,7 +189,7 @@ pub fn tsb_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // TRB - Test and Reset Bits
 // Tests bits in memory against accumulator (sets Z flag if (A AND M) == 0).
 // Then clears bits in memory: M = M AND (NOT A). Modifies memory, not accumulator.
-pub fn trb_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn trb_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
@@ -214,7 +214,7 @@ pub fn trb_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn trb_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn trb_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {

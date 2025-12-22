@@ -7,7 +7,7 @@ use crate::{
             set_nz_flags_u16,
         },
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // LDY - Load Y Register
@@ -15,7 +15,7 @@ use crate::{
 // Supports 8-bit and 16-bit modes depending on the X flag.
 
 // LDY (0xA0) - Immediate
-pub fn ldy_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn ldy_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let cycles;
     let pc_increment;
 
@@ -39,7 +39,7 @@ pub fn ldy_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 // LDY (0xA4) - Direct Page
-pub fn ldy_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn ldy_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let source_address = cpu.registers.d + offset;
     let cycles;
@@ -62,7 +62,7 @@ pub fn ldy_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 // LDY (0xAC) - Absolute
-pub fn ldy_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn ldy_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let absolute_address = read_offset_word(cpu, bus);
     let cycles;
 
@@ -84,7 +84,7 @@ pub fn ldy_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 // LDY (0xB4) - Direct Page Indexed by X
-pub fn ldy_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn ldy_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let source_address = cpu.registers.d + offset + get_x_register_value(cpu);
     let cycles;
@@ -107,7 +107,7 @@ pub fn ldy_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 }
 
 // LDY (0xBC) - Absolute Indexed by X
-pub fn ldy_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn ldy_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let target_address = base_address + get_x_register_value(cpu);
     let mut cycles;

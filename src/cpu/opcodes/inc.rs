@@ -7,14 +7,14 @@ use crate::{
             set_nz_flags_u16, write_byte, write_word,
         },
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // INC - Increment Memory
 // Adds 1 to the value at a memory location. Sets N and Z flags based on the result.
 // Commonly used for incrementing counters, loop indices, and other memory-based values.
 
-pub fn inc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn inc_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
@@ -36,7 +36,7 @@ pub fn inc_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn inc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn inc_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -57,7 +57,7 @@ pub fn inc_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn inc_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn inc_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset + get_x_register_value(cpu);
 
@@ -79,7 +79,7 @@ pub fn inc_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn inc_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn inc_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + get_x_register_value(cpu);
 
@@ -104,7 +104,7 @@ pub fn inc_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // INA - Increment Accumulator
 // Adds 1 to the accumulator. Sets N and Z flags based on the result.
 // Commonly used for simple accumulator-based counting.
-pub fn ina(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn ina<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     let cycles = if is_8bit_mode_m(cpu) {
         let value = (cpu.registers.a & 0xFF) as u8;
         let result = value.wrapping_add(1);
@@ -125,7 +125,7 @@ pub fn ina(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // INX - Increment X Register
 // Adds 1 to the X register. Sets N and Z flags based on the result.
 // Commonly used in loops and array indexing.
-pub fn inx(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn inx<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     let cycles = if is_8bit_mode_x(cpu) {
         let value = (cpu.registers.x & 0xFF) as u8;
         let result = value.wrapping_add(1);
@@ -146,7 +146,7 @@ pub fn inx(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // INY - Increment Y Register
 // Adds 1 to the Y register. Sets N and Z flags based on the result.
 // Commonly used in loops and array indexing.
-pub fn iny(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn iny<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     let cycles = if is_8bit_mode_x(cpu) {
         let value = (cpu.registers.y & 0xFF) as u8;
         let result = value.wrapping_add(1);

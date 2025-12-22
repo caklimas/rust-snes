@@ -7,14 +7,14 @@ use crate::{
             set_nz_flags_u16, write_byte, write_word,
         },
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // DEC - Decrement Memory
 // Subtracts 1 from the value at a memory location. Sets N and Z flags based on the result.
 // Commonly used for decrementing counters, loop indices, and other memory-based values.
 
-pub fn dec_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn dec_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
@@ -36,7 +36,7 @@ pub fn dec_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn dec_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn dec_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -57,7 +57,7 @@ pub fn dec_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn dec_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn dec_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset + get_x_register_value(cpu);
 
@@ -79,7 +79,7 @@ pub fn dec_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn dec_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn dec_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + get_x_register_value(cpu);
 
@@ -104,7 +104,7 @@ pub fn dec_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // DEA - Decrement Accumulator
 // Subtracts 1 from the accumulator. Sets N and Z flags based on the result.
 // Commonly used for simple accumulator-based counting.
-pub fn dea(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn dea<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     let cycles = if is_8bit_mode_m(cpu) {
         let value = (cpu.registers.a & 0xFF) as u8;
         let result = value.wrapping_sub(1);
@@ -125,7 +125,7 @@ pub fn dea(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // DEX - Decrement X Register
 // Subtracts 1 from the X register. Sets N and Z flags based on the result.
 // Commonly used in loops and array indexing.
-pub fn dex(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn dex<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     let cycles = if is_8bit_mode_x(cpu) {
         let value = (cpu.registers.x & 0xFF) as u8;
         let result = value.wrapping_sub(1);
@@ -146,7 +146,7 @@ pub fn dex(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // DEY - Decrement Y Register
 // Subtracts 1 from the Y register. Sets N and Z flags based on the result.
 // Commonly used in loops and array indexing.
-pub fn dey(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn dey<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     let cycles = if is_8bit_mode_x(cpu) {
         let value = (cpu.registers.y & 0xFF) as u8;
         let result = value.wrapping_sub(1);

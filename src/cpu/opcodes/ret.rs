@@ -1,6 +1,6 @@
 use crate::{
     cpu::{Cpu, processor_status::ProcessorStatus},
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 use super::pull_byte;
@@ -9,7 +9,7 @@ use super::pull_byte;
 // Returns from a subroutine called by JSR. Pulls the return address from the stack and increments it by 1.
 // Does not affect any flags. The return address pushed by JSR is the address of the last byte of the JSR instruction,
 // so RTS adds 1 to get the next instruction.
-pub fn rts(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn rts<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let return_address_low = pull_byte(cpu, bus) as u16;
     let return_address_high = pull_byte(cpu, bus) as u16;
     let return_address = (return_address_high << 8) | return_address_low;
@@ -23,7 +23,7 @@ pub fn rts(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // RTL - Return from Subroutine Long
 // Returns from a long subroutine called by JSR Long. Pulls a 24-bit return address (including bank byte) from the stack.
 // Does not affect any flags. Used for returning from subroutines that cross bank boundaries.
-pub fn rtl(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn rtl<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let return_address_low = pull_byte(cpu, bus) as u16;
     let return_address_high = pull_byte(cpu, bus) as u16;
     let return_bank = pull_byte(cpu, bus);
@@ -40,7 +40,7 @@ pub fn rtl(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // Returns from an interrupt handler. Pulls the processor status and return address from the stack.
 // Restores all processor flags and the program counter to the state before the interrupt occurred.
 // In native mode (E=0), also restores the program bank register.
-pub fn rti(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn rti<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     // Pull processor status
     let status_byte = pull_byte(cpu, bus);
     cpu.registers.p = ProcessorStatus::from_bits_truncate(status_byte);

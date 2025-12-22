@@ -7,14 +7,14 @@ use crate::{
         },
         processor_status::ProcessorStatus,
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // CPY - Compare Y Register with Memory
 // Compares the Y register with a value from memory by performing Y - M. Sets N, Z, and C flags but does not modify the Y register.
 // The carry flag is set if Y >= M (unsigned comparison). Commonly used before conditional branches in loops.
 
-pub fn cpy_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cpy_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (pc_increment, cycles) = if is_8bit_mode_x(cpu) {
         let value = read_offset_byte(cpu, bus);
         perform_compare_u8(cpu, value);
@@ -29,7 +29,7 @@ pub fn cpy_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cpy_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cpy_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset;
 
@@ -47,7 +47,7 @@ pub fn cpy_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn cpy_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cpy_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_x(cpu) {

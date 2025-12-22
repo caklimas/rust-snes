@@ -1,8 +1,8 @@
 use crate::{
     cpu::{Cpu, processor_status::ProcessorStatus},
     memory::{
+        MemoryBus,
         addresses::{DIRECT_PAGE_START, STACK_START},
-        bus::Bus,
     },
 };
 
@@ -35,7 +35,7 @@ pub mod sty;
 pub mod stz;
 pub mod transfer;
 
-pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
+pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u8 {
     match opcode {
         0x00 => misc::brk(cpu, bus),
         0x01 => ora::ora_indirect_x(cpu, bus),
@@ -254,25 +254,25 @@ pub fn execute_opcode(cpu: &mut Cpu, bus: &mut Bus, opcode: u8) -> u8 {
     }
 }
 
-fn get_address_absolute_x(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
+fn get_address_absolute_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let base_address = read_offset_word(cpu, bus);
     (base_address, base_address + get_x_register_value(cpu))
 }
 
-fn get_address_absolute_y(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
+fn get_address_absolute_y<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + cpu.registers.y;
 
     (base_address, address)
 }
 
-fn get_address_indirect_x(cpu: &Cpu, bus: &mut Bus) -> u16 {
+fn get_address_indirect_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset + get_x_register_value(cpu);
     read_word(cpu, bus, pointer_address)
 }
 
-fn get_address_indirect_y(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
+fn get_address_indirect_y<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
     let base_address = read_word(cpu, bus, pointer_address);
@@ -281,13 +281,13 @@ fn get_address_indirect_y(cpu: &Cpu, bus: &mut Bus) -> (u16, u16) {
     (base_address, address)
 }
 
-fn get_address_indirect(cpu: &Cpu, bus: &mut Bus) -> u16 {
+fn get_address_indirect<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d + offset;
     read_word(cpu, bus, pointer_address)
 }
 
-fn get_address_absolute_long(cpu: &Cpu, bus: &mut Bus) -> u32 {
+fn get_address_absolute_long<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u32 {
     let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
     let address_mid = read_byte(cpu, bus, cpu.registers.pc + 2);
     let address_high = read_byte(cpu, bus, cpu.registers.pc + 3);
@@ -303,48 +303,48 @@ fn get_x_register_value(cpu: &Cpu) -> u16 {
     }
 }
 
-pub(crate) fn push_byte(cpu: &mut Cpu, bus: &mut Bus, value: u8) {
+pub(crate) fn push_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, value: u8) {
     let stack_address = get_stack_address(cpu);
 
     write_byte(cpu, bus, stack_address, value);
     cpu.registers.s = cpu.registers.s.wrapping_sub(1);
 }
 
-pub(crate) fn pull_byte(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub(crate) fn pull_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     cpu.registers.s = cpu.registers.s.wrapping_add(1);
     let stack_address = get_stack_address(cpu);
 
     read_byte(cpu, bus, stack_address)
 }
 
-pub(crate) fn read_offset_byte(cpu: &Cpu, bus: &mut Bus) -> u16 {
+pub(crate) fn read_offset_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
     read_byte(cpu, bus, cpu.registers.pc + 1).into()
 }
 
-pub(crate) fn read_offset_word(cpu: &Cpu, bus: &mut Bus) -> u16 {
+pub(crate) fn read_offset_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
     let offset_low = read_byte(cpu, bus, cpu.registers.pc + 1);
     let offset_high = read_byte(cpu, bus, cpu.registers.pc + 2);
 
     (offset_high as u16) << 8 | (offset_low as u16)
 }
 
-pub(crate) fn read_word(cpu: &Cpu, bus: &mut Bus, address: u16) -> u16 {
+pub(crate) fn read_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
     let low = read_byte(cpu, bus, address);
     let high = read_byte(cpu, bus, address + 1);
     (high as u16) << 8 | (low as u16)
 }
 
-fn read_byte(cpu: &Cpu, bus: &mut Bus, address: u16) -> u8 {
+fn read_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
     let physical_address = get_physical_address(cpu, address);
     bus.read(physical_address)
 }
 
-fn write_word(cpu: &Cpu, bus: &mut Bus, address: u16, value: u16) {
+fn write_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u16) {
     write_byte(cpu, bus, address, value as u8);
     write_byte(cpu, bus, address + 1, ((value >> 8) & 0xFF) as u8);
 }
 
-fn write_byte(cpu: &Cpu, bus: &mut Bus, address: u16, value: u8) {
+fn write_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u8) {
     let physical_address = get_physical_address(cpu, address);
     bus.write(physical_address, value);
 }

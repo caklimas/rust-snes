@@ -8,14 +8,14 @@ use crate::{
             set_nz_flags_u8, set_nz_flags_u16,
         },
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // AND - Logical AND with Accumulator
 // Performs a bitwise AND between the accumulator and a value from memory, storing the result in the accumulator.
 // Sets N and Z flags based on the result. Commonly used for bit masking and testing specific bits.
 
-pub fn and_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn and_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (pc_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
         perform_and_u8(cpu, value.try_into().unwrap());
@@ -30,7 +30,7 @@ pub fn and_immediate(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn and_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn and_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let source_address = cpu.registers.d + offset;
 
@@ -48,7 +48,7 @@ pub fn and_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn and_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn and_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -65,7 +65,7 @@ pub fn and_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn and_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn and_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset = read_offset_byte(cpu, bus);
     let address = cpu.registers.d + offset + get_x_register_value(cpu);
 
@@ -83,7 +83,7 @@ pub fn and_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn and_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn and_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base_address, address) = get_address_absolute_x(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
@@ -104,7 +104,7 @@ pub fn and_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn and_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn and_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
     let address = base_address + cpu.registers.y;
 
@@ -126,7 +126,7 @@ pub fn and_absolute_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn and_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn and_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = get_address_indirect_x(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
@@ -143,7 +143,7 @@ pub fn and_indirect_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn and_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn and_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base_address, address) = get_address_indirect_y(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
@@ -164,7 +164,7 @@ pub fn and_indirect_y(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn and_indirect(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn and_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = get_address_indirect(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {

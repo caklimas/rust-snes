@@ -4,12 +4,12 @@ use crate::{
         opcodes::{increment_program_counter, push_byte, set_nz_flags_u8},
         processor_status::ProcessorStatus,
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // NOP - No Operation
 // Does nothing except consume CPU cycles. Often used for timing delays or as placeholder instructions.
-pub fn nop(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn nop<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     increment_program_counter(cpu, 1);
     2
 }
@@ -18,7 +18,7 @@ pub fn nop(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // Swaps the high byte (B) and low byte (A) of the 16-bit accumulator register.
 // Sets N and Z flags based on the new low byte (A) value.
 // This is useful for accessing both bytes of a 16-bit value in 8-bit mode.
-pub fn xba(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn xba<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     let low_byte = (cpu.registers.a & 0xFF) as u8;
     let high_byte = ((cpu.registers.a >> 8) & 0xFF) as u8;
 
@@ -33,7 +33,7 @@ pub fn xba(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // Swaps the carry flag with the emulation mode flag.
 // Used to switch between 6502 emulation mode and native 65816 mode.
 // When switching to emulation mode (E=1), forces M=1 and X=1 (8-bit modes) and clears high byte of X and Y.
-pub fn xce(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn xce<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     let old_carry = cpu.registers.p.contains(ProcessorStatus::CARRY);
     let old_emulation = cpu.emulation_mode;
 
@@ -56,7 +56,7 @@ pub fn xce(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // Triggers a software interrupt. Pushes PC+2, then processor status to stack, then jumps to interrupt vector.
 // Sets the interrupt disable flag. In emulation mode, also sets the break flag.
 // The interrupt vector is at $FFFE-$FFFF in emulation mode, $FFE6-$FFE7 in native mode.
-pub fn brk(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn brk<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     // Push return address (PC + 2)
     let return_address = cpu.registers.pc.wrapping_add(2);
     push_byte(cpu, bus, ((return_address >> 8) & 0xFF) as u8);
@@ -99,7 +99,7 @@ pub fn brk(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // COP - Coprocessor
 // Similar to BRK but uses a different interrupt vector ($FFF4-$FFF5 in emulation, $FFE4-$FFE5 in native).
 // Originally intended for coprocessor support, but commonly used as a second software interrupt.
-pub fn cop(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn cop<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     // Push return address (PC + 2)
     let return_address = cpu.registers.pc.wrapping_add(2);
     push_byte(cpu, bus, ((return_address >> 8) & 0xFF) as u8);
@@ -137,7 +137,7 @@ pub fn cop(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // WAI - Wait for Interrupt
 // Puts the CPU into a low-power state until an interrupt (IRQ or NMI) occurs.
 // The CPU stops executing instructions but continues to monitor interrupt lines.
-pub fn wai(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn wai<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.waiting_for_interrupt = true;
     increment_program_counter(cpu, 1);
     3
@@ -147,7 +147,7 @@ pub fn wai(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // Halts the processor completely until a hardware reset occurs.
 // The CPU stops executing and does not respond to interrupts.
 // Only a reset can restart execution.
-pub fn stp(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn stp<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.stopped = true;
     increment_program_counter(cpu, 1);
     3
@@ -155,7 +155,7 @@ pub fn stp(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 
 // WDM - Reserved
 // Reserved for future expansion. Currently acts like a 2-byte NOP.
-pub fn wdm(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn wdm<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     increment_program_counter(cpu, 2);
     2
 }
