@@ -3,44 +3,70 @@ use crate::memory::{
         APU_REGISTERS_RANGE, CARTRIDGE_ROM_RANGE, NMI_STATUS_REGISTER, PPU_REGISTERS_RANGE,
         WRAM_RANGE, WRAM_START,
     },
+    cartridge::Cartridge,
     memory_region::MemoryRegion,
 };
 
 pub struct Bus {
+    cartridge: Cartridge,
     nmi_status_value: u8,
     wram: MemoryRegion,
 }
 
 impl Bus {
-    pub fn read(&self, address: u32) -> u8 {
-        match address {
-            NMI_STATUS_REGISTER => {}
-            addr if WRAM_RANGE.contains(&addr) => {
-                // WRAM access
-            }
-            addr if PPU_REGISTERS_RANGE.contains(&addr) => {
-                // PPU register access
-            }
-            addr if APU_REGISTERS_RANGE.contains(&addr) => {
-                // APU register access
-            }
-            addr if CARTRIDGE_ROM_RANGE.contains(&addr) => {
-                // Cartridge ROM access
-            }
-            _ => {
-                // Unknown/unmapped address
-            }
-        }
-
-        0
-    }
-}
-
-impl Default for Bus {
-    fn default() -> Self {
+    pub fn new(data: Vec<u8>) -> Self {
         Self {
+            cartridge: Cartridge::new(data),
             nmi_status_value: 0x42,
             wram: MemoryRegion::new(vec![0; 131072], WRAM_START),
         }
+    }
+
+    pub fn read(&mut self, address: u32) -> u8 {
+        match address {
+            NMI_STATUS_REGISTER => self.read_nmi_status(),
+            addr if WRAM_RANGE.contains(&addr) => self.wram.read(&address),
+            addr if PPU_REGISTERS_RANGE.contains(&addr) => {
+                // PPU register access
+                0
+            }
+            addr if APU_REGISTERS_RANGE.contains(&addr) => {
+                // APU register access
+                0
+            }
+            addr if CARTRIDGE_ROM_RANGE.contains(&addr) => {
+                // Cartridge ROM access
+                0
+            }
+            _ => {
+                // Unknown/unmapped address
+                0
+            }
+        }
+    }
+
+    pub fn write(&mut self, address: u32, value: u8) {
+        match address {
+            NMI_STATUS_REGISTER => self.write_nmi_status(value),
+            addr if WRAM_RANGE.contains(&addr) => self.wram.write(&address, value),
+            addr if PPU_REGISTERS_RANGE.contains(&addr) => {}
+            addr if APU_REGISTERS_RANGE.contains(&addr) => {}
+            addr if CARTRIDGE_ROM_RANGE.contains(&addr) => {}
+            _ => {}
+        }
+    }
+
+    fn read_nmi_status(&mut self) -> u8 {
+        if self.nmi_status_value == 0x42 {
+            self.nmi_status_value = 0xC2;
+        } else if self.nmi_status_value == 0xC2 {
+            self.nmi_status_value = 0x42;
+        }
+
+        self.nmi_status_value
+    }
+
+    fn write_nmi_status(&mut self, value: u8) {
+        self.nmi_status_value = value;
     }
 }
