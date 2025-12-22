@@ -88,10 +88,8 @@ pub fn brk<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let new_pc_high = bus.read((vector_address + 1) as u32);
     cpu.registers.pc = ((new_pc_high as u16) << 8) | (new_pc_low as u16);
 
-    // In native mode, also set PB to 0
-    if !cpu.emulation_mode {
-        cpu.registers.pb = 0;
-    }
+    // Set PB to 0 (interrupt vectors are always in bank 0)
+    cpu.registers.pb = 0;
 
     if cpu.emulation_mode { 7 } else { 8 }
 }
@@ -126,10 +124,8 @@ pub fn cop<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let new_pc_high = bus.read((vector_address + 1) as u32);
     cpu.registers.pc = ((new_pc_high as u16) << 8) | (new_pc_low as u16);
 
-    // In native mode, set PB to 0
-    if !cpu.emulation_mode {
-        cpu.registers.pb = 0;
-    }
+    // Set PB to 0 (interrupt vectors are always in bank 0)
+    cpu.registers.pb = 0;
 
     if cpu.emulation_mode { 7 } else { 8 }
 }

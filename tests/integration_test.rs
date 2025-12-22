@@ -1,10 +1,14 @@
 // Integration tests for the common test infrastructure
 mod common;
 
+use std::path::Path;
+
 use common::test_bus::TestBus;
 use common::test_format::{CpuState, TestCase};
 use common::test_helpers::{extract_cpu_state, setup_cpu_from_state};
 use rust_snes::cpu::Cpu;
+
+use crate::common::test_runner::{load_tests_from_file, run_test};
 
 #[test]
 fn test_bus_basic_operations() {
@@ -16,6 +20,18 @@ fn test_bus_basic_operations() {
     // Write and read back
     bus.write(0x1000, 0x42);
     assert_eq!(bus.read(0x1000), 0x42);
+}
+
+#[test]
+fn test_json_file() {
+    let test_cases =
+        load_tests_from_file(r"/Users/christopherk/Desktop/Files/Repos/65816/v1/00.e.json")
+            .unwrap();
+
+    for test_case in test_cases.iter().take(1) {
+        let test_result = run_test(test_case);
+        println!("{}", test_result.failure_reason.unwrap())
+    }
 }
 
 #[test]
