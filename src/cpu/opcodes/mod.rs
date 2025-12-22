@@ -254,6 +254,37 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
     }
 }
 
+pub(crate) fn push_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, value: u8) {
+    let stack_address = get_stack_address(cpu);
+
+    write_byte(cpu, bus, stack_address, value);
+    cpu.registers.s = cpu.registers.s.wrapping_sub(1);
+}
+
+pub(crate) fn pull_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    cpu.registers.s = cpu.registers.s.wrapping_add(1);
+    let stack_address = get_stack_address(cpu);
+
+    read_byte(cpu, bus, stack_address)
+}
+
+pub(crate) fn read_offset_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
+    read_byte(cpu, bus, cpu.registers.pc + 1).into()
+}
+
+pub(crate) fn read_offset_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
+    let offset_low = read_byte(cpu, bus, cpu.registers.pc + 1);
+    let offset_high = read_byte(cpu, bus, cpu.registers.pc + 2);
+
+    (offset_high as u16) << 8 | (offset_low as u16)
+}
+
+pub(crate) fn read_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
+    let low = read_byte(cpu, bus, address);
+    let high = read_byte(cpu, bus, address + 1);
+    (high as u16) << 8 | (low as u16)
+}
+
 fn get_address_absolute_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let base_address = read_offset_word(cpu, bus);
     (base_address, base_address + get_x_register_value(cpu))
@@ -301,37 +332,6 @@ fn get_x_register_value(cpu: &Cpu) -> u16 {
     } else {
         cpu.registers.x
     }
-}
-
-pub(crate) fn push_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, value: u8) {
-    let stack_address = get_stack_address(cpu);
-
-    write_byte(cpu, bus, stack_address, value);
-    cpu.registers.s = cpu.registers.s.wrapping_sub(1);
-}
-
-pub(crate) fn pull_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    cpu.registers.s = cpu.registers.s.wrapping_add(1);
-    let stack_address = get_stack_address(cpu);
-
-    read_byte(cpu, bus, stack_address)
-}
-
-pub(crate) fn read_offset_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
-    read_byte(cpu, bus, cpu.registers.pc + 1).into()
-}
-
-pub(crate) fn read_offset_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
-    let offset_low = read_byte(cpu, bus, cpu.registers.pc + 1);
-    let offset_high = read_byte(cpu, bus, cpu.registers.pc + 2);
-
-    (offset_high as u16) << 8 | (offset_low as u16)
-}
-
-pub(crate) fn read_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
-    let low = read_byte(cpu, bus, address);
-    let high = read_byte(cpu, bus, address + 1);
-    (high as u16) << 8 | (low as u16)
 }
 
 fn read_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {

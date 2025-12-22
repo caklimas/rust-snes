@@ -8,10 +8,10 @@ use crate::{cpu::opcodes::execute_opcode, memory::MemoryBus};
 
 #[derive(Debug, Default)]
 pub struct Cpu {
-    registers: Registers,
-    emulation_mode: bool,
-    waiting_for_interrupt: bool,
-    stopped: bool,
+    pub registers: Registers,
+    pub emulation_mode: bool,
+    pub waiting_for_interrupt: bool,
+    pub stopped: bool,
 }
 
 impl Cpu {

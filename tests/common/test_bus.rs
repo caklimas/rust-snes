@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use rust_snes::memory::MemoryBus;
+use std::collections::HashMap;
 
 /// TestBus - A simple flat 24-bit address space for testing CPU opcodes
 ///
