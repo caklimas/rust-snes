@@ -24,11 +24,10 @@ fn test_bus_basic_operations() {
 
 #[test]
 fn test_json_file() {
-    let test_cases =
-        load_tests_from_file(r"/Users/christopherk/Desktop/Files/Repos/65816/v1/00.e.json")
-            .unwrap();
+    let test_cases = load_tests_from_file(r"./tests/data/00.e.json").unwrap();
 
-    for test_case in test_cases.iter().take(5) {
+    println!("Testing {} cases", test_cases.len());
+    for test_case in test_cases.iter() {
         let test_result = run_test(test_case);
         if !test_result.passed {
             println!("{}", test_result.failure_reason.unwrap())
@@ -36,6 +35,8 @@ fn test_json_file() {
 
         assert!(test_result.passed)
     }
+
+    println!("All test cases passed!");
 }
 
 #[test]

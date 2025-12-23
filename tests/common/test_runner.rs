@@ -97,6 +97,7 @@ pub fn run_test(test: &TestCase) -> TestResult {
 
     // Compare results
     if let Some(reason) = compare_states(
+        &test.name,
         &test.final_state,
         &actual_cpu_state,
         &actual_memory,
@@ -119,6 +120,7 @@ pub fn run_test(test: &TestCase) -> TestResult {
 
 /// Compares expected vs actual state and returns error message if different
 fn compare_states(
+    test_name: &str,
     expected_cpu: &CpuState,
     actual_cpu: &CpuState,
     actual_memory: &[(u32, u8)],
@@ -128,62 +130,62 @@ fn compare_states(
     // Check CPU registers
     if expected_cpu.pc != actual_cpu.pc {
         return Some(format!(
-            "PC mismatch: expected 0x{:04X}, got 0x{:04X}",
-            expected_cpu.pc, actual_cpu.pc
+            "[{}] PC mismatch: expected {}, got {}",
+            test_name, expected_cpu.pc, actual_cpu.pc
         ));
     }
     if expected_cpu.s != actual_cpu.s {
         return Some(format!(
-            "S mismatch: expected 0x{:04X}, got 0x{:04X}",
-            expected_cpu.s, actual_cpu.s
+            "[{}] S mismatch: expected {}, got {}",
+            test_name, expected_cpu.s, actual_cpu.s
         ));
     }
     if expected_cpu.a != actual_cpu.a {
         return Some(format!(
-            "A mismatch: expected 0x{:04X}, got 0x{:04X}",
-            expected_cpu.a, actual_cpu.a
+            "[{}] A mismatch: expected {}, got {}",
+            test_name, expected_cpu.a, actual_cpu.a
         ));
     }
     if expected_cpu.x != actual_cpu.x {
         return Some(format!(
-            "X mismatch: expected 0x{:04X}, got 0x{:04X}",
-            expected_cpu.x, actual_cpu.x
+            "[{}] X mismatch: expected {}, got {}",
+            test_name, expected_cpu.x, actual_cpu.x
         ));
     }
     if expected_cpu.y != actual_cpu.y {
         return Some(format!(
-            "Y mismatch: expected 0x{:04X}, got 0x{:04X}",
-            expected_cpu.y, actual_cpu.y
+            "[{}] Y mismatch: expected {}, got {}",
+            test_name, expected_cpu.y, actual_cpu.y
         ));
     }
     if expected_cpu.p != actual_cpu.p {
         return Some(format!(
-            "P mismatch: expected 0x{:02X}, got 0x{:02X}",
-            expected_cpu.p, actual_cpu.p
+            "[{}] P mismatch: expected {}, got {}",
+            test_name, expected_cpu.p, actual_cpu.p
         ));
     }
     if expected_cpu.db != actual_cpu.db {
         return Some(format!(
-            "DB mismatch: expected 0x{:02X}, got 0x{:02X}",
-            expected_cpu.db, actual_cpu.db
+            "[{}] DB mismatch: expected {}, got {}",
+            test_name, expected_cpu.db, actual_cpu.db
         ));
     }
     if expected_cpu.d != actual_cpu.d {
         return Some(format!(
-            "D mismatch: expected 0x{:04X}, got 0x{:04X}",
-            expected_cpu.d, actual_cpu.d
+            "[{}] D mismatch: expected {}, got {}",
+            test_name, expected_cpu.d, actual_cpu.d
         ));
     }
     if expected_cpu.pb != actual_cpu.pb {
         return Some(format!(
-            "PB mismatch: expected 0x{:02X}, got 0x{:02X}",
-            expected_cpu.pb, actual_cpu.pb
+            "[{}] PB mismatch: expected {}, got {}",
+            test_name, expected_cpu.pb, actual_cpu.pb
         ));
     }
     if expected_cpu.e != actual_cpu.e {
         return Some(format!(
-            "E mismatch: expected {}, got {}",
-            expected_cpu.e, actual_cpu.e
+            "[{}] E mismatch: expected {}, got {}",
+            test_name, expected_cpu.e, actual_cpu.e
         ));
     }
 
@@ -193,8 +195,8 @@ fn compare_states(
     {
         if expected_addr != actual_addr || expected_val != actual_val {
             return Some(format!(
-                "Memory mismatch at {}: expected {}, got {}",
-                expected_addr, expected_val, actual_val
+                "[{}] Memory mismatch at {}: expected {}, got {}",
+                test_name, expected_addr, expected_val, actual_val
             ));
         }
     }
@@ -202,7 +204,8 @@ fn compare_states(
     // Check cycle count
     if actual_cycles as usize != expected_cycles.len() {
         return Some(format!(
-            "Cycle count mismatch: expected {}, got {}",
+            "[{}] Cycle count mismatch: expected {}, got {}",
+            test_name,
             expected_cycles.len(),
             actual_cycles
         ));

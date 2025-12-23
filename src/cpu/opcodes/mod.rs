@@ -256,32 +256,32 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
 
 pub(crate) fn push_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, value: u8) {
     let stack_address = get_stack_address(cpu);
-
-    write_byte(cpu, bus, stack_address, value);
-    cpu.registers.s = cpu.registers.s.wrapping_sub(1);
+    // Stack is always in bank 0
+    bus.write(stack_address as u32, value);
+    decrement_stack_pointer(cpu);
 }
 
 pub(crate) fn pull_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    cpu.registers.s = cpu.registers.s.wrapping_add(1);
+    increment_stack_pointer(cpu);
     let stack_address = get_stack_address(cpu);
-
-    read_byte(cpu, bus, stack_address)
+    // Stack is always in bank 0
+    bus.read(stack_address as u32)
 }
 
 pub(crate) fn read_offset_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
-    read_byte(cpu, bus, cpu.registers.pc + 1).into()
+    read_byte(cpu, bus, cpu.registers.pc.wrapping_add(1)).into()
 }
 
 pub(crate) fn read_offset_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
-    let offset_low = read_byte(cpu, bus, cpu.registers.pc + 1);
-    let offset_high = read_byte(cpu, bus, cpu.registers.pc + 2);
+    let offset_low = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(1));
+    let offset_high = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(2));
 
     (offset_high as u16) << 8 | (offset_low as u16)
 }
 
 pub(crate) fn read_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
     let low = read_byte(cpu, bus, address);
-    let high = read_byte(cpu, bus, address + 1);
+    let high = read_byte(cpu, bus, address.wrapping_add(1));
     (high as u16) << 8 | (low as u16)
 }
 
@@ -319,9 +319,9 @@ fn get_address_indirect<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
 }
 
 fn get_address_absolute_long<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u32 {
-    let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
-    let address_mid = read_byte(cpu, bus, cpu.registers.pc + 2);
-    let address_high = read_byte(cpu, bus, cpu.registers.pc + 3);
+    let address_low = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(1));
+    let address_mid = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(2));
+    let address_high = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(3));
 
     (address_high as u32) << 16 | (address_mid as u32) << 8 | (address_low as u32)
 }
@@ -334,17 +334,25 @@ fn get_x_register_value(cpu: &Cpu) -> u16 {
     }
 }
 
+// Read from program space (uses Program Bank for instruction operands)
 fn read_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
-    bus.read(address.into())
+    let physical_address = ((cpu.registers.pb as u32) << 16) | (address as u32);
+    bus.read(physical_address)
 }
 
 fn write_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u16) {
     write_byte(cpu, bus, address, value as u8);
-    write_byte(cpu, bus, address + 1, ((value >> 8) & 0xFF) as u8);
+    write_byte(
+        cpu,
+        bus,
+        address.wrapping_add(1),
+        ((value >> 8) & 0xFF) as u8,
+    );
 }
 
 fn write_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u8) {
-    bus.write(address.into(), value);
+    let physical_address = ((cpu.registers.db as u32) << 16) | (address as u32);
+    bus.write(physical_address, value);
 }
 
 pub(crate) fn is_8bit_mode_m(cpu: &Cpu) -> bool {
@@ -356,7 +364,7 @@ pub(crate) fn is_8bit_mode_x(cpu: &Cpu) -> bool {
 }
 
 pub(crate) fn increment_program_counter(cpu: &mut Cpu, value: u16) {
-    cpu.registers.pc += value;
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(value);
 }
 
 pub(crate) fn set_nz_flags_u8(cpu: &mut Cpu, value: u8) {
@@ -393,14 +401,31 @@ fn get_carry_in(cpu: &Cpu) -> u16 {
     }
 }
 
-fn get_physical_address(cpu: &Cpu, address: u16) -> u32 {
-    ((cpu.registers.db as u32) << 16) | (address as u32)
-}
+// fn get_physical_address(cpu: &Cpu, address: u16) -> u32 {
+//     ((cpu.registers.db as u32) << 16) | (address as u32)
+// }
 
 fn get_stack_address(cpu: &Cpu) -> u16 {
     if cpu.emulation_mode {
         STACK_START as u16 | (cpu.registers.s & 0xFF)
     } else {
         DIRECT_PAGE_START as u16 | cpu.registers.s
+    }
+}
+
+fn decrement_stack_pointer(cpu: &mut Cpu) {
+    cpu.registers.s = cpu.registers.s.wrapping_sub(1);
+    normalize_stack_pointer(cpu);
+}
+
+fn increment_stack_pointer(cpu: &mut Cpu) {
+    cpu.registers.s = cpu.registers.s.wrapping_add(1);
+    normalize_stack_pointer(cpu);
+}
+
+fn normalize_stack_pointer(cpu: &mut Cpu) {
+    if cpu.emulation_mode {
+        // In emulation mode, S is 8-bit and constrained to page 1
+        cpu.registers.s = STACK_START as u16 | (cpu.registers.s & 0xFF);
     }
 }

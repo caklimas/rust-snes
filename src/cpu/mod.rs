@@ -26,7 +26,8 @@ impl Cpu {
             return 1;
         }
 
-        let opcode = bus.read(self.registers.pc as u32);
+        let opcode_address = ((self.registers.pb as u32) << 16) | (self.registers.pc as u32);
+        let opcode = bus.read(opcode_address);
 
         execute_opcode(self, bus, opcode)
     }
