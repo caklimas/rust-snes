@@ -335,8 +335,7 @@ fn get_x_register_value(cpu: &Cpu) -> u16 {
 }
 
 fn read_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
-    let physical_address = get_physical_address(cpu, address);
-    bus.read(physical_address)
+    bus.read(address.into())
 }
 
 fn write_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u16) {
@@ -345,8 +344,7 @@ fn write_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u16) {
 }
 
 fn write_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u8) {
-    let physical_address = get_physical_address(cpu, address);
-    bus.write(physical_address, value);
+    bus.write(address.into(), value);
 }
 
 pub(crate) fn is_8bit_mode_m(cpu: &Cpu) -> bool {

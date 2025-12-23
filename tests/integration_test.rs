@@ -28,9 +28,13 @@ fn test_json_file() {
         load_tests_from_file(r"/Users/christopherk/Desktop/Files/Repos/65816/v1/00.e.json")
             .unwrap();
 
-    for test_case in test_cases.iter().take(1) {
+    for test_case in test_cases.iter().take(5) {
         let test_result = run_test(test_case);
-        println!("{}", test_result.failure_reason.unwrap())
+        if !test_result.passed {
+            println!("{}", test_result.failure_reason.unwrap())
+        }
+
+        assert!(test_result.passed)
     }
 }
 
