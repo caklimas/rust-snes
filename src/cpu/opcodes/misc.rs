@@ -57,17 +57,17 @@ pub fn xce<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 // Sets the interrupt disable flag. In emulation mode, also sets the break flag.
 // The interrupt vector is at $FFFE-$FFFF in emulation mode, $FFE6-$FFE7 in native mode.
 pub fn brk<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    // In native mode, push the program bank first
+    if !cpu.emulation_mode {
+        push_byte(cpu, bus, cpu.registers.pb);
+    }
+
     // Push return address (PC + 2)
     let return_address = cpu.registers.pc.wrapping_add(2);
     push_byte(cpu, bus, ((return_address >> 8) & 0xFF) as u8);
     push_byte(cpu, bus, (return_address & 0xFF) as u8);
 
     // Push processor status
-    if !cpu.emulation_mode {
-        // In native mode, push the program bank first
-        push_byte(cpu, bus, cpu.registers.pb);
-    }
-
     let mut status_byte = cpu.registers.p.bits();
     if cpu.emulation_mode {
         // In emulation mode, set bit 4 (B flag) in the pushed status byte
@@ -98,15 +98,15 @@ pub fn brk<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // Similar to BRK but uses a different interrupt vector ($FFF4-$FFF5 in emulation, $FFE4-$FFE5 in native).
 // Originally intended for coprocessor support, but commonly used as a second software interrupt.
 pub fn cop<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    // In native mode, push program bank first
+    if !cpu.emulation_mode {
+        push_byte(cpu, bus, cpu.registers.pb);
+    }
+
     // Push return address (PC + 2)
     let return_address = cpu.registers.pc.wrapping_add(2);
     push_byte(cpu, bus, ((return_address >> 8) & 0xFF) as u8);
     push_byte(cpu, bus, (return_address & 0xFF) as u8);
-
-    // In native mode, push program bank
-    if !cpu.emulation_mode {
-        push_byte(cpu, bus, cpu.registers.pb);
-    }
 
     // Push processor status
     push_byte(cpu, bus, cpu.registers.p.bits());
