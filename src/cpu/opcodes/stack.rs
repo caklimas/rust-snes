@@ -83,7 +83,7 @@ pub fn phd<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     push_byte(cpu, bus, (cpu.registers.d >> 8) as u8);
     push_byte(cpu, bus, cpu.registers.d as u8);
     increment_program_counter(cpu, 1);
-    5
+    4
 }
 
 // PHK (0x4B) - Push Program Bank Register (65816 only)

@@ -4,7 +4,6 @@ use rust_snes::cpu::{Cpu, processor_status::ProcessorStatus};
 
 pub fn setup_cpu_from_state(cpu: &mut Cpu, state: &CpuState) {
     cpu.registers.pc = state.pc;
-    cpu.registers.s = state.s;
     cpu.registers.a = state.a;
     cpu.registers.x = state.x;
     cpu.registers.y = state.y;
@@ -13,6 +12,14 @@ pub fn setup_cpu_from_state(cpu: &mut Cpu, state: &CpuState) {
     cpu.registers.d = state.d;
     cpu.registers.pb = state.pb;
     cpu.emulation_mode = state.is_emulation_mode();
+
+    // Set stack pointer and normalize if in emulation mode
+    cpu.registers.s = state.s;
+    if cpu.emulation_mode {
+        // In emulation mode, S is 8-bit and constrained to page 1
+        cpu.registers.s = 0x0100 | (cpu.registers.s & 0xFF);
+    }
+
     cpu.waiting_for_interrupt = false;
     cpu.stopped = false;
 }

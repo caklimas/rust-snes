@@ -19,7 +19,6 @@ fn test_json_file() {
         println!("Testing file {}", path.display());
         let test_cases = load_tests_from_file(path).unwrap();
 
-        println!("Testing {} cases", test_cases.len());
         for test_case in test_cases.iter() {
             let test_result = run_test(test_case);
             if !test_result.passed {
@@ -28,7 +27,7 @@ fn test_json_file() {
 
             assert!(test_result.passed)
         }
-
-        println!("All test cases passed!");
     }
+
+    println!("All test cases passed!");
 }
