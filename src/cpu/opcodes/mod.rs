@@ -35,15 +35,29 @@ pub mod sty;
 pub mod stz;
 pub mod transfer;
 
+#[derive(Copy, Clone)]
+pub enum StackMode {
+    // Normal 6502-style emulation stack behavior: $01xx + 8-bit SP
+    EmuPage1,
+    // SingleStepTests behavior for certain "new" 65816 ops: linear 16-bit SP
+    Linear16,
+}
+
 pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u8 {
+    let mode = if cpu.emulation_mode {
+        StackMode::EmuPage1
+    } else {
+        StackMode::Linear16
+    };
+
     match opcode {
-        0x00 => misc::brk(cpu, bus),
+        0x00 => misc::brk(cpu, bus, mode),
         0x01 => ora::ora_indirect_x(cpu, bus),
-        0x02 => misc::cop(cpu, bus),
+        0x02 => misc::cop(cpu, bus, mode),
         0x04 => bit::tsb_direct(cpu, bus),
         0x05 => ora::ora_direct(cpu, bus),
         0x06 => shift::asl_direct(cpu, bus),
-        0x08 => stack::php(cpu, bus),
+        0x08 => stack::php(cpu, bus, mode),
         0x0A => shift::asl_accumulator(cpu, bus),
         0x09 => ora::ora_immediate(cpu, bus),
         0x0B => stack::phd(cpu, bus),
@@ -63,8 +77,9 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x1C => bit::trb_absolute(cpu, bus),
         0x1D => ora::ora_absolute_x(cpu, bus),
         0x1E => shift::asl_absolute_x(cpu, bus),
-        0x20 => jsr::jsr_absolute(cpu, bus),
+        0x20 => jsr::jsr_absolute(cpu, bus, mode),
         0x21 => and::and_indirect_x(cpu, bus),
+        0x22 => jsr::jsr_absolute_long(cpu, bus),
         0x24 => bit::bit_direct(cpu, bus),
         0x25 => and::and_direct(cpu, bus),
         0x26 => shift::rol_direct(cpu, bus),
@@ -84,7 +99,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x3C => bit::bit_absolute_x(cpu, bus),
         0x3D => and::and_absolute_x(cpu, bus),
         0x3E => shift::rol_absolute_x(cpu, bus),
-        0x40 => ret::rti(cpu, bus),
+        0x40 => ret::rti(cpu, bus, mode),
         0x41 => eor::eor_indirect_x(cpu, bus),
         0x42 => misc::wdm(cpu, bus),
         0x44 => block_move::mvp(cpu, bus),
@@ -103,25 +118,24 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x59 => eor::eor_absolute_y(cpu, bus),
         0x5D => eor::eor_absolute_x(cpu, bus),
         0x5E => shift::lsr_absolute_x(cpu, bus),
-        0x22 => jsr::jsr_absolute_long(cpu, bus),
-        0x28 => stack::plp(cpu, bus),
+        0x28 => stack::plp(cpu, bus, mode),
         0x2B => stack::pld(cpu, bus),
         0x30 => bra::bmi(cpu, bus),
         0x3B => transfer::tsc(cpu, bus),
-        0x48 => stack::pha(cpu, bus),
-        0x4B => stack::phk(cpu, bus),
+        0x48 => stack::pha(cpu, bus, mode),
+        0x4B => stack::phk(cpu, bus, mode),
         0x4C => jmp::jmp_absolute(cpu, bus),
         0x50 => bra::bvc(cpu, bus),
-        0x5A => stack::phy(cpu, bus),
+        0x5A => stack::phy(cpu, bus, mode),
         0x5B => transfer::tcd(cpu, bus),
         0x5C => jmp::jmp_absolute_long(cpu, bus),
-        0x60 => ret::rts(cpu, bus),
+        0x60 => ret::rts(cpu, bus, mode),
         0x61 => adc::adc_indirect_x(cpu, bus),
         0x62 => stack::per(cpu, bus),
         0x64 => stz::stz_direct(cpu, bus),
         0x65 => adc::adc_direct(cpu, bus),
         0x66 => shift::ror_direct(cpu, bus),
-        0x68 => stack::pla(cpu, bus),
+        0x68 => stack::pla(cpu, bus, mode),
         0x69 => adc::adc_immediate(cpu, bus),
         0x6A => shift::ror_accumulator(cpu, bus),
         0x6B => ret::rtl(cpu, bus),
@@ -136,7 +150,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x76 => shift::ror_direct_x(cpu, bus),
         0x78 => flags::sei(cpu, bus),
         0x79 => adc::adc_absolute_y(cpu, bus),
-        0x7A => stack::ply(cpu, bus),
+        0x7A => stack::ply(cpu, bus, mode),
         0x7B => transfer::tdc(cpu, bus),
         0x7C => jmp::jmp_absolute_indexed_direct(cpu, bus),
         0x7D => adc::adc_absolute_x(cpu, bus),
@@ -150,7 +164,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x88 => dec::dey(cpu, bus),
         0x89 => bit::bit_immediate(cpu, bus),
         0x8A => transfer::txa(cpu, bus),
-        0x8B => stack::phb(cpu, bus),
+        0x8B => stack::phb(cpu, bus, mode),
         0x8C => sty::sty_absolute(cpu, bus),
         0x8D => sta::sta_absolute(cpu, bus),
         0x8E => stx::stx_absolute(cpu, bus),
@@ -176,7 +190,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0xA8 => transfer::tay(cpu, bus),
         0xA9 => lda::lda_immediate(cpu, bus),
         0xAA => transfer::tax(cpu, bus),
-        0xAB => stack::plb(cpu, bus),
+        0xAB => stack::plb(cpu, bus, mode),
         0xAC => ldy::ldy_absolute(cpu, bus),
         0xAD => lda::lda_absolute(cpu, bus),
         0xAE => ldx::ldx_absolute(cpu, bus),
@@ -214,7 +228,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0xD6 => dec::dec_direct_x(cpu, bus),
         0xD8 => flags::cld(cpu, bus),
         0xD9 => cmp::cmp_absolute_y(cpu, bus),
-        0xDA => stack::phx(cpu, bus),
+        0xDA => stack::phx(cpu, bus, mode),
         0xDB => misc::stp(cpu, bus),
         0xDC => jmp::jmp_absolute_indirect_long(cpu, bus),
         0xDD => cmp::cmp_absolute_x(cpu, bus),
@@ -240,7 +254,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0xF6 => inc::inc_direct_x(cpu, bus),
         0xF8 => flags::sed(cpu, bus),
         0xF9 => sbc::sbc_absolute_y(cpu, bus),
-        0xFA => stack::plx(cpu, bus),
+        0xFA => stack::plx(cpu, bus, mode),
         0xFB => misc::xce(cpu, bus),
         0xFD => sbc::sbc_absolute_x(cpu, bus),
         0xFE => inc::inc_absolute_x(cpu, bus),
@@ -254,16 +268,21 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
     }
 }
 
-pub(crate) fn push_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, value: u8) {
-    let stack_address = get_stack_address(cpu);
+pub(crate) fn push_byte<B: MemoryBus>(
+    cpu: &mut Cpu,
+    bus: &mut B,
+    value: u8,
+    stack_mode: StackMode,
+) {
+    let stack_address = get_stack_address(cpu, stack_mode);
     // Stack is always in bank 0
     bus.write(stack_address as u32, value);
-    decrement_stack_pointer(cpu);
+    decrement_stack_pointer(cpu, stack_mode);
 }
 
-pub(crate) fn pull_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    increment_stack_pointer(cpu);
-    let stack_address = get_stack_address(cpu);
+pub(crate) fn pull_byte<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, stack_mode: StackMode) -> u8 {
+    increment_stack_pointer(cpu, stack_mode);
+    let stack_address = get_stack_address(cpu, stack_mode);
     // Stack is always in bank 0
     bus.read(stack_address as u32)
 }
@@ -405,27 +424,61 @@ fn get_carry_in(cpu: &Cpu) -> u16 {
 //     ((cpu.registers.db as u32) << 16) | (address as u32)
 // }
 
-fn get_stack_address(cpu: &Cpu) -> u16 {
-    if cpu.emulation_mode {
-        STACK_START as u16 | (cpu.registers.s & 0xFF)
-    } else {
-        DIRECT_PAGE_START as u16 | cpu.registers.s
+fn get_stack_address(cpu: &Cpu, stack_mode: StackMode) -> u16 {
+    if !cpu.emulation_mode {
+        // Native mode: always linear 16-bit stack
+        return cpu.registers.s;
+    }
+
+    // Emulation mode: choose behavior by StackMode
+    match stack_mode {
+        StackMode::EmuPage1 => (STACK_START as u16) | (cpu.registers.s & 0x00FF),
+        StackMode::Linear16 => cpu.registers.s,
     }
 }
 
-fn decrement_stack_pointer(cpu: &mut Cpu) {
-    cpu.registers.s = cpu.registers.s.wrapping_sub(1);
-    normalize_stack_pointer(cpu);
+fn decrement_stack_pointer(cpu: &mut Cpu, stack_mode: StackMode) {
+    if !cpu.emulation_mode {
+        cpu.registers.s = cpu.registers.s.wrapping_sub(1);
+        return;
+    }
+
+    match stack_mode {
+        StackMode::EmuPage1 => {
+            let low = (cpu.registers.s as u8).wrapping_sub(1);
+            cpu.registers.s = (STACK_START as u16) | low as u16;
+        }
+        StackMode::Linear16 => {
+            cpu.registers.s = cpu.registers.s.wrapping_sub(1);
+        }
+    }
 }
 
-fn increment_stack_pointer(cpu: &mut Cpu) {
-    cpu.registers.s = cpu.registers.s.wrapping_add(1);
-    normalize_stack_pointer(cpu);
+fn increment_stack_pointer(cpu: &mut Cpu, stack_mode: StackMode) {
+    if !cpu.emulation_mode {
+        cpu.registers.s = cpu.registers.s.wrapping_add(1);
+        return;
+    }
+
+    match stack_mode {
+        StackMode::EmuPage1 => {
+            let low = (cpu.registers.s as u8).wrapping_add(1);
+            cpu.registers.s = 0x0100 | low as u16;
+        }
+        StackMode::Linear16 => {
+            cpu.registers.s = cpu.registers.s.wrapping_add(1);
+        }
+    }
 }
 
+/**
+ * SST compatibility: For certain "new" 65816 ops in E=1, SST treats stack accesses as linear
+ * 16-bit during execution ($0100 -> $00FF), then forces final S back to $01xx afterward.
+ * Normalize S here to match SST; not representative of real hardware stack addressing.
+ * https://github.com/SingleStepTests/ProcessorTests/issues/44?utm_source=chatgpt.com
+ */
 fn normalize_stack_pointer(cpu: &mut Cpu) {
     if cpu.emulation_mode {
-        // In emulation mode, S is 8-bit and constrained to page 1
-        cpu.registers.s = STACK_START as u16 | (cpu.registers.s & 0xFF);
+        cpu.registers.s = (STACK_START as u16) | (cpu.registers.s & 0x00FF);
     }
 }
