@@ -2,8 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_x_register_value, increment_program_counter, is_8bit_mode_m, read_byte,
-            read_offset_byte, read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
+            calculate_direct_page_address, calculate_direct_page_x_address, get_x_register_value,
+            increment_program_counter, is_8bit_mode_m, read_byte, read_offset_byte,
+            read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
             write_byte, write_word,
         },
         processor_status::ProcessorStatus,
@@ -41,11 +42,10 @@ pub fn asl_accumulator<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 }
 
 pub fn asl_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+    let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let result = value << 1;
         cpu.registers
             .p
@@ -54,7 +54,7 @@ pub fn asl_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         5
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let result = value << 1;
         cpu.registers
             .p
@@ -96,11 +96,9 @@ pub fn asl_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn asl_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset + get_x_register_value(cpu);
-
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let result = value << 1;
         cpu.registers
             .p
@@ -109,7 +107,7 @@ pub fn asl_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let result = value << 1;
         cpu.registers
             .p
@@ -181,11 +179,10 @@ pub fn lsr_accumulator<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 }
 
 pub fn lsr_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+    let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let result = value >> 1;
         cpu.registers
             .p
@@ -194,7 +191,7 @@ pub fn lsr_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         5
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let result = value >> 1;
         cpu.registers
             .p
@@ -236,11 +233,9 @@ pub fn lsr_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn lsr_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset + get_x_register_value(cpu);
-
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let result = value >> 1;
         cpu.registers
             .p
@@ -249,7 +244,7 @@ pub fn lsr_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let result = value >> 1;
         cpu.registers
             .p
@@ -331,11 +326,10 @@ pub fn rol_accumulator<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 }
 
 pub fn rol_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+    let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
@@ -349,7 +343,7 @@ pub fn rol_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         5
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
@@ -406,11 +400,9 @@ pub fn rol_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn rol_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset + get_x_register_value(cpu);
-
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
@@ -424,7 +416,7 @@ pub fn rol_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
@@ -521,11 +513,10 @@ pub fn ror_accumulator<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 }
 
 pub fn ror_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+    let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             0x80
         } else {
@@ -539,7 +530,7 @@ pub fn ror_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         5
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             0x8000
         } else {
@@ -596,11 +587,9 @@ pub fn ror_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn ror_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset + get_x_register_value(cpu);
-
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             0x80
         } else {
@@ -614,7 +603,7 @@ pub fn ror_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             0x8000
         } else {

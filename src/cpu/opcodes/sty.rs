@@ -2,8 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_x_register_value, increment_program_counter, is_8bit_mode_x, read_byte,
-            read_offset_byte, write_byte, write_word,
+            calculate_direct_page_address, calculate_direct_page_x_address, get_x_register_value,
+            increment_program_counter, is_8bit_mode_x, read_byte, read_offset_byte, write_byte,
+            write_word,
         },
     },
     memory::MemoryBus,
@@ -14,8 +15,7 @@ use crate::{
 
 // STY (0x84) - Direct Page
 pub fn sty_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let target_address = cpu.registers.d + offset;
+    let target_address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_x(cpu) {
         write_byte(cpu, bus, target_address, cpu.registers.y as u8);
@@ -49,14 +49,12 @@ pub fn sty_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 // STY (0x94) - Direct Page Indexed by X
 pub fn sty_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let target_address = cpu.registers.d + offset + get_x_register_value(cpu);
-
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_x(cpu) {
-        write_byte(cpu, bus, target_address, cpu.registers.y as u8);
+        write_byte(cpu, bus, address, cpu.registers.y as u8);
         4
     } else {
-        write_word(cpu, bus, target_address, cpu.registers.y);
+        write_word(cpu, bus, address, cpu.registers.y);
         5
     };
 

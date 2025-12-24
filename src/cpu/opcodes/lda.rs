@@ -2,9 +2,10 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
+            calculate_direct_page_address, calculate_direct_page_x_addresses,
             get_address_absolute_x, get_address_indirect_y, get_x_register_value,
             increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_offset_byte,
-            read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
+            read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -17,16 +18,15 @@ use crate::{
 // LDA (0xA5) - Direct Page
 // Loads from memory at (Direct Page + offset).
 pub fn lda_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let target_address = cpu.registers.d + offset;
+    let target_address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, target_address);
+        let value = bus.read(target_address as u32);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         3
     } else {
-        let value = read_word(cpu, bus, target_address);
+        let value = read_word_direct_page(bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         4
@@ -39,17 +39,14 @@ pub fn lda_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // LDA (0xB5) - Direct Page Indexed by X
 // Loads from memory at (Direct Page + offset + X).
 pub fn lda_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let base_address = cpu.registers.d + offset;
-    let target_address = base_address + get_x_register_value(cpu);
-
+    let (base_address, target_address) = calculate_direct_page_x_addresses(cpu, bus);
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, target_address);
+        let value = bus.read(target_address as u32);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, target_address);
+        let value = read_word_direct_page(bus, target_address);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         5

@@ -10,17 +10,12 @@ use crate::{
 // BRA (0x80) - Branch Always
 // Unconditionally branches to a relative offset, commonly used for short forward or backward jumps.
 pub fn bra_relative<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let displacement = read_offset_byte(cpu, bus);
-    let signed_displacement = if displacement > 127 {
-        displacement - 256
-    } else {
-        displacement
-    };
+    let displacement = read_offset_byte(cpu, bus) as i8;
+    let pc_after = cpu.registers.pc.wrapping_add(2);
+    let target = pc_after.wrapping_add(displacement as u16);
+    let page_crossed = (pc_after & 0xFF00) != (target & 0xFF00);
 
-    let target_address = cpu.registers.pc + 2 + signed_displacement;
-    let page_crossed = is_page_crossed(cpu, target_address);
-
-    cpu.registers.pc = target_address;
+    cpu.registers.pc = target;
 
     if page_crossed { 4 } else { 3 }
 }

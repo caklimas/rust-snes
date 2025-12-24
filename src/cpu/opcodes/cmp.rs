@@ -2,10 +2,11 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_address_absolute_x, get_address_absolute_y, get_address_indirect,
-            get_address_indirect_x, get_address_indirect_y, get_x_register_value,
-            increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_offset_byte,
-            read_offset_word, read_word, set_nz_flags_u8, set_nz_flags_u16,
+            calculate_direct_page_address, calculate_direct_page_x_address, get_address_absolute_x,
+            get_address_absolute_y, get_address_indirect, get_address_indirect_x,
+            get_address_indirect_y, get_x_register_value, increment_program_counter,
+            is_8bit_mode_m, page_crossed, read_byte, read_offset_byte, read_offset_word, read_word,
+            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
     },
@@ -19,7 +20,7 @@ use crate::{
 pub fn cmp_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (program_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
-        perform_compare_with_carry_u8(cpu, value);
+        perform_compare_with_carry_u8(cpu, value as u16);
         (2, 2)
     } else {
         let value = read_offset_word(cpu, bus);
@@ -32,15 +33,14 @@ pub fn cmp_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn cmp_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+    let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         perform_compare_with_carry_u8(cpu, value as u16);
         3
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         perform_compare_with_carry_u16(cpu, value);
         4
     };
@@ -67,15 +67,13 @@ pub fn cmp_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn cmp_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset + get_x_register_value(cpu);
-
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address) as u16;
+        let value = bus.read(address as u32) as u16;
         perform_compare_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         perform_compare_with_carry_u16(cpu, value);
         5
     };
@@ -182,11 +180,13 @@ pub fn cmp_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 fn perform_compare_with_carry_u8(cpu: &mut Cpu, value: u16) {
-    let accumulator_value = cpu.registers.a & 0xFF;
-    let result = accumulator_value - value;
+    let accumulator_value = cpu.registers.a & 0x00FF;
+    let v = value & 0x00FF;
 
-    set_nz_flags_u8(cpu, (result & 0xFF) as u8);
-    set_c_flag_u8(cpu, accumulator_value, value);
+    let result = accumulator_value.wrapping_sub(v);
+
+    set_nz_flags_u8(cpu, (result & 0x00FF) as u8);
+    set_c_flag_u8(cpu, accumulator_value, v);
 }
 
 fn set_c_flag_u8(cpu: &mut Cpu, accumulator_value: u16, value: u16) {
@@ -196,10 +196,11 @@ fn set_c_flag_u8(cpu: &mut Cpu, accumulator_value: u16, value: u16) {
 }
 
 fn perform_compare_with_carry_u16(cpu: &mut Cpu, value: u16) {
-    let result = value - cpu.registers.a;
+    let accumulator_value = cpu.registers.a;
+    let result = accumulator_value.wrapping_sub(value);
 
     set_nz_flags_u16(cpu, result);
-    set_c_flag_u16(cpu, cpu.registers.a, value);
+    set_c_flag_u16(cpu, accumulator_value, value);
 }
 
 fn set_c_flag_u16(cpu: &mut Cpu, accumulator_value: u16, value: u16) {

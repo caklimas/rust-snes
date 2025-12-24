@@ -2,8 +2,8 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode_x, read_byte, read_offset_byte, write_byte,
-            write_word,
+            calculate_direct_page_address, increment_program_counter, is_8bit_mode_x, read_byte,
+            read_offset_byte, write_byte, write_word,
         },
     },
     memory::MemoryBus,
@@ -14,8 +14,7 @@ use crate::{
 
 // STX (0x86) - Direct Page
 pub fn stx_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let target_address = cpu.registers.d + offset;
+    let target_address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_x(cpu) {
         write_byte(cpu, bus, target_address, cpu.registers.x as u8);

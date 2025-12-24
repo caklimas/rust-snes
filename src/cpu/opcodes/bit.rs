@@ -2,8 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
+            calculate_direct_page_address, calculate_direct_page_x_address,
             increment_program_counter, is_8bit_mode_m, read_byte, read_offset_byte,
-            read_offset_word, read_word, write_byte, write_word,
+            read_offset_word, read_word, read_word_direct_page, write_byte, write_word,
         },
         processor_status::ProcessorStatus,
     },
@@ -33,16 +34,15 @@ pub fn bit_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn bit_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+    let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         perform_bit_test_u8(cpu, a_value, value);
         3
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         perform_bit_test_u16(cpu, cpu.registers.a, value);
         4
     };
@@ -70,21 +70,14 @@ pub fn bit_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn bit_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let x_value = if cpu.registers.p.contains(ProcessorStatus::INDEX_WIDTH) {
-        cpu.registers.x & 0xFF
-    } else {
-        cpu.registers.x
-    };
-    let address = cpu.registers.d + offset + x_value;
-
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         perform_bit_test_u8(cpu, a_value, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         perform_bit_test_u16(cpu, cpu.registers.a, value);
         5
     };
@@ -138,11 +131,10 @@ fn perform_bit_test_u16(cpu: &mut Cpu, a_value: u16, value: u16) {
 // Tests bits in memory against accumulator (sets Z flag if (A AND M) == 0).
 // Then sets bits in memory: M = M OR A. Modifies memory, not accumulator.
 pub fn tsb_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+    let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         let result = a_value & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
@@ -150,7 +142,7 @@ pub fn tsb_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         write_byte(cpu, bus, address, new_value);
         5
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let result = cpu.registers.a & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
         let new_value = value | cpu.registers.a;
@@ -190,11 +182,10 @@ pub fn tsb_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // Tests bits in memory against accumulator (sets Z flag if (A AND M) == 0).
 // Then clears bits in memory: M = M AND (NOT A). Modifies memory, not accumulator.
 pub fn trb_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+    let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(address as u32);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         let result = a_value & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
@@ -202,7 +193,7 @@ pub fn trb_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         write_byte(cpu, bus, address, new_value);
         5
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         let result = cpu.registers.a & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
         let new_value = value & !cpu.registers.a;

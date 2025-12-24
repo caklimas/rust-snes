@@ -66,7 +66,7 @@ pub fn adc_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn adc_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let address = calculate_direct_page_x_address(cpu, bus);
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(address as u32) as u16;
         perform_addition_with_carry_u8(cpu, value);

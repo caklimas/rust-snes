@@ -2,6 +2,7 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
+            calculate_direct_page_address, calculate_direct_page_x_address,
             increment_program_counter, is_8bit_mode_m, read_offset_byte, read_offset_word,
             write_byte, write_word,
         },
@@ -13,8 +14,7 @@ use crate::{
 // Stores a zero value to memory. More efficient than loading zero into A and then storing.
 // Does not affect any flags.
 pub fn stz_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+    let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
         write_byte(cpu, bus, address, 0);
@@ -29,18 +29,7 @@ pub fn stz_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn stz_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let x_value = if cpu
-        .registers
-        .p
-        .contains(crate::cpu::processor_status::ProcessorStatus::INDEX_WIDTH)
-    {
-        cpu.registers.x & 0xFF
-    } else {
-        cpu.registers.x
-    };
-    let address = cpu.registers.d + offset + x_value;
-
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
         write_byte(cpu, bus, address, 0);
         4

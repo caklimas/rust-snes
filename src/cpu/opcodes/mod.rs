@@ -310,15 +310,16 @@ pub(crate) fn read_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16) -> 
     (high as u16) << 8 | (low as u16)
 }
 
-pub(crate) fn calculate_direct_page_x_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
+pub(crate) fn calculate_direct_page_x_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let offset: u8 = read_offset_byte(cpu, bus);
     let x: u8 = cpu.registers.x as u8;
 
-    // (dp + X) wraps at 8 bits
-    let dp_index = offset.wrapping_add(x);
+    let base_address = cpu.registers.d.wrapping_add(offset as u16);
 
-    // Then add Direct Page register
-    cpu.registers.d.wrapping_add(dp_index as u16)
+    let dp_index = offset.wrapping_add(x);
+    let target_address = cpu.registers.d.wrapping_add(dp_index as u16);
+
+    (base_address, target_address)
 }
 
 pub(crate) fn calculate_direct_page_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {

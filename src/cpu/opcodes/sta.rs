@@ -2,8 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_x_register_value, increment_program_counter, is_8bit_mode_m, read_byte,
-            read_offset_byte, read_word, write_byte, write_word,
+            calculate_direct_page_address, calculate_direct_page_x_address, get_x_register_value,
+            increment_program_counter, is_8bit_mode_m, read_byte, read_offset_byte, read_word,
+            write_byte, write_word,
         },
     },
     memory::MemoryBus,
@@ -13,8 +14,7 @@ use crate::{
 // Stores the accumulator value to memory. Does not affect any processor flags.
 
 pub fn sta_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let target_address = cpu.registers.d + offset;
+    let target_address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
         write_byte(cpu, bus, target_address, cpu.registers.a as u8);
@@ -29,10 +29,7 @@ pub fn sta_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn sta_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let base_address = cpu.registers.d + offset;
-    let target_address = base_address + get_x_register_value(cpu);
-
+    let (base_address, target_address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
         write_byte(cpu, bus, target_address, cpu.registers.a as u8);
         4
