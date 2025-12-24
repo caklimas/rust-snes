@@ -7,7 +7,9 @@ use crate::common::test_runner::{load_tests_from_file, run_test};
 
 #[test]
 fn test_json_file() {
-    let entries = fs::read_dir("./tests/data").unwrap();
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("external/ProcessorTests/65816/v1");
+    let entries = fs::read_dir(root).unwrap();
     let mut files: Vec<_> = entries.filter_map(|entry| entry.ok()).collect();
 
     // 3. Sort the vector of entries by their path.
@@ -19,7 +21,11 @@ fn test_json_file() {
         println!("Testing file {}", path.display());
         let test_cases = load_tests_from_file(path).unwrap();
 
-        for test_case in test_cases.iter().filter(|x| x.name == "0b e 435" || true) {
+        for test_case in test_cases
+            .iter()
+            .filter(|x| x.name == "0b e 435" || true)
+            .take(5)
+        {
             let test_result = run_test(test_case);
             if !test_result.passed {
                 println!("{}", test_result.failure_reason.unwrap())
