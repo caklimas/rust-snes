@@ -21,11 +21,7 @@ fn test_json_file() {
         println!("Testing file {}", path.display());
         let test_cases = load_tests_from_file(path).unwrap();
 
-        for test_case in test_cases
-            .iter()
-            .filter(|x| x.name == "0b e 435" || true)
-            .take(5)
-        {
+        for test_case in test_cases.iter().filter(|x| x.name == "01 e 1" || false) {
             let test_result = run_test(test_case);
             if !test_result.passed {
                 println!("{}", test_result.failure_reason.unwrap())

@@ -2,10 +2,10 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_address_absolute_x, get_address_indirect, get_address_indirect_x,
-            get_address_indirect_y, get_carry_in, get_x_register_value, increment_program_counter,
-            is_8bit_mode_m, page_crossed, read_byte, read_offset_byte, read_offset_word, read_word,
-            set_nz_flags_u8, set_nz_flags_u16,
+            calculate_direct_page_address, calculate_direct_page_x_address, get_address_absolute_x,
+            get_address_indirect, get_address_indirect_x, get_address_indirect_y, get_carry_in,
+            increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_offset_byte,
+            read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
     },
@@ -19,7 +19,7 @@ use crate::{
 pub fn adc_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (pc_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
-        perform_addition_with_carry_u8(cpu, value);
+        perform_addition_with_carry_u8(cpu, value as u16);
         (2, 2)
     } else {
         let value = read_offset_word(cpu, bus);
@@ -32,11 +32,10 @@ pub fn adc_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn adc_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let source_address = cpu.registers.d + offset;
+    let source_address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, source_address) as u16;
+        let value = bus.read(source_address as u32) as u16;
         perform_addition_with_carry_u8(cpu, value);
         3
     } else {
@@ -67,15 +66,13 @@ pub fn adc_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn adc_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset + get_x_register_value(cpu);
-
+    let address = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address) as u16;
+        let value = bus.read(address as u32) as u16;
         perform_addition_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_word_direct_page(bus, address);
         perform_addition_with_carry_u16(cpu, value);
         5
     };
@@ -183,14 +180,18 @@ pub fn adc_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 fn perform_addition_with_carry_u8(cpu: &mut Cpu, value: u16) {
-    let old_accumulator = cpu.registers.a;
-    let carry_in = get_carry_in(cpu);
-    let result = (old_accumulator & 0xFF) + value + carry_in;
+    let old_accumulator_full = cpu.registers.a;
+    let old_accumulator = (old_accumulator_full & 0x00FF) as u16;
 
-    cpu.registers.a = (cpu.registers.a & 0xFF00) | (result & 0xFF);
-    set_nz_flags_u8(cpu, (result & 0xFF) as u8);
+    let carry_in = get_carry_in(cpu);
+    let new_value = value & 0x00FF;
+    let result = old_accumulator + new_value + carry_in;
+
+    cpu.registers.a = (old_accumulator_full & 0xFF00) | (result & 0x00FF);
+
+    set_nz_flags_u8(cpu, (result & 0x00FF) as u8);
     set_c_flag_u8(cpu, result);
-    set_v_flag_u8(cpu, old_accumulator, result, value);
+    set_v_flag_u8(cpu, old_accumulator, result & 0x00FF, new_value);
 }
 
 fn perform_addition_with_carry_u16(cpu: &mut Cpu, value: u16) {
@@ -212,7 +213,7 @@ fn set_c_flag_u8(cpu: &mut Cpu, result: u16) {
 fn set_v_flag_u8(cpu: &mut Cpu, old_accumulator: u16, result: u16, value: u16) {
     cpu.registers.p.set(
         ProcessorStatus::OVERFLOW,
-        ((old_accumulator ^ result) & (value ^ result) & 0x80) != 0,
+        (!(old_accumulator ^ value) & (old_accumulator ^ result) & 0x80) != 0,
     );
 }
 
@@ -223,6 +224,6 @@ fn set_c_flag_u16(cpu: &mut Cpu, result: u32) {
 fn set_v_flag_u16(cpu: &mut Cpu, old_accumulator: u16, result: u16, value: u16) {
     cpu.registers.p.set(
         ProcessorStatus::OVERFLOW,
-        ((old_accumulator ^ result) & (value ^ result) & 0x8000) != 0,
+        (!(old_accumulator ^ value) & (old_accumulator ^ result) & 0x8000) != 0,
     );
 }
