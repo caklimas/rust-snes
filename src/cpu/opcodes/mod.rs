@@ -1,9 +1,6 @@
 use crate::{
     cpu::{Cpu, processor_status::ProcessorStatus},
-    memory::{
-        MemoryBus,
-        addresses::{DIRECT_PAGE_START, STACK_START},
-    },
+    memory::{MemoryBus, addresses::STACK_START},
 };
 
 pub mod adc;
