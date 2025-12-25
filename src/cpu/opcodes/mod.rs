@@ -347,7 +347,7 @@ pub(crate) fn calculate_indirect_page_x_address<B: MemoryBus>(
     bus: &mut B,
 ) -> (u16, u16, u16) {
     let offset: u8 = read_offset_byte(cpu, bus);
-    let x_index: u8 = cpu.registers.x as u8;
+    let _x_index: u8 = cpu.registers.x as u8;
 
     // X is 8-bit if: emulation mode OR X-flag set (X=1)
     let x_index_u16: u16 = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
