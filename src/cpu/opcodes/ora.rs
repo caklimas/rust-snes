@@ -4,10 +4,11 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             calculate_indirect_page_address, calculate_indirect_page_x_address,
-            calculate_indirect_page_y_address, calculate_stack_relative_indirect_y_address,
-            get_address_absolute_x, increment_program_counter, is_8bit_mode_m, page_crossed,
-            read_byte, read_data_byte, read_data_word, read_offset_byte, read_offset_word,
-            read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            calculate_indirect_page_y_address, calculate_stack_relative_address,
+            calculate_stack_relative_indirect_y_address, get_address_absolute_x,
+            increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_data_byte,
+            read_data_word, read_offset_byte, read_offset_word, read_word, read_word_direct_page,
+            set_nz_flags_u8, set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -182,6 +183,31 @@ pub fn ora_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
     increment_program_counter(cpu, 2);
     cycles
+}
+
+pub fn ora_stack_relative<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let address = calculate_stack_relative_address(cpu, bus);
+
+    if is_8bit_mode_m(cpu) {
+        let value = bus.read(address as u32);
+        let a = (cpu.registers.a & 0x00FF) as u8;
+        let result = a | value;
+
+        cpu.registers.a = (cpu.registers.a & 0xFF00) | (result as u16);
+        set_nz_flags_u8(cpu, result);
+
+        increment_program_counter(cpu, 2);
+        4
+    } else {
+        let value = read_word_direct_page(bus, address);
+        let result = cpu.registers.a | value;
+
+        cpu.registers.a = result;
+        set_nz_flags_u16(cpu, result);
+
+        increment_program_counter(cpu, 2);
+        5 // typical +1 when M=0
+    }
 }
 
 pub fn ora_stack_relative_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {

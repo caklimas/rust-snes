@@ -51,7 +51,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x00 => misc::brk(cpu, bus, mode),
         0x01 => ora::ora_indirect_x(cpu, bus),
         0x02 => misc::cop(cpu, bus, mode),
-        0x03 => ora::ora_stack_relative_indirect_y(cpu, bus),
+        0x03 => ora::ora_stack_relative(cpu, bus),
         0x04 => bit::tsb_direct(cpu, bus),
         0x05 => ora::ora_direct(cpu, bus),
         0x06 => shift::asl_direct(cpu, bus),
@@ -66,6 +66,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x10 => bra::bpl(cpu, bus),
         0x11 => ora::ora_indirect_y(cpu, bus),
         0x12 => ora::ora_indirect(cpu, bus),
+        0x13 => ora::ora_stack_relative_indirect_y(cpu, bus),
         0x14 => bit::trb_direct(cpu, bus),
         0x15 => ora::ora_direct_x(cpu, bus),
         0x16 => shift::asl_direct_x(cpu, bus),
@@ -416,6 +417,11 @@ pub(crate) fn calculate_indirect_page_address<B: MemoryBus>(cpu: &Cpu, bus: &mut
     let offset: u8 = read_offset_byte(cpu, bus);
     let pointer_address: u16 = cpu.registers.d.wrapping_add(offset as u16);
     read_word_direct_page(bus, pointer_address)
+}
+
+pub(crate) fn calculate_stack_relative_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
+    let offset: u8 = read_offset_byte(cpu, bus);
+    cpu.registers.s.wrapping_add(offset as u16) // bank 0
 }
 
 pub(crate) fn calculate_stack_relative_indirect_y_address<B: MemoryBus>(
