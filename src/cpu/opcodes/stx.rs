@@ -3,8 +3,7 @@ use crate::{
         Cpu,
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_y_address,
-            increment_program_counter, is_8bit_mode_x, read_byte, write_byte,
-            write_word,
+            increment_program_counter, is_8bit_mode_x, read_byte, write_byte, write_word,
         },
     },
     memory::MemoryBus,

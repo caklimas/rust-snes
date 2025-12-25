@@ -3,7 +3,8 @@ use crate::{
         Cpu,
         opcodes::{
             StackMode, increment_program_counter, is_8bit_mode_m, is_8bit_mode_x,
-            normalize_stack_pointer, pull_byte, push_byte, read_offset_byte, read_offset_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            normalize_stack_pointer, pull_byte, push_byte, read_offset_byte, read_offset_word,
+            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
     },
     memory::MemoryBus,

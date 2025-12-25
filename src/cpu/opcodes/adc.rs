@@ -181,7 +181,7 @@ pub fn adc_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 fn perform_addition_with_carry_u8(cpu: &mut Cpu, value: u16) {
     let old_accumulator_full = cpu.registers.a;
-    let old_accumulator = old_accumulator_full & 0x00FF ;
+    let old_accumulator = old_accumulator_full & 0x00FF;
 
     let carry_in = get_carry_in(cpu);
     let new_value = value & 0x00FF;
