@@ -2,8 +2,8 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            calculate_direct_page_address, calculate_direct_page_x_address, get_x_register_value,
-            increment_program_counter, is_8bit_mode_x, read_byte, read_offset_byte, write_byte,
+            calculate_direct_page_address, calculate_direct_page_x_address,
+            increment_program_counter, is_8bit_mode_x, read_byte, write_byte,
             write_word,
         },
     },

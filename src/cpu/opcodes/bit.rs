@@ -17,7 +17,7 @@ use crate::{
 // Does not modify the accumulator or memory.
 pub fn bit_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (pc_increment, cycles) = if is_8bit_mode_m(cpu) {
-        let value = read_offset_byte(cpu, bus) as u8;
+        let value = read_offset_byte(cpu, bus);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         let result = a_value & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);

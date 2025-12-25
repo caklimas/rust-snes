@@ -3,7 +3,7 @@ use crate::{
         Cpu,
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_y_address,
-            increment_program_counter, is_8bit_mode_x, read_byte, read_offset_byte, write_byte,
+            increment_program_counter, is_8bit_mode_x, read_byte, write_byte,
             write_word,
         },
     },

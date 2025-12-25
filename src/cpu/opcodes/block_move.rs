@@ -10,8 +10,8 @@ use crate::{
 // If A != $FFFF after transfer, repeats (doesn't advance PC).
 // Operands specify source bank and destination bank.
 pub fn mvp<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let dest_bank = read_offset_byte(cpu, bus) as u8;
-    let source_bank = read_offset_byte(cpu, bus) as u8;
+    let dest_bank = read_offset_byte(cpu, bus);
+    let source_bank = read_offset_byte(cpu, bus);
 
     // Read byte from source bank:X
     let source_address = ((source_bank as u32) << 16) | (cpu.registers.x as u32);
@@ -47,8 +47,8 @@ pub fn mvp<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // If A != $FFFF after transfer, repeats (doesn't advance PC).
 // Operands specify source bank and destination bank.
 pub fn mvn<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let dest_bank = read_offset_byte(cpu, bus) as u8;
-    let source_bank = read_offset_byte(cpu, bus) as u8;
+    let dest_bank = read_offset_byte(cpu, bus);
+    let source_bank = read_offset_byte(cpu, bus);
 
     // Read byte from source bank:X
     let source_address = ((source_bank as u32) << 16) | (cpu.registers.x as u32);

@@ -5,7 +5,7 @@ use crate::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             calculate_indirect_page_address, calculate_indirect_page_x_address,
             calculate_indirect_page_y_address, get_x_register_value, increment_program_counter,
-            is_8bit_mode_m, read_byte, read_offset_byte, read_word, write_byte, write_word,
+            is_8bit_mode_m, read_byte, write_byte, write_word,
         },
     },
     memory::MemoryBus,
@@ -30,7 +30,7 @@ pub fn sta_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn sta_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (base_address, target_address) = calculate_direct_page_x_address(cpu, bus);
+    let (_base_address, target_address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
         write_byte(cpu, bus, target_address, cpu.registers.a as u8);
         4

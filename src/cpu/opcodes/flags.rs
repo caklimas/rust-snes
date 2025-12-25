@@ -71,7 +71,7 @@ pub fn clv<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 // 65816-specific instruction commonly used to switch between 8-bit and 16-bit modes.
 pub fn sep<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let mask = read_offset_byte(cpu, bus);
-    let bits_to_set = ProcessorStatus::from_bits_truncate(mask as u8);
+    let bits_to_set = ProcessorStatus::from_bits_truncate(mask);
     cpu.registers.p.insert(bits_to_set);
 
     increment_program_counter(cpu, 2);
@@ -84,7 +84,7 @@ pub fn sep<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // 65816-specific instruction commonly used to switch between 8-bit and 16-bit modes.
 pub fn rep<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let mask = read_offset_byte(cpu, bus);
-    let bits_to_clear = ProcessorStatus::from_bits_truncate(mask as u8);
+    let bits_to_clear = ProcessorStatus::from_bits_truncate(mask);
     cpu.registers.p.remove(bits_to_clear);
 
     increment_program_counter(cpu, 2);

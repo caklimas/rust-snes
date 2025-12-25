@@ -4,7 +4,7 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             calculate_indirect_page_address, calculate_indirect_page_x_address,
-            calculate_indirect_page_y_address, get_address_absolute_x, get_x_register_value,
+            calculate_indirect_page_y_address, get_address_absolute_x,
             increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_offset_byte,
             read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
