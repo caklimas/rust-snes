@@ -51,6 +51,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x00 => misc::brk(cpu, bus, mode),
         0x01 => ora::ora_indirect_x(cpu, bus),
         0x02 => misc::cop(cpu, bus, mode),
+        0x03 => ora::ora_stack_relative_indirect_y(cpu, bus),
         0x04 => bit::tsb_direct(cpu, bus),
         0x05 => ora::ora_direct(cpu, bus),
         0x06 => shift::asl_direct(cpu, bus),
@@ -415,6 +416,28 @@ pub(crate) fn calculate_indirect_page_address<B: MemoryBus>(cpu: &Cpu, bus: &mut
     let offset: u8 = read_offset_byte(cpu, bus);
     let pointer_address: u16 = cpu.registers.d.wrapping_add(offset as u16);
     read_word_direct_page(bus, pointer_address)
+}
+
+pub(crate) fn calculate_stack_relative_indirect_y_address<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+) -> (u16, u16) {
+    let offset: u8 = read_offset_byte(cpu, bus);
+    let pointer_address: u16 = cpu.registers.s.wrapping_add(offset as u16);
+
+    // Read the 16-bit pointer from stack (always in bank 0)
+    let base_address = read_word_direct_page(bus, pointer_address);
+
+    // Add Y register to the pointer
+    let y = if is_8bit_mode_x(cpu) {
+        cpu.registers.y & 0x00FF
+    } else {
+        cpu.registers.y
+    };
+
+    let target_address = base_address.wrapping_add(y);
+
+    (base_address, target_address)
 }
 
 fn get_address_absolute_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {

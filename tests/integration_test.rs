@@ -16,7 +16,7 @@ fn test_json_file() {
     // The `sort_by_key` method is an efficient way to sort based on a specific field.
     files.sort_by_key(|entry| entry.file_name());
 
-    for file in files.iter().take(6) {
+    for file in files.iter() {
         let path = file.path();
         println!("Testing file {}", path.display());
         let test_cases = load_tests_from_file(path).unwrap();
