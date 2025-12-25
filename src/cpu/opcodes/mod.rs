@@ -322,6 +322,13 @@ pub(crate) fn calculate_direct_page_x_address<B: MemoryBus>(cpu: &Cpu, bus: &mut
     (base_address, target_address)
 }
 
+pub(crate) fn calculate_direct_page_y_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
+    let offset: u8 = read_offset_byte(cpu, bus);
+    let y: u8 = cpu.registers.y as u8; // always low byte for direct page indexed
+    let dp_index = offset.wrapping_add(y);
+    cpu.registers.d.wrapping_add(dp_index as u16)
+}
+
 pub(crate) fn calculate_direct_page_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
     let offset = read_offset_byte(cpu, bus);
     cpu.registers.d.wrapping_add(offset as u16)

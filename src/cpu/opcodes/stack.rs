@@ -4,7 +4,7 @@ use crate::{
         opcodes::{
             StackMode, increment_program_counter, is_8bit_mode_m, is_8bit_mode_x,
             normalize_stack_pointer, pull_byte, push_byte, read_offset_byte, read_offset_word,
-            read_word, set_nz_flags_u8, set_nz_flags_u16,
+            read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -208,11 +208,12 @@ pub fn pea<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // PEI (0xD4) - Push Effective Indirect Address (65816 only)
 // Pushes the 16-bit value stored at (Direct Page + offset) onto the stack.
 pub fn pei<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
-    let value = read_word(cpu, bus, address);
+    let offset: u8 = read_offset_byte(cpu, bus);
+    let address = cpu.registers.d.wrapping_add(offset as u16);
+    let value = read_word_direct_page(bus, address);
+
     push_byte(cpu, bus, (value >> 8) as u8, StackMode::Linear16);
-    push_byte(cpu, bus, value as u8, StackMode::Linear16);
+    push_byte(cpu, bus, (value & 0x00FF) as u8, StackMode::Linear16);
     increment_program_counter(cpu, 2);
     normalize_stack_pointer(cpu);
 

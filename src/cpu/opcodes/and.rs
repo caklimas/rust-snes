@@ -125,8 +125,7 @@ pub fn and_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn and_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let address = calculate_indirect_page_x_address(cpu, bus);
-
+    let (_, _, address) = calculate_indirect_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address);
         perform_and_u8(cpu, value);

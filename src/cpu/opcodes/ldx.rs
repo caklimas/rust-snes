@@ -2,9 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            calculate_direct_page_address, increment_program_counter, is_8bit_mode_x, page_crossed,
-            read_byte, read_offset_byte, read_offset_word, read_word, read_word_direct_page,
-            set_nz_flags_u8, set_nz_flags_u16,
+            calculate_direct_page_address, calculate_direct_page_y_address,
+            increment_program_counter, is_8bit_mode_x, page_crossed, read_byte, read_offset_byte,
+            read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -16,23 +16,19 @@ use crate::{
 
 // LDX (0xA2) - Immediate
 pub fn ldx_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let cycles;
-    let mut pc_increment = 2;
-    if is_8bit_mode_x(cpu) {
+    let (pc_increment, cycles) = if is_8bit_mode_x(cpu) {
         let value = read_offset_byte(cpu, bus);
-        cpu.registers.x = value;
-        set_nz_flags_u8(cpu, value as u8);
-        cycles = 2;
+        cpu.registers.x = (cpu.registers.x & 0xFF00) | value as u16;
+        set_nz_flags_u8(cpu, value);
+        (2, 2)
     } else {
         let value = read_offset_word(cpu, bus);
         cpu.registers.x = value;
         set_nz_flags_u16(cpu, value);
-        pc_increment += 1;
-        cycles = 3;
-    }
+        (3, 3)
+    };
 
     increment_program_counter(cpu, pc_increment);
-
     cycles
 }
 
@@ -82,8 +78,7 @@ pub fn ldx_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 // LDX (0xB6) - Direct Page Indexed by Y
 pub fn ldx_direct_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let source_address = cpu.registers.d + offset + cpu.registers.y;
+    let source_address = calculate_direct_page_y_address(cpu, bus);
     let cycles;
 
     if is_8bit_mode_x(cpu) {
