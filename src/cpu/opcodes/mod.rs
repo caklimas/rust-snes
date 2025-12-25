@@ -336,6 +336,15 @@ pub(crate) fn read_data_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16)
     u16::from_le_bytes([lo, hi])
 }
 
+pub(crate) fn write_byte_direct_page<B: MemoryBus>(bus: &mut B, address: u16, value: u8) {
+    bus.write(address as u32, value);
+}
+
+pub(crate) fn write_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16, value: u16) {
+    bus.write(address as u32, (value & 0x00FF) as u8);
+    bus.write(address.wrapping_add(1) as u32, (value >> 8) as u8);
+}
+
 pub(crate) fn calculate_direct_page_x_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let offset: u8 = read_offset_byte(cpu, bus);
     let x: u8 = cpu.registers.x as u8;
@@ -501,6 +510,10 @@ pub(crate) fn is_8bit_mode_m(cpu: &Cpu) -> bool {
 
 pub(crate) fn is_8bit_mode_x(cpu: &Cpu) -> bool {
     cpu.registers.p.contains(ProcessorStatus::INDEX_WIDTH)
+}
+
+pub(crate) fn direct_page_low_is_zero(cpu: &Cpu) -> bool {
+    cpu.registers.d & 0x00FF == 0
 }
 
 pub(crate) fn increment_program_counter(cpu: &mut Cpu, value: u16) {

@@ -211,8 +211,7 @@ pub fn ora_stack_relative<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn ora_stack_relative_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (_base_address, target_address) = calculate_stack_relative_indirect_y_address(cpu, bus);
-
+    let (_, target_address) = calculate_stack_relative_indirect_y_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
         let value = read_data_byte(cpu, bus, target_address);
         perform_ora_u8(cpu, value);

@@ -3,8 +3,9 @@ use crate::{
         Cpu,
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
-            increment_program_counter, is_8bit_mode_m, read_byte, read_offset_byte,
-            read_offset_word, read_word, read_word_direct_page, write_byte, write_word,
+            direct_page_low_is_zero, increment_program_counter, is_8bit_mode_m, read_byte,
+            read_offset_byte, read_offset_word, read_word, read_word_direct_page, write_byte,
+            write_byte_direct_page, write_word, write_word_direct_page,
         },
         processor_status::ProcessorStatus,
     },
@@ -133,22 +134,26 @@ fn perform_bit_test_u16(cpu: &mut Cpu, a_value: u16, value: u16) {
 pub fn tsb_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = calculate_direct_page_address(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(address as u32);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         let result = a_value & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
         let new_value = value | a_value;
-        write_byte(cpu, bus, address, new_value);
+        write_byte_direct_page(bus, address, new_value);
         5
     } else {
         let value = read_word_direct_page(bus, address);
         let result = cpu.registers.a & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
         let new_value = value | cpu.registers.a;
-        write_word(cpu, bus, address, new_value);
-        6
+        write_word_direct_page(bus, address, new_value);
+        7
     };
+
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
