@@ -10,62 +10,8 @@ use std::path::Path;
 /// Result of running a single test
 #[derive(Debug)]
 pub struct TestResult {
-    pub test_name: String,
     pub passed: bool,
     pub failure_reason: Option<String>,
-}
-
-/// Summary of running multiple tests
-#[derive(Debug)]
-pub struct TestSummary {
-    pub total: usize,
-    pub passed: usize,
-    pub failed: usize,
-    pub failures: Vec<TestResult>,
-}
-
-impl TestSummary {
-    pub fn new() -> Self {
-        Self {
-            total: 0,
-            passed: 0,
-            failed: 0,
-            failures: Vec::new(),
-        }
-    }
-
-    pub fn add_result(&mut self, result: TestResult) {
-        self.total += 1;
-        if result.passed {
-            self.passed += 1;
-        } else {
-            self.failed += 1;
-            self.failures.push(result);
-        }
-    }
-
-    pub fn print_summary(&self) {
-        println!("\n{}", "=".repeat(60));
-        println!(
-            "Test Results: {} total, {} passed, {} failed",
-            self.total, self.passed, self.failed
-        );
-        println!("{}", "=".repeat(60));
-
-        if self.failed > 0 {
-            println!("\nFailed tests:");
-            for failure in &self.failures {
-                println!(
-                    "  ❌ {}: {}",
-                    failure.test_name,
-                    failure
-                        .failure_reason
-                        .as_ref()
-                        .unwrap_or(&"Unknown error".to_string())
-                );
-            }
-        }
-    }
 }
 
 /// Loads test cases from a JSON file
@@ -105,13 +51,11 @@ pub fn run_test(test: &TestCase) -> TestResult {
         &test.cycles,
     ) {
         TestResult {
-            test_name: test.name.clone(),
             passed: false,
             failure_reason: Some(reason),
         }
     } else {
         TestResult {
-            test_name: test.name.clone(),
             passed: true,
             failure_reason: None,
         }
@@ -212,19 +156,6 @@ fn compare_states(
     }
 
     None
-}
-
-/// Runs all tests from a JSON file and returns a summary
-pub fn run_tests_from_file<P: AsRef<Path>>(path: P) -> Result<TestSummary, String> {
-    let tests = load_tests_from_file(path)?;
-    let mut summary = TestSummary::new();
-
-    for test in tests.iter() {
-        let result = run_test(test);
-        summary.add_result(result);
-    }
-
-    Ok(summary)
 }
 
 #[cfg(test)]
