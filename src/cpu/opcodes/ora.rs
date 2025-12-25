@@ -5,8 +5,9 @@ use crate::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             calculate_indirect_page_address, calculate_indirect_page_x_address,
             calculate_indirect_page_y_address, get_address_absolute_x, increment_program_counter,
-            is_8bit_mode_m, page_crossed, read_byte, read_offset_byte, read_offset_word, read_word,
-            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            is_8bit_mode_m, page_crossed, read_byte, read_data_byte, read_data_word,
+            read_offset_byte, read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8,
+            set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -126,15 +127,20 @@ pub fn ora_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn ora_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_, _, address) = calculate_indirect_page_x_address(cpu, bus);
-    let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = read_data_byte(cpu, bus, address);
         perform_ora_u8(cpu, value);
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_ora_u16(cpu, value);
         7
     };
+
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles

@@ -303,11 +303,19 @@ pub(crate) fn read_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u
 
 pub(crate) fn read_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16) -> u16 {
     let low = bus.read(address as u32);
+    let high = bus.read(address.wrapping_add(1) as u32);
+    ((high as u16) << 8) | (low as u16)
+}
 
-    let wrapped = (address & 0xFF00) | ((address + 1) & 0x00FF);
-    let high = bus.read(wrapped as u32);
+pub(crate) fn read_data_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
+    let physical = ((cpu.registers.db as u32) << 16) | (address as u32);
+    bus.read(physical)
+}
 
-    (high as u16) << 8 | (low as u16)
+pub(crate) fn read_data_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
+    let lo = read_data_byte(cpu, bus, address);
+    let hi = read_data_byte(cpu, bus, address.wrapping_add(1));
+    u16::from_le_bytes([lo, hi])
 }
 
 pub(crate) fn calculate_direct_page_x_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
@@ -339,17 +347,32 @@ pub(crate) fn calculate_indirect_page_x_address<B: MemoryBus>(
     bus: &mut B,
 ) -> (u16, u16, u16) {
     let offset: u8 = read_offset_byte(cpu, bus);
-    let x: u8 = cpu.registers.x as u8;
+    let x_index: u8 = cpu.registers.x as u8;
 
-    // D + offset (no X yet)
-    let base_pointer_address = cpu.registers.d.wrapping_add(offset as u16);
+    // X is 8-bit if: emulation mode OR X-flag set (X=1)
+    let x_index_u16: u16 = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        (cpu.registers.x as u8) as u16
+    } else {
+        cpu.registers.x
+    };
 
-    // (offset + X) wraps at 8-bit, then add D
-    let pointer_index = offset.wrapping_add(x);
-    let pointer_address = cpu.registers.d.wrapping_add(pointer_index as u16);
+    let direct_page: u16 = cpu.registers.d;
+    let direct_page_low_byte: u8 = (direct_page & 0x00FF) as u8;
+    let base_pointer_address = direct_page.wrapping_add(offset as u16);
+    let pointer_address: u16 = if cpu.emulation_mode && direct_page_low_byte == 0 {
+        // Emulation-mode, page-aligned direct page:
+        // wrap offset+X within the 256-byte direct page window
+        let wrapped_index: u8 = offset.wrapping_add(x_index_u16 as u8);
+        (direct_page & 0xFF00) | (wrapped_index as u16)
+    } else {
+        // Native-mode or non-aligned direct page:
+        // full 16-bit addition with carry
+        direct_page
+            .wrapping_add(offset as u16)
+            .wrapping_add(x_index_u16)
+    };
 
-    // Fetch target pointer from direct page (bank 0, DP wrap)
-    let target_address = read_word_direct_page(bus, pointer_address);
+    let target_address: u16 = read_word_direct_page(bus, pointer_address);
 
     (base_pointer_address, pointer_address, target_address)
 }
