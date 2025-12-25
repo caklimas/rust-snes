@@ -218,25 +218,3 @@ fn perform_subtraction_with_carry_u16(cpu: &mut Cpu, value: u16) {
         ((old_accumulator ^ result_u16) & (old_accumulator ^ value) & 0x8000) != 0,
     );
 }
-
-fn set_c_flag_u8(cpu: &mut Cpu, result: i16) {
-    cpu.registers.p.set(ProcessorStatus::CARRY, result >= 0);
-}
-
-fn set_v_flag_u8(cpu: &mut Cpu, old_accumulator: u16, result: u16, value: u16) {
-    cpu.registers.p.set(
-        ProcessorStatus::OVERFLOW,
-        ((old_accumulator ^ value) & (old_accumulator ^ result) & 0x80) != 0,
-    );
-}
-
-fn set_c_flag_u16(cpu: &mut Cpu, result: i32) {
-    cpu.registers.p.set(ProcessorStatus::CARRY, result >= 0);
-}
-
-fn set_v_flag_u16(cpu: &mut Cpu, old_accumulator: u16, result: u16, value: u16) {
-    cpu.registers.p.set(
-        ProcessorStatus::OVERFLOW,
-        ((old_accumulator ^ value) & (old_accumulator ^ result) & 0x8000) != 0,
-    );
-}

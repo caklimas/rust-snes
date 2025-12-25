@@ -19,7 +19,7 @@ use crate::{
 pub fn ora_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (pc_increment, cycles) = if is_8bit_mode_m(cpu) {
         let value = read_offset_byte(cpu, bus);
-        perform_ora_u8(cpu, value.try_into().unwrap());
+        perform_ora_u8(cpu, value);
         (2, 2)
     } else {
         let value = read_offset_word(cpu, bus);
