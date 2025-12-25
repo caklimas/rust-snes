@@ -327,28 +327,30 @@ pub(crate) fn calculate_direct_page_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B
     cpu.registers.d.wrapping_add(offset as u16)
 }
 
-fn get_address_absolute_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
-    let base_address = read_offset_word(cpu, bus);
-    (base_address, base_address + get_x_register_value(cpu))
-}
-
-fn get_address_absolute_y<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
-    let base_address = read_offset_word(cpu, bus);
-    let address = base_address + cpu.registers.y;
-
-    (base_address, address)
-}
-
-fn get_address_indirect_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
-    let offset = read_offset_byte(cpu, bus);
+pub(crate) fn calculate_indirect_page_x_address<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+) -> (u16, u16, u16) {
+    let offset: u8 = read_offset_byte(cpu, bus);
     let x: u8 = cpu.registers.x as u8;
-    let pointer_index = offset.wrapping_add(x);
-    let pointer_address: u16 = cpu.registers.d.wrapping_add(pointer_index as u16);
 
-    read_word_direct_page(bus, pointer_address)
+    // D + offset (no X yet)
+    let base_pointer_address = cpu.registers.d.wrapping_add(offset as u16);
+
+    // (offset + X) wraps at 8-bit, then add D
+    let pointer_index = offset.wrapping_add(x);
+    let pointer_address = cpu.registers.d.wrapping_add(pointer_index as u16);
+
+    // Fetch target pointer from direct page (bank 0, DP wrap)
+    let target_address = read_word_direct_page(bus, pointer_address);
+
+    (base_pointer_address, pointer_address, target_address)
 }
 
-fn get_address_indirect_y<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
+pub(crate) fn calculate_indirect_page_y_address<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+) -> (u16, u16) {
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d.wrapping_add(offset as u16);
     let base_address = read_word_direct_page(bus, pointer_address);
@@ -363,10 +365,22 @@ fn get_address_indirect_y<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     (base_address, address)
 }
 
-fn get_address_indirect<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
-    let offset = read_offset_byte(cpu, bus);
-    let pointer_address = cpu.registers.d + offset;
-    read_word(cpu, bus, pointer_address)
+pub(crate) fn calculate_indirect_page_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
+    let offset: u8 = read_offset_byte(cpu, bus);
+    let pointer_address: u16 = cpu.registers.d.wrapping_add(offset as u16);
+    read_word_direct_page(bus, pointer_address)
+}
+
+fn get_address_absolute_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
+    let base_address = read_offset_word(cpu, bus);
+    (base_address, base_address + get_x_register_value(cpu))
+}
+
+fn get_address_absolute_y<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
+    let base_address = read_offset_word(cpu, bus);
+    let address = base_address + cpu.registers.y;
+
+    (base_address, address)
 }
 
 fn get_address_absolute_long<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u32 {

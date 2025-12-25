@@ -16,25 +16,19 @@ use crate::{
 
 // LDY (0xA0) - Immediate
 pub fn ldy_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let cycles;
-    let pc_increment;
-
-    if is_8bit_mode_x(cpu) {
-        let value = read_offset_byte(cpu, bus);
-        cpu.registers.y = value;
-        set_nz_flags_u8(cpu, value as u8);
-        pc_increment = 2;
-        cycles = 2;
+    let (pc_increment, cycles) = if is_8bit_mode_x(cpu) {
+        let value = read_offset_byte(cpu, bus); // u8
+        cpu.registers.y = (cpu.registers.y & 0xFF00) | value as u16;
+        set_nz_flags_u8(cpu, value);
+        (2, 2)
     } else {
-        let value = read_offset_word(cpu, bus);
+        let value = read_offset_word(cpu, bus); // u16
         cpu.registers.y = value;
         set_nz_flags_u16(cpu, value);
-        pc_increment = 3;
-        cycles = 3;
-    }
+        (3, 3)
+    };
 
     increment_program_counter(cpu, pc_increment);
-
     cycles
 }
 

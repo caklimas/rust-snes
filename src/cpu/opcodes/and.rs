@@ -2,11 +2,11 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            calculate_direct_page_address, calculate_direct_page_x_address, get_address_absolute_x,
-            get_address_indirect, get_address_indirect_x, get_address_indirect_y,
-            get_x_register_value, increment_program_counter, is_8bit_mode_m, page_crossed,
-            read_byte, read_offset_byte, read_offset_word, read_word, read_word_direct_page,
-            set_nz_flags_u8, set_nz_flags_u16,
+            calculate_direct_page_address, calculate_direct_page_x_address,
+            calculate_indirect_page_address, calculate_indirect_page_x_address,
+            calculate_indirect_page_y_address, get_address_absolute_x, get_x_register_value,
+            increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_offset_byte,
+            read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -125,7 +125,7 @@ pub fn and_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn and_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let address = get_address_indirect_x(cpu, bus);
+    let address = calculate_indirect_page_x_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address);
@@ -142,7 +142,7 @@ pub fn and_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn and_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (base_address, address) = get_address_indirect_y(cpu, bus);
+    let (base_address, address) = calculate_indirect_page_y_address(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address);
@@ -163,7 +163,7 @@ pub fn and_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn and_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let address = get_address_indirect(cpu, bus);
+    let address = calculate_indirect_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
         let value = read_byte(cpu, bus, address);
