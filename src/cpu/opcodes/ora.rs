@@ -5,10 +5,11 @@ use crate::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             calculate_indirect_page_address, calculate_indirect_page_x_address,
             calculate_indirect_page_y_address, calculate_stack_relative_address,
-            calculate_stack_relative_indirect_y_address, get_address_absolute_x,
-            increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_data_byte,
-            read_data_word, read_offset_byte, read_offset_word, read_word, read_word_direct_page,
-            set_nz_flags_u8, set_nz_flags_u16,
+            calculate_stack_relative_indirect_y_address, direct_page_low_is_zero,
+            get_address_absolute_x, increment_program_counter, is_8bit_mode_m, page_crossed,
+            read_byte, read_data_byte, read_data_word, read_long_pointer_direct_page,
+            read_offset_byte, read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8,
+            set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -36,7 +37,7 @@ pub fn ora_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 pub fn ora_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let source_address = calculate_direct_page_address(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(source_address as u32);
         perform_ora_u8(cpu, value);
         3
@@ -45,6 +46,10 @@ pub fn ora_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_ora_u16(cpu, value);
         4
     };
+
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
@@ -180,6 +185,30 @@ pub fn ora_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_ora_u16(cpu, value);
         6
     };
+
+    increment_program_counter(cpu, 2);
+    cycles
+}
+
+pub fn ora_indirect_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let address = calculate_direct_page_address(cpu, bus);
+    let effective = read_long_pointer_direct_page(bus, address);
+
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = bus.read(effective);
+        perform_ora_u8(cpu, value);
+        6
+    } else {
+        let lo = bus.read(effective);
+        let hi = bus.read(effective.wrapping_add(1));
+        let value = u16::from_le_bytes([lo, hi]);
+        perform_ora_u16(cpu, value);
+        7
+    };
+
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles

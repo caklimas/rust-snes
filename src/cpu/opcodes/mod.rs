@@ -55,6 +55,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x04 => bit::tsb_direct(cpu, bus),
         0x05 => ora::ora_direct(cpu, bus),
         0x06 => shift::asl_direct(cpu, bus),
+        0x07 => ora::ora_indirect_long(cpu, bus),
         0x08 => stack::php(cpu, bus, mode),
         0x09 => ora::ora_immediate(cpu, bus),
         0x0A => shift::asl_accumulator(cpu, bus),
@@ -323,6 +324,16 @@ pub(crate) fn read_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16) -> 
     let low = bus.read(address as u32);
     let high = bus.read(address.wrapping_add(1) as u32);
     ((high as u16) << 8) | (low as u16)
+}
+
+pub(crate) fn read_long_pointer_direct_page<B: MemoryBus>(bus: &mut B, dp_addr: u16) -> u32 {
+    // Reads 24-bit pointer from bank 0 at dp_addr..dp_addr+2
+    let lo = bus.read(dp_addr as u32);
+    let hi = bus.read(dp_addr.wrapping_add(1) as u32);
+    let bank = bus.read(dp_addr.wrapping_add(2) as u32);
+
+    let addr16 = u16::from_le_bytes([lo, hi]);
+    ((bank as u32) << 16) | (addr16 as u32)
 }
 
 pub(crate) fn read_data_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
