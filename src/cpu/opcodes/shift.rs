@@ -4,9 +4,9 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             direct_page_low_is_zero, get_x_register_value, increment_program_counter,
-            is_8bit_mode_m, read_byte, read_offset_word, read_word, read_word_direct_page,
-            set_nz_flags_u8, set_nz_flags_u16, write_byte, write_byte_direct_page, write_word,
-            write_word_direct_page,
+            is_8bit_mode_m, read_byte, read_data_byte, read_data_word, read_offset_word, read_word,
+            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16, write_byte,
+            write_byte_direct_page, write_word, write_word_direct_page,
         },
         processor_status::ProcessorStatus,
     },
@@ -77,7 +77,7 @@ pub fn asl_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = read_data_byte(cpu, bus, address);
         let result = value << 1;
         cpu.registers
             .p
@@ -86,14 +86,14 @@ pub fn asl_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         let result = value << 1;
         cpu.registers
             .p
             .set(ProcessorStatus::CARRY, value & 0x8000 != 0);
         write_word(cpu, bus, address, result);
         set_nz_flags_u16(cpu, result);
-        7
+        8
     };
 
     increment_program_counter(cpu, 3);

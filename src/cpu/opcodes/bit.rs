@@ -4,8 +4,9 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             direct_page_low_is_zero, increment_program_counter, is_8bit_mode_m, read_byte,
-            read_offset_byte, read_offset_word, read_word, read_word_direct_page, write_byte,
-            write_byte_direct_page, write_word, write_word_direct_page,
+            read_data_byte, read_data_word, read_offset_byte, read_offset_word, read_word,
+            read_word_direct_page, write_byte, write_byte_direct_page, write_word,
+            write_word_direct_page,
         },
         processor_status::ProcessorStatus,
     },
@@ -163,7 +164,7 @@ pub fn tsb_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = read_data_byte(cpu, bus, address);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         let result = a_value & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
@@ -171,12 +172,12 @@ pub fn tsb_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         write_byte(cpu, bus, address, new_value);
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         let result = cpu.registers.a & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
         let new_value = value | cpu.registers.a;
         write_word(cpu, bus, address, new_value);
-        7
+        8
     };
 
     increment_program_counter(cpu, 3);

@@ -59,11 +59,11 @@ pub fn ora_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = read_data_byte(cpu, bus, address);
         perform_ora_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_ora_u16(cpu, value);
         5
     };
