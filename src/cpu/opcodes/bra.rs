@@ -1,7 +1,7 @@
 use crate::{
     cpu::{
         Cpu,
-        opcodes::{increment_program_counter, read_offset_byte, read_offset_word},
+        opcodes::{read_offset_byte, read_offset_word},
         processor_status::ProcessorStatus,
     },
     memory::MemoryBus,

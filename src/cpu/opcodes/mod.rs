@@ -491,7 +491,7 @@ pub(crate) fn indirect_y_extra_cycle(cpu: &Cpu, base_address: u16, address16: u1
     }
 }
 
-pub(crate) fn effective_phys_indirect_y(cpu: &Cpu, base_address: u16, address16: u16) -> u32 {
+pub(crate) fn effective_phys_indirect_y(cpu: &Cpu, base_address: u16) -> u32 {
     // Always compute effective as (DBR:base) + Y in 24-bit space (matches your traces)
     let y = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
         (cpu.registers.y & 0x00FF) as u32
@@ -516,7 +516,7 @@ pub(crate) fn dummy_phys_indirect_y(
     // - Otherwise (native + X=0), the dummy is at the effective address itself (as in 11 n 427)
     if crossed {
         let dummy_addr16 = (base_address & 0xFF00) | (address16 & 0x00FF);
-        ((((cpu.registers.db as u32) << 16) | (dummy_addr16 as u32)) & 0x00FF_FFFF)
+        (((cpu.registers.db as u32) << 16) | (dummy_addr16 as u32)) & 0x00FF_FFFF
     } else {
         effective_phys & 0x00FF_FFFF
     }
@@ -528,11 +528,11 @@ pub(crate) fn read_data_byte_indirect_y<B: MemoryBus>(
     base_address: u16,
     address16: u16,
 ) -> (u8, bool) {
-    let extra = indirect_y_extra_cycle::<B>(cpu, base_address, address16);
-    let eff = effective_phys_indirect_y::<B>(cpu, base_address, address16);
+    let extra = indirect_y_extra_cycle(cpu, base_address, address16);
+    let eff = effective_phys_indirect_y(cpu, base_address);
 
     if extra {
-        let dummy = dummy_phys_indirect_y::<B>(cpu, base_address, address16, eff);
+        let dummy = dummy_phys_indirect_y(cpu, base_address, address16, eff);
         let _ = bus.read(dummy);
     }
 
@@ -545,11 +545,11 @@ pub(crate) fn read_data_word_indirect_y<B: MemoryBus>(
     base_address: u16,
     address16: u16,
 ) -> (u16, bool) {
-    let extra = indirect_y_extra_cycle::<B>(cpu, base_address, address16);
-    let eff = effective_phys_indirect_y::<B>(cpu, base_address, address16);
+    let extra = indirect_y_extra_cycle(cpu, base_address, address16);
+    let eff = effective_phys_indirect_y(cpu, base_address);
 
     if extra {
-        let dummy = dummy_phys_indirect_y::<B>(cpu, base_address, address16, eff);
+        let dummy = dummy_phys_indirect_y(cpu, base_address, address16, eff);
         let _ = bus.read(dummy);
     }
 

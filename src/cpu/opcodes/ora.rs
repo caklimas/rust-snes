@@ -196,15 +196,18 @@ pub fn ora_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 pub fn ora_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = calculate_indirect_page_address(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = read_data_byte(cpu, bus, address);
         perform_ora_u8(cpu, value);
         5
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_ora_u16(cpu, value);
         6
     };
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
