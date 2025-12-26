@@ -513,10 +513,7 @@ pub(crate) fn stack_relative_indirect_y_dummy_read<B: MemoryBus>(
     let _ = bus.read(pointer_address.wrapping_add(1) as u32);
 }
 
-pub(crate) fn effective_phys_stack_relative_indirect_y<B: MemoryBus>(
-    cpu: &Cpu,
-    base_address: u16,
-) -> u32 {
+pub(crate) fn effective_phys_stack_relative_indirect_y(cpu: &Cpu, base_address: u16) -> u32 {
     // Y width: emulation forces 8-bit; native depends on X flag
     let y = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
         (cpu.registers.y & 0x00FF) as u32
