@@ -72,6 +72,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x14 => bit::trb_direct(cpu, bus),
         0x15 => ora::ora_direct_x(cpu, bus),
         0x16 => shift::asl_direct_x(cpu, bus),
+        0x17 => ora::ora_indirect_long_y(cpu, bus),
         0x18 => flags::clc(cpu, bus),
         0x19 => ora::ora_absolute_y(cpu, bus),
         0x1A => inc::ina(cpu, bus),

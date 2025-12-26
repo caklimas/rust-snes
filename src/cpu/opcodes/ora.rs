@@ -7,11 +7,12 @@ use crate::{
             calculate_indirect_page_x_address, calculate_indirect_page_y_address,
             calculate_stack_relative_address, calculate_stack_relative_indirect_y_address,
             direct_page_low_is_zero, get_address_absolute_x, increment_program_counter,
-            is_8bit_mode_m, page_crossed, read_byte, read_data_byte, read_data_byte_indirect_y,
-            read_data_byte_stack_relative_indirect_y, read_data_word, read_data_word_indirect_y,
-            read_data_word_stack_relative_indirect_y, read_long_pointer_direct_page,
-            read_offset_byte, read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8,
-            set_nz_flags_u16, stack_relative_indirect_y_dummy_read,
+            is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_byte, read_byte_direct_page,
+            read_data_byte, read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y,
+            read_data_word, read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
+            read_long_pointer_direct_page, read_long_pointer_direct_page_wrapped, read_offset_byte,
+            read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            stack_relative_indirect_y_dummy_read,
         },
     },
     memory::MemoryBus,
@@ -134,20 +135,34 @@ pub fn ora_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn ora_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let base_address = read_offset_word(cpu, bus);
-    let address = base_address + cpu.registers.y;
+    let base16 = read_offset_word(cpu, bus);
+
+    // Y width for address math (emu => 8-bit)
+    let y16: u16 = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        cpu.registers.y & 0x00FF
+    } else {
+        cpu.registers.y
+    };
+
+    let addr16 = base16.wrapping_add(y16);
+
+    // Physical address per your harness: (DBR:base16) + Y in 24-bit space
+    let base_phys = ((cpu.registers.db as u32) << 16) | (base16 as u32);
+    let phys = (base_phys.wrapping_add(y16 as u32)) & 0x00FF_FFFF;
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = bus.read(phys);
         perform_ora_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
-        perform_ora_u16(cpu, value);
+        let lo = bus.read(phys);
+        let hi = bus.read((phys.wrapping_add(1)) & 0x00FF_FFFF);
+        perform_ora_u16(cpu, u16::from_le_bytes([lo, hi]));
         5
     };
 
-    if page_crossed(base_address, address) {
+    // Only add +1 on 16-bit page cross
+    if !is_8bit_mode_x(cpu) || page_crossed(base16, addr16) {
         cycles += 1;
     }
 
@@ -282,6 +297,37 @@ pub fn ora_stack_relative_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -
         perform_ora_u16(cpu, value);
         8
     };
+
+    increment_program_counter(cpu, 2);
+    cycles
+}
+
+pub fn ora_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let dp_base = calculate_direct_page_address(cpu, bus);
+    let base_phys = read_long_pointer_direct_page_wrapped(cpu, bus, dp_base);
+
+    let y = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        (cpu.registers.y & 0x00FF) as u32
+    } else {
+        cpu.registers.y as u32
+    };
+
+    let phys = (base_phys.wrapping_add(y)) & 0x00FF_FFFF;
+
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = bus.read(phys);
+        perform_ora_u8(cpu, value);
+        6
+    } else {
+        let lo = bus.read(phys);
+        let hi = bus.read((phys.wrapping_add(1)) & 0x00FF_FFFF);
+        perform_ora_u16(cpu, u16::from_le_bytes([lo, hi]));
+        7
+    };
+
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles

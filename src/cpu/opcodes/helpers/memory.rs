@@ -1,4 +1,7 @@
-use crate::{cpu::Cpu, memory::MemoryBus};
+use crate::{
+    cpu::{Cpu, opcodes::direct_page_low_is_zero},
+    memory::MemoryBus,
+};
 
 /// Read a byte from program space at PC + 1
 pub(crate) fn read_offset_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u8 {
@@ -38,6 +41,29 @@ pub(crate) fn read_long_pointer_direct_page<B: MemoryBus>(bus: &mut B, dp_addr: 
     ((bank as u32) << 16) | (addr16 as u32)
 }
 
+pub(crate) fn read_long_pointer_direct_page_wrapped<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+    dp_base: u16,
+) -> u32 {
+    // In emulation mode with page-aligned D (D.l == 0), SST expects DP wrapping for dp+1/dp+2
+    if cpu.emulation_mode && direct_page_low_is_zero(cpu) {
+        let page = dp_base & 0xFF00;
+        let lo_addr = dp_base;
+        let hi_addr = page | ((dp_base.wrapping_add(1)) as u8 as u16);
+        let bank_addr = page | ((dp_base.wrapping_add(2)) as u8 as u16);
+
+        let lo = bus.read(lo_addr as u32);
+        let hi = bus.read(hi_addr as u32);
+        let bank = bus.read(bank_addr as u32);
+
+        let addr16 = u16::from_le_bytes([lo, hi]);
+        ((bank as u32) << 16) | (addr16 as u32)
+    } else {
+        read_long_pointer_direct_page(bus, dp_base)
+    }
+}
+
 /// Read a byte from data space (uses Data Bank)
 pub(crate) fn read_data_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
     let physical = ((cpu.registers.db as u32) << 16) | (address as u32);
@@ -66,6 +92,11 @@ pub(crate) fn write_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16, va
 pub(crate) fn read_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
     let physical_address = ((cpu.registers.pb as u32) << 16) | (address as u32);
     bus.read(physical_address)
+}
+
+/// Read a word from direct page (bank 0)
+pub(crate) fn read_byte_direct_page<B: MemoryBus>(bus: &mut B, address: u16) -> u8 {
+    bus.read(address as u32)
 }
 
 /// Write a word to data space (uses Data Bank)
