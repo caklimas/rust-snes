@@ -1,4 +1,4 @@
-use crate::cpu::{processor_status::ProcessorStatus, Cpu};
+use crate::cpu::{Cpu, processor_status::ProcessorStatus};
 
 /// Check if CPU is in 8-bit memory mode (M flag set)
 pub(crate) fn is_8bit_mode_m(cpu: &Cpu) -> bool {

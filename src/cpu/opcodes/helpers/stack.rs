@@ -1,6 +1,6 @@
 use crate::{
     cpu::Cpu,
-    memory::{addresses::STACK_START, MemoryBus},
+    memory::{MemoryBus, addresses::STACK_START},
 };
 
 use super::super::StackMode;
