@@ -94,11 +94,6 @@ pub(crate) fn read_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u
     bus.read(physical_address)
 }
 
-/// Read a word from direct page (bank 0)
-pub(crate) fn read_byte_direct_page<B: MemoryBus>(bus: &mut B, address: u16) -> u8 {
-    bus.read(address as u32)
-}
-
 /// Write a word to data space (uses Data Bank)
 pub(crate) fn write_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u16) {
     write_byte(cpu, bus, address, value as u8);
