@@ -7,9 +7,10 @@ use crate::{
             calculate_indirect_page_x_address, calculate_indirect_page_y_address,
             calculate_stack_relative_address, calculate_stack_relative_indirect_y_address,
             direct_page_low_is_zero, get_address_absolute_x, increment_program_counter,
-            is_8bit_mode_m, page_crossed, read_byte, read_data_byte, read_data_word,
-            read_long_pointer_direct_page, read_offset_byte, read_offset_word, read_word,
-            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            is_8bit_mode_m, page_crossed, read_byte, read_data_byte, read_data_byte_indirect_y,
+            read_data_word, read_data_word_indirect_y, read_long_pointer_direct_page,
+            read_offset_byte, read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8,
+            set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -171,22 +172,19 @@ pub fn ora_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn ora_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (base_address, address) = calculate_indirect_page_y_address(cpu, bus);
+    let (base_address, address16) = calculate_indirect_page_y_address(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_data_byte(cpu, bus, address);
+        let (value, extra) = read_data_byte_indirect_y(cpu, bus, base_address, address16);
         perform_ora_u8(cpu, value);
-        5
+        5 + (extra as u8)
     } else {
-        let value = read_data_word(cpu, bus, address);
+        let (value, extra) = read_data_word_indirect_y(cpu, bus, base_address, address16);
         perform_ora_u16(cpu, value);
-        6
+        6 + (extra as u8)
     };
 
-    if page_crossed(base_address, address) {
-        cycles += 1;
-    }
-
+    // Direct page low-byte penalty
     if !direct_page_low_is_zero(cpu) {
         cycles += 1;
     }

@@ -423,14 +423,14 @@ pub(crate) fn calculate_indirect_page_y_address<B: MemoryBus>(
     let offset = read_offset_byte(cpu, bus);
     let pointer_address = cpu.registers.d.wrapping_add(offset as u16);
     let base_address = read_word_direct_page(bus, pointer_address);
-    let y = if is_8bit_mode_x(cpu) {
+
+    let y = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
         cpu.registers.y & 0x00FF
     } else {
         cpu.registers.y
     };
 
     let address = base_address.wrapping_add(y);
-
     (base_address, address)
 }
 
@@ -476,6 +476,94 @@ pub(crate) fn calculate_absolute_long_address<B: MemoryBus>(cpu: &Cpu, bus: &mut
     let addr_bank = read_byte(cpu, bus, pc.wrapping_add(3));
 
     ((addr_bank as u32) << 16) | ((addr_mid as u32) << 8) | (addr_low as u32)
+}
+
+pub(crate) fn indirect_y_extra_cycle<B: MemoryBus>(
+    cpu: &Cpu,
+    base_address: u16,
+    address16: u16,
+) -> bool {
+    let crossed = page_crossed(base_address, address16);
+
+    if cpu.emulation_mode {
+        // Emulation: extra cycle only on page cross
+        crossed
+    } else {
+        // Native: if index is 16-bit (X=0), always an extra cycle;
+        // if index is 8-bit (X=1), only on page cross.
+        (!is_8bit_mode_x(cpu)) || crossed
+    }
+}
+
+pub(crate) fn effective_phys_indirect_y<B: MemoryBus>(
+    cpu: &Cpu,
+    base_address: u16,
+    address16: u16,
+) -> u32 {
+    // Always compute effective as (DBR:base) + Y in 24-bit space (matches your traces)
+    let y = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        (cpu.registers.y & 0x00FF) as u32
+    } else {
+        cpu.registers.y as u32
+    };
+
+    let base_phys = ((cpu.registers.db as u32) << 16) | (base_address as u32);
+    (base_phys.wrapping_add(y)) & 0x00FF_FFFF
+}
+
+pub(crate) fn dummy_phys_indirect_y<B: MemoryBus>(
+    cpu: &Cpu,
+    base_address: u16,
+    address16: u16,
+    effective_phys: u32,
+) -> u32 {
+    let crossed = page_crossed(base_address, address16);
+
+    // What address gets used for the dummy read:
+    // - On page cross, your traces show a "partial" address (derived from base high + effective low)
+    // - Otherwise (native + X=0), the dummy is at the effective address itself (as in 11 n 427)
+    if crossed {
+        let dummy_addr16 = (base_address & 0xFF00) | (address16 & 0x00FF);
+        ((((cpu.registers.db as u32) << 16) | (dummy_addr16 as u32)) & 0x00FF_FFFF)
+    } else {
+        effective_phys & 0x00FF_FFFF
+    }
+}
+
+pub(crate) fn read_data_byte_indirect_y<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+    base_address: u16,
+    address16: u16,
+) -> (u8, bool) {
+    let extra = indirect_y_extra_cycle::<B>(cpu, base_address, address16);
+    let eff = effective_phys_indirect_y::<B>(cpu, base_address, address16);
+
+    if extra {
+        let dummy = dummy_phys_indirect_y::<B>(cpu, base_address, address16, eff);
+        let _ = bus.read(dummy);
+    }
+
+    (bus.read(eff), extra)
+}
+
+pub(crate) fn read_data_word_indirect_y<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+    base_address: u16,
+    address16: u16,
+) -> (u16, bool) {
+    let extra = indirect_y_extra_cycle::<B>(cpu, base_address, address16);
+    let eff = effective_phys_indirect_y::<B>(cpu, base_address, address16);
+
+    if extra {
+        let dummy = dummy_phys_indirect_y::<B>(cpu, base_address, address16, eff);
+        let _ = bus.read(dummy);
+    }
+
+    let lo = bus.read(eff);
+    let hi = bus.read((eff.wrapping_add(1)) & 0x00FF_FFFF);
+    (u16::from_le_bytes([lo, hi]), extra)
 }
 
 fn get_address_absolute_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
