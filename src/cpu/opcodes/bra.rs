@@ -95,23 +95,26 @@ pub fn bvs<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     )
 }
 
-fn branch_conditional<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, flag_conditional: bool) -> u8 {
-    let cycles = 2;
-    if flag_conditional {
-        increment_program_counter(cpu, 2);
-        return cycles;
+fn branch_conditional<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, take_branch: bool) -> u8 {
+    let pc_after = cpu.registers.pc.wrapping_add(2);
+
+    if !take_branch {
+        cpu.registers.pc = pc_after;
+        return 2;
     }
 
     let displacement = read_offset_byte(cpu, bus) as i8;
-    let target_address = (cpu.registers.pc + 2).wrapping_add(displacement as u16);
+    let target = pc_after.wrapping_add(displacement as u16);
 
-    cpu.registers.pc = target_address;
+    let mut cycles = 3; // base 2 + 1 if taken
 
-    if is_page_crossed(cpu, target_address) {
-        cycles + 1
-    } else {
-        cycles
+    // Emulation mode behaves like 6502: +1 more if page boundary crossed
+    if cpu.emulation_mode && ((pc_after & 0xFF00) != (target & 0xFF00)) {
+        cycles += 1;
     }
+
+    cpu.registers.pc = target;
+    cycles
 }
 
 fn is_page_crossed(cpu: &Cpu, address: u16) -> bool {

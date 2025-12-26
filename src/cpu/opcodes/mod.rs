@@ -63,6 +63,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x0C => bit::tsb_absolute(cpu, bus),
         0x0D => ora::ora_absolute(cpu, bus),
         0x0E => shift::asl_absolute(cpu, bus),
+        0x0F => ora::ora_absolute_long(cpu, bus),
 
         0x10 => bra::bpl(cpu, bus),
         0x11 => ora::ora_indirect_y(cpu, bus),
@@ -464,6 +465,17 @@ pub(crate) fn calculate_stack_relative_indirect_y_address<B: MemoryBus>(
     let target_address = base_address.wrapping_add(y);
 
     (base_address, target_address)
+}
+
+pub(crate) fn calculate_absolute_long_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u32 {
+    // Reads ll, hh, bb from instruction stream using PBR
+    let pc = cpu.registers.pc;
+
+    let addr_low = read_byte(cpu, bus, pc.wrapping_add(1));
+    let addr_mid = read_byte(cpu, bus, pc.wrapping_add(2));
+    let addr_bank = read_byte(cpu, bus, pc.wrapping_add(3));
+
+    ((addr_bank as u32) << 16) | ((addr_mid as u32) << 8) | (addr_low as u32)
 }
 
 fn get_address_absolute_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
