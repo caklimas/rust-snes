@@ -1,7 +1,7 @@
 use crate::{
     cpu::{
         Cpu,
-        opcodes::{
+        opcodes::helpers::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             calculate_indirect_page_address, calculate_indirect_page_x_address,
             calculate_indirect_page_y_address, get_address_absolute_x, get_carry_in,
