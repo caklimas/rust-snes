@@ -359,12 +359,27 @@ pub(crate) fn write_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16, va
 
 pub(crate) fn calculate_direct_page_x_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let offset: u8 = read_offset_byte(cpu, bus);
-    let x: u8 = cpu.registers.x as u8;
 
-    let base_address = cpu.registers.d.wrapping_add(offset as u16);
+    // X width: 8-bit in emulation mode, otherwise depends on X flag
+    let x_index_u16: u16 = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        (cpu.registers.x as u8) as u16
+    } else {
+        cpu.registers.x
+    };
 
-    let dp_index = offset.wrapping_add(x);
-    let target_address = cpu.registers.d.wrapping_add(dp_index as u16);
+    let direct_page = cpu.registers.d;
+    let base_address = direct_page.wrapping_add(offset as u16);
+
+    let target_address = if cpu.emulation_mode && (direct_page & 0x00FF) == 0 {
+        // Emulation + page-aligned DP: wrap within page
+        let wrapped = offset.wrapping_add(x_index_u16 as u8) as u16;
+        (direct_page & 0xFF00) | wrapped
+    } else {
+        // Otherwise: full 16-bit add
+        direct_page
+            .wrapping_add(offset as u16)
+            .wrapping_add(x_index_u16)
+    };
 
     (base_address, target_address)
 }
@@ -445,28 +460,6 @@ pub(crate) fn calculate_stack_relative_address<B: MemoryBus>(cpu: &Cpu, bus: &mu
     cpu.registers.s.wrapping_add(offset as u16) // bank 0
 }
 
-pub(crate) fn calculate_stack_relative_indirect_y_address<B: MemoryBus>(
-    cpu: &Cpu,
-    bus: &mut B,
-) -> (u16, u16) {
-    let offset: u8 = read_offset_byte(cpu, bus);
-    let pointer_address: u16 = cpu.registers.s.wrapping_add(offset as u16);
-
-    // Read the 16-bit pointer from stack (always in bank 0)
-    let base_address = read_word_direct_page(bus, pointer_address);
-
-    // Add Y register to the pointer
-    let y = if is_8bit_mode_x(cpu) {
-        cpu.registers.y & 0x00FF
-    } else {
-        cpu.registers.y
-    };
-
-    let target_address = base_address.wrapping_add(y);
-
-    (base_address, target_address)
-}
-
 pub(crate) fn calculate_absolute_long_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u32 {
     // Reads ll, hh, bb from instruction stream using PBR
     let pc = cpu.registers.pc;
@@ -476,6 +469,84 @@ pub(crate) fn calculate_absolute_long_address<B: MemoryBus>(cpu: &Cpu, bus: &mut
     let addr_bank = read_byte(cpu, bus, pc.wrapping_add(3));
 
     ((addr_bank as u32) << 16) | ((addr_mid as u32) << 8) | (addr_low as u32)
+}
+
+pub(crate) fn calculate_stack_relative_indirect_y_address<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+) -> (u16, u16, u16) {
+    let offset: u8 = read_offset_byte(cpu, bus);
+
+    // IMPORTANT: In emulation mode, SST-style traces treat stack accesses as if S is in $01xx
+    // (linear 16-bit during execution), even if cpu.registers.s has a different high byte.
+    let s_for_addressing: u16 = if cpu.emulation_mode {
+        (STACK_START as u16) | (cpu.registers.s & 0x00FF)
+    } else {
+        cpu.registers.s
+    };
+
+    let pointer_address: u16 = s_for_addressing.wrapping_add(offset as u16);
+
+    // Pointer is read from bank 0
+    let base_address: u16 = read_word_direct_page(bus, pointer_address);
+
+    // Y width: emulation forces 8-bit; native depends on X flag
+    let y: u16 = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        cpu.registers.y & 0x00FF
+    } else {
+        cpu.registers.y
+    };
+
+    let effective: u16 = base_address.wrapping_add(y);
+
+    (pointer_address, base_address, effective)
+}
+
+/// Dummy bus read used by SST-style traces for ($ss,S),Y.
+/// In your failing case the trace shows this as reading pointer_address+1.
+pub(crate) fn stack_relative_indirect_y_dummy_read<B: MemoryBus>(
+    _cpu: &Cpu,
+    bus: &mut B,
+    pointer_address: u16,
+) {
+    // Stack is always bank 0
+    let _ = bus.read(pointer_address.wrapping_add(1) as u32);
+}
+
+pub(crate) fn effective_phys_stack_relative_indirect_y<B: MemoryBus>(
+    cpu: &Cpu,
+    base_address: u16,
+) -> u32 {
+    // Y width: emulation forces 8-bit; native depends on X flag
+    let y = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        (cpu.registers.y & 0x00FF) as u32
+    } else {
+        cpu.registers.y as u32
+    };
+
+    // IMPORTANT: 24-bit add so carry increments bank (matches SST traces)
+    let base_phys = ((cpu.registers.db as u32) << 16) | (base_address as u32);
+    (base_phys.wrapping_add(y)) & 0x00FF_FFFF
+}
+
+pub(crate) fn read_data_byte_stack_relative_indirect_y<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+    base_address: u16,
+) -> u8 {
+    let phys = effective_phys_stack_relative_indirect_y::<B>(cpu, base_address);
+    bus.read(phys)
+}
+
+pub(crate) fn read_data_word_stack_relative_indirect_y<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+    base_address: u16,
+) -> u16 {
+    let phys = effective_phys_stack_relative_indirect_y::<B>(cpu, base_address);
+    let lo = bus.read(phys);
+    let hi = bus.read((phys.wrapping_add(1)) & 0x00FF_FFFF);
+    u16::from_le_bytes([lo, hi])
 }
 
 pub(crate) fn indirect_y_extra_cycle(cpu: &Cpu, base_address: u16, address16: u16) -> bool {
