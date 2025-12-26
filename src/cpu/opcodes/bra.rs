@@ -116,7 +116,3 @@ fn branch_conditional<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, take_branch: boo
     cpu.registers.pc = target;
     cycles
 }
-
-fn is_page_crossed(cpu: &Cpu, address: u16) -> bool {
-    ((cpu.registers.pc + 2) & 0xFF00) != (address & 0xFF00)
-}

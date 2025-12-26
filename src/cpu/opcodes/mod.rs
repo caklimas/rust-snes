@@ -478,11 +478,7 @@ pub(crate) fn calculate_absolute_long_address<B: MemoryBus>(cpu: &Cpu, bus: &mut
     ((addr_bank as u32) << 16) | ((addr_mid as u32) << 8) | (addr_low as u32)
 }
 
-pub(crate) fn indirect_y_extra_cycle<B: MemoryBus>(
-    cpu: &Cpu,
-    base_address: u16,
-    address16: u16,
-) -> bool {
+pub(crate) fn indirect_y_extra_cycle(cpu: &Cpu, base_address: u16, address16: u16) -> bool {
     let crossed = page_crossed(base_address, address16);
 
     if cpu.emulation_mode {
@@ -495,11 +491,7 @@ pub(crate) fn indirect_y_extra_cycle<B: MemoryBus>(
     }
 }
 
-pub(crate) fn effective_phys_indirect_y<B: MemoryBus>(
-    cpu: &Cpu,
-    base_address: u16,
-    address16: u16,
-) -> u32 {
+pub(crate) fn effective_phys_indirect_y(cpu: &Cpu, base_address: u16, address16: u16) -> u32 {
     // Always compute effective as (DBR:base) + Y in 24-bit space (matches your traces)
     let y = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
         (cpu.registers.y & 0x00FF) as u32
@@ -511,7 +503,7 @@ pub(crate) fn effective_phys_indirect_y<B: MemoryBus>(
     (base_phys.wrapping_add(y)) & 0x00FF_FFFF
 }
 
-pub(crate) fn dummy_phys_indirect_y<B: MemoryBus>(
+pub(crate) fn dummy_phys_indirect_y(
     cpu: &Cpu,
     base_address: u16,
     address16: u16,
