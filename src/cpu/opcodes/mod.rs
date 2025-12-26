@@ -531,7 +531,7 @@ pub(crate) fn read_data_byte_stack_relative_indirect_y<B: MemoryBus>(
     bus: &mut B,
     base_address: u16,
 ) -> u8 {
-    let phys = effective_phys_stack_relative_indirect_y::<B>(cpu, base_address);
+    let phys = effective_phys_stack_relative_indirect_y(cpu, base_address);
     bus.read(phys)
 }
 
@@ -540,7 +540,7 @@ pub(crate) fn read_data_word_stack_relative_indirect_y<B: MemoryBus>(
     bus: &mut B,
     base_address: u16,
 ) -> u16 {
-    let phys = effective_phys_stack_relative_indirect_y::<B>(cpu, base_address);
+    let phys = effective_phys_stack_relative_indirect_y(cpu, base_address);
     let lo = bus.read(phys);
     let hi = bus.read((phys.wrapping_add(1)) & 0x00FF_FFFF);
     u16::from_le_bytes([lo, hi])
