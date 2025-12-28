@@ -7,7 +7,7 @@ use crate::{
             calculate_indirect_page_x_address, calculate_indirect_page_y_address,
             calculate_stack_relative_address, calculate_stack_relative_indirect_y_address,
             direct_page_low_is_zero, get_address_absolute_long_x,
-            get_address_absolute_x_data_physical, get_x_register_value, increment_program_counter,
+            get_address_absolute_x_data_physical, increment_program_counter,
             is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_data_byte,
             read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y, read_data_word,
             read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
