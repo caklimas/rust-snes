@@ -6,13 +6,13 @@ use crate::{
             calculate_direct_page_x_address, calculate_indirect_page_address,
             calculate_indirect_page_x_address, calculate_indirect_page_y_address,
             calculate_stack_relative_address, calculate_stack_relative_indirect_y_address,
-            direct_page_low_is_zero, get_address_absolute_x, increment_program_counter,
-            is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_byte, read_data_byte,
-            read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y, read_data_word,
-            read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
+            direct_page_low_is_zero, get_address_absolute_x, get_address_absolute_x_data_physical,
+            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_byte,
+            read_data_byte, read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y,
+            read_data_word, read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
             read_long_pointer_direct_page, read_long_pointer_direct_page_wrapped, read_offset_byte,
-            read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
-            stack_relative_indirect_y_dummy_read,
+            read_offset_word, read_phys_byte, read_phys_word, read_word, read_word_direct_page,
+            set_nz_flags_u8, set_nz_flags_u16, stack_relative_indirect_y_dummy_read,
         },
     },
     memory::MemoryBus,
@@ -114,19 +114,25 @@ pub fn ora_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn ora_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (base_address, address) = get_address_absolute_x(cpu, bus);
+    // base = 16-bit operand, eff16 = low-16 effective, eff_phys = 24-bit effective (DBR:base + X)
+    let (base, eff16, eff_phys) = get_address_absolute_x_data_physical(cpu, bus);
 
+    // Perform the read + ORA using the *physical* effective address
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = read_phys_byte(bus, eff_phys);
         perform_ora_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_phys_word(bus, eff_phys);
         perform_ora_u16(cpu, value);
         5
     };
 
-    if page_crossed(base_address, address) {
+    // - If index is 16-bit (X=0 in native): +1 always (do NOT also add page-cross)
+    // - Else (index is 8-bit): +1 only on page-cross
+    if !is_8bit_mode_x(cpu) {
+        cycles += 1;
+    } else if page_crossed(base, eff16) {
         cycles += 1;
     }
 

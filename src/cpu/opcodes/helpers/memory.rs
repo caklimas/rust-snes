@@ -1,5 +1,8 @@
 use crate::{
-    cpu::{Cpu, opcodes::direct_page_low_is_zero},
+    cpu::{
+        Cpu,
+        opcodes::{direct_page_low_is_zero, get_x_register_value},
+    },
     memory::MemoryBus,
 };
 
@@ -64,6 +67,21 @@ pub(crate) fn read_long_pointer_direct_page_wrapped<B: MemoryBus>(
     }
 }
 
+pub(crate) fn get_address_absolute_x_data_physical<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+) -> (u16, u16, u32) {
+    let base = read_offset_word(cpu, bus);
+    let x = get_x_register_value(cpu);
+
+    let eff16 = base.wrapping_add(x);
+    let base_phys = ((cpu.registers.db as u32) << 16) | (base as u32);
+
+    let eff_phys = (base_phys.wrapping_add(x as u32)) & 0x00FF_FFFF;
+
+    (base, eff16, eff_phys)
+}
+
 /// Read a byte from data space (uses Data Bank)
 pub(crate) fn read_data_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
     let physical = ((cpu.registers.db as u32) << 16) | (address as u32);
@@ -74,6 +92,16 @@ pub(crate) fn read_data_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16)
 pub(crate) fn read_data_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
     let lo = read_data_byte(cpu, bus, address);
     let hi = read_data_byte(cpu, bus, address.wrapping_add(1));
+    u16::from_le_bytes([lo, hi])
+}
+
+pub(crate) fn read_phys_byte<B: MemoryBus>(bus: &mut B, phys: u32) -> u8 {
+    bus.read(phys)
+}
+
+pub(crate) fn read_phys_word<B: MemoryBus>(bus: &mut B, physical_address: u32) -> u16 {
+    let lo = bus.read(physical_address);
+    let hi = bus.read((physical_address.wrapping_add(1)) & 0x00FF_FFFF);
     u16::from_le_bytes([lo, hi])
 }
 

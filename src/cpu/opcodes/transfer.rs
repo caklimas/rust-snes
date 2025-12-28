@@ -6,7 +6,7 @@ use crate::{
             set_nz_flags_u16,
         },
     },
-    memory::MemoryBus,
+    memory::{MemoryBus, addresses::STACK_START},
 };
 
 // TAX (0xAA) - Transfer Accumulator to X
@@ -153,7 +153,11 @@ pub fn tdc<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 // TCS (0x1B) - Transfer 16-bit Accumulator to Stack Pointer (65816 only, does NOT set flags)
 // Sets the stack pointer to the full 16-bit accumulator value, used for stack initialization or switching between multiple stacks.
 pub fn tcs<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
-    cpu.registers.s = cpu.registers.a;
+    if cpu.emulation_mode {
+        cpu.registers.s = (STACK_START as u16) | (cpu.registers.a & 0x00FF);
+    } else {
+        cpu.registers.s = cpu.registers.a;
+    }
 
     increment_program_counter(cpu, 1);
     2

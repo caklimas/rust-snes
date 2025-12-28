@@ -3,10 +3,11 @@ use crate::{
         Cpu,
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
-            direct_page_low_is_zero, get_x_register_value, increment_program_counter,
-            is_8bit_mode_m, read_byte, read_data_byte, read_data_word, read_offset_word, read_word,
-            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16, write_byte,
-            write_byte_direct_page, write_word, write_word_direct_page,
+            direct_page_low_is_zero, get_address_absolute_x_data_physical, get_x_register_value,
+            increment_program_counter, is_8bit_mode_m, read_byte, read_data_byte, read_data_word,
+            read_offset_word, read_phys_byte, read_phys_word, read_word, read_word_direct_page,
+            set_nz_flags_u8, set_nz_flags_u16, write_byte, write_byte_direct_page, write_word,
+            write_word_direct_page,
         },
         processor_status::ProcessorStatus,
     },
@@ -131,27 +132,40 @@ pub fn asl_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn asl_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let base_address = read_offset_word(cpu, bus);
-    let address = base_address + get_x_register_value(cpu);
+    let (_base, _eff16, phys) = get_address_absolute_x_data_physical(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = read_phys_byte(bus, phys);
         let result = value << 1;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x80 != 0);
-        write_byte(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x80) != 0);
+
+        // RMW dummy write + final write (matches your trace)
+        bus.write(phys, value);
+        bus.write(phys, result);
+
         set_nz_flags_u8(cpu, result);
         7
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_phys_word(bus, phys);
         let result = value << 1;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x8000 != 0);
-        write_word(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x8000) != 0);
+
+        // dummy write old word
+        bus.write(phys, (value & 0x00FF) as u8);
+        bus.write((phys.wrapping_add(1)) & 0x00FF_FFFF, (value >> 8) as u8);
+
+        // final write new word
+        bus.write(phys, (result & 0x00FF) as u8);
+        bus.write((phys.wrapping_add(1)) & 0x00FF_FFFF, (result >> 8) as u8);
+
         set_nz_flags_u16(cpu, result);
-        8
+        9
     };
 
     increment_program_counter(cpu, 3);

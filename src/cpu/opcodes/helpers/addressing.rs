@@ -297,7 +297,8 @@ pub(crate) fn read_data_word_indirect_y<B: MemoryBus>(
 /// Get absolute X indexed address
 pub(crate) fn get_address_absolute_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let base_address = read_offset_word(cpu, bus);
-    (base_address, base_address + get_x_register_value(cpu))
+    let eff = base_address.wrapping_add(get_x_register_value(cpu));
+    (base_address, eff)
 }
 
 /// Get absolute Y indexed address
