@@ -3,10 +3,11 @@ use crate::{
         Cpu,
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
-            direct_page_low_is_zero, increment_program_counter, is_8bit_mode_m, read_byte,
-            read_data_byte, read_data_word, read_offset_byte, read_offset_word, read_word,
-            read_word_direct_page, write_byte, write_byte_direct_page, write_word,
-            write_word_direct_page,
+            direct_page_low_is_zero, get_address_absolute_x_data_physical,
+            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_byte,
+            read_data_byte, read_data_word, read_offset_byte, read_offset_word, read_phys_byte,
+            read_phys_word, read_word, read_word_direct_page, write_byte, write_byte_direct_page,
+            write_word, write_word_direct_page,
         },
         processor_status::ProcessorStatus,
     },
@@ -76,7 +77,7 @@ pub fn bit_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn bit_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_, address) = calculate_direct_page_x_address(cpu, bus);
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(address as u32);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         perform_bit_test_u8(cpu, a_value, value);
@@ -87,24 +88,33 @@ pub fn bit_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         5
     };
 
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
+
     increment_program_counter(cpu, 2);
     cycles
 }
 
 pub fn bit_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let base_address = read_offset_word(cpu, bus);
-    let address = base_address + cpu.registers.x;
+    let (base, eff16, phys) = get_address_absolute_x_data_physical(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = read_phys_byte(bus, phys);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         perform_bit_test_u8(cpu, a_value, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_phys_word(bus, phys);
         perform_bit_test_u16(cpu, cpu.registers.a, value);
         5
     };
+
+    if !is_8bit_mode_x(cpu) {
+        cycles += 1;
+    } else if page_crossed(base, eff16) {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 3);
     cycles

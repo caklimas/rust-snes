@@ -449,7 +449,8 @@ pub fn rol_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn rol_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_, address) = calculate_direct_page_x_address(cpu, bus);
-    let cycles = if is_8bit_mode_m(cpu) {
+
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(address as u32);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
@@ -457,10 +458,14 @@ pub fn rol_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
             0
         };
         let result = (value << 1) | carry_in;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x80 != 0);
-        write_byte(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x80) != 0);
+
+        write_byte_direct_page(bus, address, value);
+        write_byte_direct_page(bus, address, result);
+
         set_nz_flags_u8(cpu, result);
         6
     } else {
@@ -471,13 +476,21 @@ pub fn rol_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
             0
         };
         let result = (value << 1) | carry_in;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x8000 != 0);
-        write_word(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x8000) != 0);
+
+        write_word_direct_page(bus, address, value);
+        write_word_direct_page(bus, address, result);
+
         set_nz_flags_u16(cpu, result);
-        7
+        8
     };
+
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
