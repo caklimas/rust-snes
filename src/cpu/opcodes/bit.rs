@@ -4,9 +4,9 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             direct_page_low_is_zero, get_address_absolute_x_data_physical,
-            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_byte,
+            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed,
             read_data_byte, read_data_word, read_offset_byte, read_offset_word, read_phys_byte,
-            read_phys_word, read_word, read_word_direct_page, write_byte, write_byte_direct_page,
+            read_phys_word, read_word_direct_page, write_byte, write_byte_direct_page,
             write_word, write_word_direct_page,
         },
         processor_status::ProcessorStatus,
