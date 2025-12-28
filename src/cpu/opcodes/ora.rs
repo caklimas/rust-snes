@@ -6,12 +6,13 @@ use crate::{
             calculate_direct_page_x_address, calculate_indirect_page_address,
             calculate_indirect_page_x_address, calculate_indirect_page_y_address,
             calculate_stack_relative_address, calculate_stack_relative_indirect_y_address,
-            direct_page_low_is_zero, get_address_absolute_x, get_address_absolute_x_data_physical,
-            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_byte,
-            read_data_byte, read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y,
-            read_data_word, read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
+            direct_page_low_is_zero, get_address_absolute_long_x,
+            get_address_absolute_x_data_physical, get_x_register_value, increment_program_counter,
+            is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_data_byte,
+            read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y, read_data_word,
+            read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
             read_long_pointer_direct_page, read_long_pointer_direct_page_wrapped, read_offset_byte,
-            read_offset_word, read_phys_byte, read_phys_word, read_word, read_word_direct_page,
+            read_offset_word, read_phys_byte, read_phys_word, read_word_direct_page,
             set_nz_flags_u8, set_nz_flags_u16, stack_relative_indirect_y_dummy_read,
         },
     },
@@ -336,6 +337,25 @@ pub fn ora_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     }
 
     increment_program_counter(cpu, 2);
+    cycles
+}
+
+pub fn ora_long_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let (_, address) = get_address_absolute_long_x(cpu, bus);
+
+    // Read and ORA
+    let cycles = if is_8bit_mode_m(cpu) {
+        let value = read_phys_byte(bus, address);
+        perform_ora_u8(cpu, value);
+        5
+    } else {
+        let value = read_phys_word(bus, address);
+        perform_ora_u16(cpu, value);
+        6
+    };
+
+    // opcode (1) + long address operand (3)
+    increment_program_counter(cpu, 4);
     cycles
 }
 

@@ -38,7 +38,7 @@ pub fn bit_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 pub fn bit_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = calculate_direct_page_address(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(address as u32);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         perform_bit_test_u8(cpu, a_value, value);
@@ -49,20 +49,23 @@ pub fn bit_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         4
     };
 
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
+
     increment_program_counter(cpu, 2);
     cycles
 }
 
 pub fn bit_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
-
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = read_data_byte(cpu, bus, address);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         perform_bit_test_u8(cpu, a_value, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_bit_test_u16(cpu, cpu.registers.a, value);
         5
     };

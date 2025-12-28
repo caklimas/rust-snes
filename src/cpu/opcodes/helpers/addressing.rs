@@ -318,6 +318,19 @@ pub(crate) fn get_address_absolute_long<B: MemoryBus>(cpu: &Cpu, bus: &mut B) ->
     (address_high as u32) << 16 | (address_mid as u32) << 8 | (address_low as u32)
 }
 
+pub(crate) fn get_address_absolute_long_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u32, u32) {
+    // Reads ll, hh, bb from instruction stream using PBR
+    let base_phys = calculate_absolute_long_address(cpu, bus) & 0x00FF_FFFF;
+
+    // X width: emulation forces 8-bit; native depends on X flag
+    let x = get_x_register_value(cpu) as u32;
+
+    // Effective physical address in 24-bit space (carry wraps at 24-bit)
+    let eff_phys = (base_phys.wrapping_add(x)) & 0x00FF_FFFF;
+
+    (base_phys, eff_phys)
+}
+
 /// Get the value of the X register based on the current mode
 pub(crate) fn get_x_register_value(cpu: &Cpu) -> u16 {
     if is_8bit_mode_x(cpu) {

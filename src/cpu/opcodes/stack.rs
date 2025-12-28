@@ -6,6 +6,7 @@ use crate::{
             normalize_stack_pointer, pull_byte, push_byte, read_offset_byte, read_offset_word,
             read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
+        processor_status::ProcessorStatus,
     },
     memory::MemoryBus,
 };
@@ -160,11 +161,24 @@ pub fn ply<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, stack_mode: StackMode) -> u
     cycles
 }
 
-// PLP (0x28) - Pull Processor Status
-// Pulls the processor status flags from the stack. Does not set any flags (it restores them).
 pub fn plp<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, stack_mode: StackMode) -> u8 {
     let value = pull_byte(cpu, bus, stack_mode);
-    cpu.registers.p = crate::cpu::processor_status::ProcessorStatus::from_bits_truncate(value);
+    let mut p = ProcessorStatus::from_bits_truncate(value);
+
+    // Emulation mode forces M and X to 1
+    if cpu.emulation_mode {
+        p.insert(ProcessorStatus::MEMORY_WIDTH);
+        p.insert(ProcessorStatus::INDEX_WIDTH);
+    }
+
+    cpu.registers.p = p;
+
+    // If index registers are now 8-bit, truncate X and Y
+    if cpu.registers.p.contains(ProcessorStatus::INDEX_WIDTH) {
+        cpu.registers.x &= 0x00FF;
+        cpu.registers.y &= 0x00FF;
+    }
+
     increment_program_counter(cpu, 1);
     4
 }

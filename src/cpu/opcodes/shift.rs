@@ -351,35 +351,52 @@ pub fn rol_accumulator<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 pub fn rol_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = calculate_direct_page_address(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(address as u32);
+
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
             0
         };
         let result = (value << 1) | carry_in;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x80 != 0);
-        write_byte(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x80) != 0);
+
+        // RMW dummy write + final write (matches your trace)
+        write_byte_direct_page(bus, address, value);
+        write_byte_direct_page(bus, address, result);
+
         set_nz_flags_u8(cpu, result);
         5
     } else {
         let value = read_word_direct_page(bus, address);
+
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
             0
         };
         let result = (value << 1) | carry_in;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x8000 != 0);
-        write_word(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x8000) != 0);
+
+        // If you want to match traces for 16-bit too, do dummy write of old word here as well.
+        write_word_direct_page(bus, address, value);
+        write_word_direct_page(bus, address, result);
+
         set_nz_flags_u16(cpu, result);
-        6
+        7
     };
+
+    // +1 cycle if D.l != 0 for DP addressing
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
@@ -389,33 +406,41 @@ pub fn rol_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = read_data_byte(cpu, bus, address);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
             0
         };
         let result = (value << 1) | carry_in;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x80 != 0);
+            .set(ProcessorStatus::CARRY, (value & 0x80) != 0);
+
+        write_byte(cpu, bus, address, value);
         write_byte(cpu, bus, address, result);
+
         set_nz_flags_u8(cpu, result);
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
             0
         };
-        let result = (value << 1) | carry_in;
+        let result = (value << 1) | (carry_in as u16);
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x8000 != 0);
+            .set(ProcessorStatus::CARRY, (value & 0x8000) != 0);
+
+        write_word(cpu, bus, address, value);
         write_word(cpu, bus, address, result);
+
         set_nz_flags_u16(cpu, result);
-        7
+        8
     };
 
     increment_program_counter(cpu, 3);
