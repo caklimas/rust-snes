@@ -114,10 +114,12 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x3C => bit::bit_absolute_x(cpu, bus),
         0x3D => and::and_absolute_x(cpu, bus),
         0x3E => shift::rol_absolute_x(cpu, bus),
+        0x3F => and::and_long_x(cpu, bus),
 
         0x40 => ret::rti(cpu, bus, mode),
         0x41 => eor::eor_indirect_x(cpu, bus),
         0x42 => misc::wdm(cpu, bus),
+        0x43 => eor::eor_stack_relative(cpu, bus),
         0x44 => block_move::mvp(cpu, bus),
         0x45 => eor::eor_direct(cpu, bus),
         0x46 => shift::lsr_direct(cpu, bus),

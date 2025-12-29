@@ -42,23 +42,28 @@ pub fn rtl<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     6
 }
 
-// RTI - Return from Interrupt
-// Returns from an interrupt handler. Pulls the processor status and return address from the stack.
-// Restores all processor flags and the program counter to the state before the interrupt occurred.
-// In native mode (E=0), also restores the program bank register.
 pub fn rti<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, stack_mode: StackMode) -> u8 {
-    // Pull processor status
     let status_byte = pull_byte(cpu, bus, stack_mode);
-    cpu.registers.p = ProcessorStatus::from_bits_truncate(status_byte);
+    let mut p = ProcessorStatus::from_bits_truncate(status_byte);
 
     if cpu.emulation_mode {
-        // Emulation mode: pull 16-bit address only
+        p.insert(ProcessorStatus::MEMORY_WIDTH);
+        p.insert(ProcessorStatus::INDEX_WIDTH);
+    }
+
+    cpu.registers.p = p;
+
+    if cpu.registers.p.contains(ProcessorStatus::INDEX_WIDTH) {
+        cpu.registers.x &= 0x00FF;
+        cpu.registers.y &= 0x00FF;
+    }
+
+    if cpu.emulation_mode {
         let return_address_low = pull_byte(cpu, bus, stack_mode) as u16;
         let return_address_high = pull_byte(cpu, bus, stack_mode) as u16;
         cpu.registers.pc = (return_address_high << 8) | return_address_low;
         6
     } else {
-        // Native mode: pull 24-bit address (PC + PB)
         let return_address_low = pull_byte(cpu, bus, stack_mode) as u16;
         let return_address_high = pull_byte(cpu, bus, stack_mode) as u16;
         let return_bank = pull_byte(cpu, bus, stack_mode);

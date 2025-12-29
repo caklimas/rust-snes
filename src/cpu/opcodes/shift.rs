@@ -497,37 +497,46 @@ pub fn rol_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn rol_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let base_address = read_offset_word(cpu, bus);
-    let address = base_address + get_x_register_value(cpu);
+    let (_base, _eff16, phys) = get_address_absolute_x_data_physical(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        let value = read_phys_byte(bus, phys);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
             0
         };
         let result = (value << 1) | carry_in;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x80 != 0);
-        write_byte(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x80) != 0);
+
+        bus.write(phys, value);
+        bus.write(phys, result);
+
         set_nz_flags_u8(cpu, result);
         7
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_phys_word(bus, phys);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
             0
         };
-        let result = (value << 1) | carry_in;
+        let result = (value << 1) | (carry_in as u16);
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x8000 != 0);
-        write_word(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x8000) != 0);
+
+        bus.write(phys, (value & 0x00FF) as u8);
+        bus.write((phys.wrapping_add(1)) & 0x00FF_FFFF, (value >> 8) as u8);
+        bus.write(phys, (result & 0x00FF) as u8);
+        bus.write((phys.wrapping_add(1)) & 0x00FF_FFFF, (result >> 8) as u8);
+
         set_nz_flags_u16(cpu, result);
-        8
+        9
     };
 
     increment_program_counter(cpu, 3);
