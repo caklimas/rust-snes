@@ -131,9 +131,7 @@ pub fn ora_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
     // - If index is 16-bit (X=0 in native): +1 always (do NOT also add page-cross)
     // - Else (index is 8-bit): +1 only on page-cross
-    if !is_8bit_mode_x(cpu) {
-        cycles += 1;
-    } else if page_crossed(base, eff16) {
+    if !is_8bit_mode_x(cpu) || page_crossed(base, eff16) {
         cycles += 1;
     }
 

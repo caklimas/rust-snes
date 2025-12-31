@@ -126,13 +126,6 @@ pub(crate) fn read_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u
     bus.read(physical_address)
 }
 
-pub(crate) fn write_phys_word<B: MemoryBus>(bus: &mut B, physical_address: u32, value: u16) {
-    let [lo, hi] = value.to_le_bytes();
-    let addr = physical_address & 0x00FF_FFFF;
-    bus.write(addr, lo);
-    bus.write((addr.wrapping_add(1)) & 0x00FF_FFFF, hi);
-}
-
 /// Write a word to data space (uses Data Bank)
 pub(crate) fn write_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u16) {
     write_byte(cpu, bus, address, value as u8);

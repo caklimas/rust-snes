@@ -2,8 +2,8 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_x_register_value, increment_program_counter, is_8bit_mode_m, is_8bit_mode_x,
-            read_byte, read_offset_byte, read_phys_byte,
+            get_x_register_value, increment_program_counter, is_8bit_mode_x, read_byte,
+            read_offset_byte, read_phys_byte,
         },
     },
     memory::MemoryBus,

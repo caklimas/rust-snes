@@ -110,9 +110,7 @@ pub fn bit_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         5
     };
 
-    if !is_8bit_mode_x(cpu) {
-        cycles += 1;
-    } else if page_crossed(base, eff16) {
+    if !is_8bit_mode_x(cpu) || page_crossed(base, eff16) {
         cycles += 1;
     }
 
