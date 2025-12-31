@@ -26,10 +26,14 @@ pub(crate) fn read_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u
     (high as u16) << 8 | (low as u16)
 }
 
+pub(crate) fn read_byte_direct_page<B: MemoryBus>(bus: &mut B, address: u16) -> u8 {
+    bus.read(address as u32)
+}
+
 /// Read a word from direct page (bank 0)
 pub(crate) fn read_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16) -> u16 {
-    let low = bus.read(address as u32);
-    let high = bus.read(address.wrapping_add(1) as u32);
+    let low = read_byte_direct_page(bus, address);
+    let high = read_byte_direct_page(bus, address.wrapping_add(1));
     ((high as u16) << 8) | (low as u16)
 }
 
@@ -120,6 +124,13 @@ pub(crate) fn write_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16, va
 pub(crate) fn read_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
     let physical_address = ((cpu.registers.pb as u32) << 16) | (address as u32);
     bus.read(physical_address)
+}
+
+pub(crate) fn write_phys_word<B: MemoryBus>(bus: &mut B, physical_address: u32, value: u16) {
+    let [lo, hi] = value.to_le_bytes();
+    let addr = physical_address & 0x00FF_FFFF;
+    bus.write(addr, lo);
+    bus.write((addr.wrapping_add(1)) & 0x00FF_FFFF, hi);
 }
 
 /// Write a word to data space (uses Data Bank)

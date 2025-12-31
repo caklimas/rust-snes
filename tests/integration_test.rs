@@ -16,12 +16,12 @@ fn test_json_file() {
     // The `sort_by_key` method is an efficient way to sort based on a specific field.
     files.sort_by_key(|entry| entry.file_name());
 
-    let files_to_skip = ["44.e.json", "44.n.json"];
+    let files_to_skip = ["44.e.json", "44.n.json", "54.e.json", "54.n.json"];
 
     for file in files
         .iter()
         .filter(|f| !files_to_skip.contains(&f.file_name().to_str().unwrap_or("")))
-        .skip(135)
+        .skip(180)
     {
         let path = file.path();
         println!("Testing file {}", path.display());

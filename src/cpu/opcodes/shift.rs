@@ -4,9 +4,10 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             direct_page_low_is_zero, get_address_absolute_x_data_physical, get_x_register_value,
-            increment_program_counter, is_8bit_mode_m, read_byte, read_data_byte, read_data_word,
-            read_offset_word, read_phys_byte, read_phys_word, read_word, read_word_direct_page,
-            set_nz_flags_u8, set_nz_flags_u16, write_byte, write_byte_direct_page, write_word,
+            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_byte,
+            read_byte_direct_page, read_data_byte, read_data_word, read_offset_word,
+            read_phys_byte, read_phys_word, read_word, read_word_direct_page, set_nz_flags_u8,
+            set_nz_flags_u16, write_byte, write_byte_direct_page, write_word,
             write_word_direct_page,
         },
         processor_status::ProcessorStatus,
@@ -204,14 +205,15 @@ pub fn lsr_accumulator<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 pub fn lsr_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = calculate_direct_page_address(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(address as u32);
         let result = value >> 1;
         cpu.registers
             .p
             .set(ProcessorStatus::CARRY, value & 0x01 != 0);
-        write_byte(cpu, bus, address, result);
+        write_byte_direct_page(bus, address, result);
         set_nz_flags_u8(cpu, result);
+
         5
     } else {
         let value = read_word_direct_page(bus, address);
@@ -219,36 +221,52 @@ pub fn lsr_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         cpu.registers
             .p
             .set(ProcessorStatus::CARRY, value & 0x0001 != 0);
-        write_word(cpu, bus, address, result);
+        write_word_direct_page(bus, address, result);
         set_nz_flags_u16(cpu, result);
-        6
+
+        7
     };
+
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
 }
 
 pub fn lsr_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    // Operand is fetched from the instruction stream (PBR:PC)
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
+        // Absolute memory operand is in data space (DBR:addr)
+        let value = read_data_byte(cpu, bus, address);
         let result = value >> 1;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x01 != 0);
+            .set(ProcessorStatus::CARRY, (value & 0x01) != 0);
+
+        // Writes also go to data space (DBR:addr)
         write_byte(cpu, bus, address, result);
+
+        // N/Z from the result (LSR always clears bit 7, but set flags normally)
         set_nz_flags_u8(cpu, result);
+
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         let result = value >> 1;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x0001 != 0);
+            .set(ProcessorStatus::CARRY, (value & 0x0001) != 0);
+
         write_word(cpu, bus, address, result);
         set_nz_flags_u16(cpu, result);
-        7
+
+        8
     };
 
     increment_program_counter(cpu, 3);
@@ -257,25 +275,36 @@ pub fn lsr_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn lsr_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_, address) = calculate_direct_page_x_address(cpu, bus);
-    let cycles = if is_8bit_mode_m(cpu) {
-        let value = bus.read(address as u32);
+
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = read_byte_direct_page(bus, address);
         let result = value >> 1;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x01 != 0);
-        write_byte(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x01) != 0);
+
+        write_byte_direct_page(bus, address, result);
         set_nz_flags_u8(cpu, result);
+
         6
     } else {
         let value = read_word_direct_page(bus, address);
         let result = value >> 1;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x0001 != 0);
-        write_word(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x0001) != 0);
+
+        write_word_direct_page(bus, address, result);
         set_nz_flags_u16(cpu, result);
-        7
+
+        8
     };
+
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
@@ -283,27 +312,58 @@ pub fn lsr_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn lsr_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
-    let address = base_address + get_x_register_value(cpu);
 
-    let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address);
-        let result = value >> 1;
-        cpu.registers
-            .p
-            .set(ProcessorStatus::CARRY, value & 0x01 != 0);
-        write_byte(cpu, bus, address, result);
-        set_nz_flags_u8(cpu, result);
-        7
+    let x: u16 = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        cpu.registers.x & 0x00FF
     } else {
-        let value = read_word(cpu, bus, address);
+        cpu.registers.x
+    };
+
+    let address16 = base_address.wrapping_add(x);
+
+    let base_phys = ((cpu.registers.db as u32) << 16) | (base_address as u32);
+    let effective_phys = base_phys.wrapping_add(x as u32) & 0x00FF_FFFF;
+
+    let cycles = if is_8bit_mode_m(cpu) { 7 } else { 9 };
+
+    let crossed = page_crossed(base_address, address16);
+    let extra = crossed || (!cpu.emulation_mode && !is_8bit_mode_x(cpu));
+
+    if extra {
+        let dummy_phys = if crossed {
+            let dummy_addr16 = (base_address & 0xFF00) | (address16 & 0x00FF);
+            (((cpu.registers.db as u32) << 16) | dummy_addr16 as u32) & 0x00FF_FFFF
+        } else {
+            effective_phys
+        };
+        let _ = bus.read(dummy_phys);
+    }
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_phys_byte(bus, effective_phys);
         let result = value >> 1;
+
         cpu.registers
             .p
-            .set(ProcessorStatus::CARRY, value & 0x0001 != 0);
-        write_word(cpu, bus, address, result);
+            .set(ProcessorStatus::CARRY, (value & 0x01) != 0);
+
+        bus.write(effective_phys, result);
+        set_nz_flags_u8(cpu, result);
+    } else {
+        let value = read_phys_word(bus, effective_phys);
+        let result = value >> 1;
+
+        cpu.registers
+            .p
+            .set(ProcessorStatus::CARRY, (value & 0x0001) != 0);
+
+        let lo = (result & 0xFF) as u8;
+        let hi = (result >> 8) as u8;
+        bus.write(effective_phys, lo);
+        bus.write((effective_phys + 1) & 0x00FF_FFFF, hi);
+
         set_nz_flags_u16(cpu, result);
-        8
-    };
+    }
 
     increment_program_counter(cpu, 3);
     cycles

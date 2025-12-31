@@ -2,7 +2,8 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, read_byte, read_offset_byte,
+            get_x_register_value, increment_program_counter, is_8bit_mode_m, is_8bit_mode_x,
+            read_byte, read_offset_byte, read_phys_byte,
         },
     },
     memory::MemoryBus,
@@ -68,41 +69,49 @@ pub fn mvp<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
     // Your core returns u8 cycles; clamp if needed.
     // For SST-style cases this stays small.
-    (cycles as u8)
+    cycles as u8
 }
 
-// MVN - Block Move Negative
-// Copies a block of memory from source to destination, moving backward through memory.
-// Uses X as source address, Y as destination address, A as byte count - 1.
-// Decrements X and Y after each byte. Decrements A.
-// If A != $FFFF after transfer, repeats (doesn't advance PC).
-// Operands specify source bank and destination bank.
 pub fn mvn<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    // Operands are in program space (PBR:PC+1 / PBR:PC+2)
     let dest_bank = read_offset_byte(cpu, bus);
-    let source_bank = read_offset_byte(cpu, bus);
+    let src_bank = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(2));
 
-    // Read byte from source bank:X
-    let source_address = ((source_bank as u32) << 16) | (cpu.registers.x as u32);
-    let byte = bus.read(source_address);
-
-    // Write byte to dest bank:Y
-    let dest_address = ((dest_bank as u32) << 16) | (cpu.registers.y as u32);
-    bus.write(dest_address, byte);
-
-    // Update registers
-    cpu.registers.x = cpu.registers.x.wrapping_sub(1);
-    cpu.registers.y = cpu.registers.y.wrapping_sub(1);
-    cpu.registers.a = cpu.registers.a.wrapping_sub(1);
-
-    // Set DB to destination bank
+    // MVN sets DBR to destination bank
     cpu.registers.db = dest_bank;
 
-    // If A is not $FFFF, repeat (don't advance PC)
-    // Otherwise, advance PC by 3 to move to next instruction
-    if cpu.registers.a != 0xFFFF {
-        // Don't increment PC, will execute MVN again
+    // X width: emulation forces 8-bit; native depends on X flag
+    let x_is_8 = cpu.emulation_mode || is_8bit_mode_x(cpu);
+    let x = get_x_register_value(cpu);
+
+    // Y width matches X width rules in your addressing helpers
+    let y: u16 = if x_is_8 {
+        cpu.registers.y & 0x00FF
     } else {
-        cpu.registers.pc = cpu.registers.pc.wrapping_add(3);
+        cpu.registers.y
+    };
+
+    let src_phys = (((src_bank as u32) << 16) | (x as u32)) & 0x00FF_FFFF;
+    let dst_phys = (((dest_bank as u32) << 16) | (y as u32)) & 0x00FF_FFFF;
+
+    let value = read_phys_byte(bus, src_phys);
+    bus.write(dst_phys, value);
+
+    // X++, Y++
+    if x_is_8 {
+        cpu.registers.x = (cpu.registers.x & 0xFF00) | ((x as u8).wrapping_add(1) as u16);
+        cpu.registers.y = (cpu.registers.y & 0xFF00) | ((y as u8).wrapping_add(1) as u16);
+    } else {
+        cpu.registers.x = x.wrapping_add(1);
+        cpu.registers.y = y.wrapping_add(1);
+    }
+
+    // A-- (16-bit counter)
+    cpu.registers.a = cpu.registers.a.wrapping_sub(1);
+
+    // When A underflows to 0xFFFF, the instruction finishes and PC advances
+    if cpu.registers.a == 0xFFFF {
+        increment_program_counter(cpu, 3);
     }
 
     7

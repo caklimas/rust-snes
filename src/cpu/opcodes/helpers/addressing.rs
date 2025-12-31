@@ -340,6 +340,14 @@ pub(crate) fn get_x_register_value(cpu: &Cpu) -> u16 {
     }
 }
 
+pub(crate) fn get_y_register_value(cpu: &Cpu) -> u16 {
+    if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        cpu.registers.y & 0x00FF
+    } else {
+        cpu.registers.y
+    }
+}
+
 /// Check if a page boundary was crossed
 pub(crate) fn page_crossed(base_address: u16, target_address: u16) -> bool {
     (base_address & 0xFF00) != (target_address & 0xFF00)
