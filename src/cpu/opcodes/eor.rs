@@ -6,9 +6,9 @@ use crate::{
             calculate_direct_page_x_address, calculate_indirect_page_address,
             calculate_indirect_page_x_address, calculate_indirect_page_y_address,
             calculate_stack_relative_indirect_y_address, direct_page_low_is_zero,
-            dummy_phys_indirect_y, effective_phys_indirect_y, get_x_register_value,
-            get_y_register_value, increment_program_counter, indirect_y_extra_cycle,
-            is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_data_byte,
+            dummy_phys_indirect_y, effective_phys_indirect_y, get_address_absolute_long_x,
+            get_x_register_value, get_y_register_value, increment_program_counter,
+            indirect_y_extra_cycle, is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_data_byte,
             read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y, read_data_word,
             read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
             read_long_pointer_direct_page_wrapped, read_offset_byte, read_offset_word,
@@ -385,6 +385,29 @@ pub fn eor_direct_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u
     }
 
     increment_program_counter(cpu, 2);
+    cycles
+}
+
+pub fn eor_absolute_long_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let (_, effective_phys) = get_address_absolute_long_x(cpu, bus);
+    let cycles = if is_8bit_mode_m(cpu) { 5 } else { 6 };
+
+    if is_8bit_mode_m(cpu) {
+        let value = read_phys_byte(bus, effective_phys);
+        let a_lo = (cpu.registers.a & 0x00FF) as u8;
+        let result = a_lo ^ value;
+
+        cpu.registers.a = (cpu.registers.a & 0xFF00) | (result as u16);
+        set_nz_flags_u8(cpu, result);
+    } else {
+        let value = read_phys_word(bus, effective_phys);
+        let result = cpu.registers.a ^ value;
+
+        cpu.registers.a = result;
+        set_nz_flags_u16(cpu, result);
+    }
+
+    increment_program_counter(cpu, 4);
     cycles
 }
 

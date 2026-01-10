@@ -148,6 +148,7 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0x5C => jmp::jmp_absolute_long(cpu, bus),
         0x5D => eor::eor_absolute_x(cpu, bus),
         0x5E => shift::lsr_absolute_x(cpu, bus),
+        0x5F => eor::eor_absolute_long_x(cpu, bus),
 
         0x60 => ret::rts(cpu, bus, mode),
         0x61 => adc::adc_indirect_x(cpu, bus),
