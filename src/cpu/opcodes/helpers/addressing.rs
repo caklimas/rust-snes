@@ -5,7 +5,7 @@ use crate::{
 
 use super::{
     flags::is_8bit_mode_x,
-    memory::{read_byte, read_offset_byte, read_offset_word, read_word_direct_page},
+    memory::{read_offset_byte, read_offset_word, read_program_byte, read_word_direct_page},
 };
 
 /// Calculate direct page address with X indexing
@@ -39,9 +39,23 @@ pub(crate) fn calculate_direct_page_x_address<B: MemoryBus>(cpu: &Cpu, bus: &mut
 /// Calculate direct page address with Y indexing
 pub(crate) fn calculate_direct_page_y_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
     let offset: u8 = read_offset_byte(cpu, bus);
-    let y: u8 = cpu.registers.y as u8; // always low byte for direct page indexed
-    let dp_index = offset.wrapping_add(y);
-    cpu.registers.d.wrapping_add(dp_index as u16)
+
+    let y: u16 = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        (cpu.registers.y as u8) as u16
+    } else {
+        cpu.registers.y
+    };
+
+    let direct_page = cpu.registers.d;
+
+    if cpu.emulation_mode && (direct_page & 0x00FF) == 0 {
+        // Emulation + page-aligned DP: wrap within page
+        let wrapped = offset.wrapping_add(y as u8) as u16;
+        (direct_page & 0xFF00) | wrapped
+    } else {
+        // Otherwise: full 16-bit add
+        direct_page.wrapping_add(offset as u16).wrapping_add(y)
+    }
 }
 
 /// Calculate direct page address
@@ -56,7 +70,6 @@ pub(crate) fn calculate_indirect_page_x_address<B: MemoryBus>(
     bus: &mut B,
 ) -> (u16, u16, u16) {
     let offset: u8 = read_offset_byte(cpu, bus);
-    let _x_index: u8 = cpu.registers.x as u8;
 
     // X is 8-bit if: emulation mode OR X-flag set (X=1)
     let x_index_u16: u16 = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
@@ -123,9 +136,9 @@ pub(crate) fn calculate_absolute_long_address<B: MemoryBus>(cpu: &Cpu, bus: &mut
     // Reads ll, hh, bb from instruction stream using PBR
     let pc = cpu.registers.pc;
 
-    let addr_low = read_byte(cpu, bus, pc.wrapping_add(1));
-    let addr_mid = read_byte(cpu, bus, pc.wrapping_add(2));
-    let addr_bank = read_byte(cpu, bus, pc.wrapping_add(3));
+    let addr_low = read_program_byte(cpu, bus, pc.wrapping_add(1));
+    let addr_mid = read_program_byte(cpu, bus, pc.wrapping_add(2));
+    let addr_bank = read_program_byte(cpu, bus, pc.wrapping_add(3));
 
     ((addr_bank as u32) << 16) | ((addr_mid as u32) << 8) | (addr_low as u32)
 }
@@ -295,30 +308,24 @@ pub(crate) fn read_data_word_indirect_y<B: MemoryBus>(
 }
 
 /// Get absolute X indexed address
-pub(crate) fn get_address_absolute_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
+pub(crate) fn calculate_absolute_x_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let base_address = read_offset_word(cpu, bus);
     let eff = base_address.wrapping_add(get_x_register_value(cpu));
     (base_address, eff)
 }
 
 /// Get absolute Y indexed address
-pub(crate) fn get_address_absolute_y<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
+pub(crate) fn calculate_absolute_y_address<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u16, u16) {
     let base_address = read_offset_word(cpu, bus);
-    let address = base_address + cpu.registers.y;
+    let address = base_address.wrapping_add(get_y_register_value(cpu));
 
     (base_address, address)
 }
 
-/// Get absolute long address (24-bit)
-pub(crate) fn get_address_absolute_long<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u32 {
-    let address_low = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(1));
-    let address_mid = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(2));
-    let address_high = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(3));
-
-    (address_high as u32) << 16 | (address_mid as u32) << 8 | (address_low as u32)
-}
-
-pub(crate) fn get_address_absolute_long_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> (u32, u32) {
+pub(crate) fn calculate_absolute_long_x_address<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+) -> (u32, u32) {
     // Reads ll, hh, bb from instruction stream using PBR
     let base_phys = calculate_absolute_long_address(cpu, bus) & 0x00FF_FFFF;
 
@@ -333,7 +340,7 @@ pub(crate) fn get_address_absolute_long_x<B: MemoryBus>(cpu: &Cpu, bus: &mut B) 
 
 /// Get the value of the X register based on the current mode
 pub(crate) fn get_x_register_value(cpu: &Cpu) -> u16 {
-    if is_8bit_mode_x(cpu) {
+    if cpu.emulation_mode || is_8bit_mode_x(cpu) {
         cpu.registers.x & 0xFF
     } else {
         cpu.registers.x

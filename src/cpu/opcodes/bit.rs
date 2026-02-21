@@ -2,11 +2,11 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            calculate_direct_page_address, calculate_direct_page_x_address,
-            direct_page_low_is_zero, get_address_absolute_x_data_physical,
-            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed,
-            read_data_byte, read_data_word, read_offset_byte, read_offset_word, read_phys_byte,
-            read_phys_word, read_word_direct_page, write_byte, write_byte_direct_page, write_word,
+            calculate_absolute_x_physical_address, calculate_direct_page_address,
+            calculate_direct_page_x_address, direct_page_low_is_zero, increment_program_counter,
+            is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_data_byte, read_data_word,
+            read_offset_byte, read_offset_word, read_phys_byte, read_phys_word,
+            read_word_direct_page, write_byte_direct_page, write_data_byte, write_data_word,
             write_word_direct_page,
         },
         processor_status::ProcessorStatus,
@@ -97,7 +97,7 @@ pub fn bit_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn bit_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (base, eff16, phys) = get_address_absolute_x_data_physical(cpu, bus);
+    let (base, eff16, phys) = calculate_absolute_x_physical_address(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_phys_byte(bus, phys);
@@ -180,14 +180,14 @@ pub fn tsb_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         let result = a_value & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
         let new_value = value | a_value;
-        write_byte(cpu, bus, address, new_value);
+        write_data_byte(cpu, bus, address, new_value);
         6
     } else {
         let value = read_data_word(cpu, bus, address);
         let result = cpu.registers.a & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
         let new_value = value | cpu.registers.a;
-        write_word(cpu, bus, address, new_value);
+        write_data_word(cpu, bus, address, new_value);
         8
     };
 
@@ -235,14 +235,14 @@ pub fn trb_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         let result = a_value & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
         let new_value = value & !a_value;
-        write_byte(cpu, bus, address, new_value);
+        write_data_byte(cpu, bus, address, new_value);
         6
     } else {
         let value = read_data_word(cpu, bus, address);
         let result = cpu.registers.a & value;
         cpu.registers.p.set(ProcessorStatus::ZERO, result == 0);
         let new_value = value & !cpu.registers.a;
-        write_word(cpu, bus, address, new_value);
+        write_data_word(cpu, bus, address, new_value);
         8
     };
 

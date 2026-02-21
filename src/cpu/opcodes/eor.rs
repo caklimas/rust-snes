@@ -2,11 +2,11 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            calculate_absolute_long_address, calculate_direct_page_address,
-            calculate_direct_page_x_address, calculate_indirect_page_address,
-            calculate_indirect_page_x_address, calculate_indirect_page_y_address,
-            calculate_stack_relative_indirect_y_address, direct_page_low_is_zero,
-            dummy_phys_indirect_y, effective_phys_indirect_y, get_address_absolute_long_x,
+            calculate_absolute_long_address, calculate_absolute_long_x_address,
+            calculate_direct_page_address, calculate_direct_page_x_address,
+            calculate_indirect_page_address, calculate_indirect_page_x_address,
+            calculate_indirect_page_y_address, calculate_stack_relative_indirect_y_address,
+            direct_page_low_is_zero, dummy_phys_indirect_y, effective_phys_indirect_y,
             get_x_register_value, get_y_register_value, increment_program_counter,
             indirect_y_extra_cycle, is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_data_byte,
             read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y, read_data_word,
@@ -389,7 +389,7 @@ pub fn eor_direct_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u
 }
 
 pub fn eor_absolute_long_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (_, effective_phys) = get_address_absolute_long_x(cpu, bus);
+    let (_, effective_phys) = calculate_absolute_long_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) { 5 } else { 6 };
 
     if is_8bit_mode_m(cpu) {

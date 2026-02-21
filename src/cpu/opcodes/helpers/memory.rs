@@ -8,21 +8,21 @@ use crate::{
 
 /// Read a byte from program space at PC + 1
 pub(crate) fn read_offset_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u8 {
-    read_byte(cpu, bus, cpu.registers.pc.wrapping_add(1))
+    read_program_byte(cpu, bus, cpu.registers.pc.wrapping_add(1))
 }
 
 /// Read a word from program space at PC + 1 and PC + 2
 pub(crate) fn read_offset_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B) -> u16 {
-    let offset_low = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(1));
-    let offset_high = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(2));
+    let offset_low = read_program_byte(cpu, bus, cpu.registers.pc.wrapping_add(1));
+    let offset_high = read_program_byte(cpu, bus, cpu.registers.pc.wrapping_add(2));
 
     (offset_high as u16) << 8 | (offset_low as u16)
 }
 
 /// Read a word from program space at the specified address
-pub(crate) fn read_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
-    let low = read_byte(cpu, bus, address);
-    let high = read_byte(cpu, bus, address.wrapping_add(1));
+pub(crate) fn read_program_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
+    let low = read_program_byte(cpu, bus, address);
+    let high = read_program_byte(cpu, bus, address.wrapping_add(1));
     (high as u16) << 8 | (low as u16)
 }
 
@@ -71,7 +71,7 @@ pub(crate) fn read_long_pointer_direct_page_wrapped<B: MemoryBus>(
     }
 }
 
-pub(crate) fn get_address_absolute_x_data_physical<B: MemoryBus>(
+pub(crate) fn calculate_absolute_x_physical_address<B: MemoryBus>(
     cpu: &Cpu,
     bus: &mut B,
 ) -> (u16, u16, u32) {
@@ -121,15 +121,15 @@ pub(crate) fn write_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16, va
 }
 
 /// Read from program space (uses Program Bank for instruction operands)
-pub(crate) fn read_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
+pub(crate) fn read_program_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u8 {
     let physical_address = ((cpu.registers.pb as u32) << 16) | (address as u32);
     bus.read(physical_address)
 }
 
 /// Write a word to data space (uses Data Bank)
-pub(crate) fn write_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u16) {
-    write_byte(cpu, bus, address, value as u8);
-    write_byte(
+pub(crate) fn write_data_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u16) {
+    write_data_byte(cpu, bus, address, value as u8);
+    write_data_byte(
         cpu,
         bus,
         address.wrapping_add(1),
@@ -138,7 +138,7 @@ pub(crate) fn write_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, val
 }
 
 /// Write a byte to data space (uses Data Bank)
-pub(crate) fn write_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u8) {
+pub(crate) fn write_data_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u8) {
     let physical_address = ((cpu.registers.db as u32) << 16) | (address as u32);
     bus.write(physical_address, value);
 }

@@ -3,7 +3,8 @@ use crate::{
         Cpu,
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
-            increment_program_counter, is_8bit_mode_m, read_offset_word, write_byte, write_word,
+            increment_program_counter, is_8bit_mode_m, read_offset_word, write_data_byte,
+            write_data_word,
         },
     },
     memory::MemoryBus,
@@ -16,10 +17,10 @@ pub fn stz_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        write_byte(cpu, bus, address, 0);
+        write_data_byte(cpu, bus, address, 0);
         3
     } else {
-        write_word(cpu, bus, address, 0);
+        write_data_word(cpu, bus, address, 0);
         4
     };
 
@@ -30,10 +31,10 @@ pub fn stz_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 pub fn stz_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_, address) = calculate_direct_page_x_address(cpu, bus);
     let cycles = if is_8bit_mode_m(cpu) {
-        write_byte(cpu, bus, address, 0);
+        write_data_byte(cpu, bus, address, 0);
         4
     } else {
-        write_word(cpu, bus, address, 0);
+        write_data_word(cpu, bus, address, 0);
         5
     };
 
@@ -45,10 +46,10 @@ pub fn stz_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        write_byte(cpu, bus, address, 0);
+        write_data_byte(cpu, bus, address, 0);
         4
     } else {
-        write_word(cpu, bus, address, 0);
+        write_data_word(cpu, bus, address, 0);
         5
     };
 
@@ -61,10 +62,10 @@ pub fn stz_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = base_address + cpu.registers.x;
 
     let cycles = if is_8bit_mode_m(cpu) {
-        write_byte(cpu, bus, address, 0);
+        write_data_byte(cpu, bus, address, 0);
         5
     } else {
-        write_word(cpu, bus, address, 0);
+        write_data_word(cpu, bus, address, 0);
         6
     };
 

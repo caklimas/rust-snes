@@ -2,8 +2,8 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            get_x_register_value, increment_program_counter, is_8bit_mode_x, read_byte,
-            read_offset_byte, read_phys_byte,
+            get_x_register_value, increment_program_counter, is_8bit_mode_x, read_offset_byte,
+            read_phys_byte, read_program_byte,
         },
     },
     memory::MemoryBus,
@@ -15,16 +15,16 @@ pub fn mvp<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let pc = cpu.registers.pc;
 
     // We'll read operands using program space reads so the bus trace matches.
-    let dest_bank = read_byte(cpu, bus, pc.wrapping_add(1));
-    let source_bank = read_byte(cpu, bus, pc.wrapping_add(2));
+    let dest_bank = read_program_byte(cpu, bus, pc.wrapping_add(1));
+    let source_bank = read_program_byte(cpu, bus, pc.wrapping_add(2));
 
     let mut cycles: u32 = 0;
 
     loop {
         // --- Per-iteration "instruction fetch" dummy reads (matches SST) ---
-        let _ = read_byte(cpu, bus, pc); // opcode
-        let _ = read_byte(cpu, bus, pc.wrapping_add(1)); // dest bank
-        let _ = read_byte(cpu, bus, pc.wrapping_add(2)); // src bank
+        let _ = read_program_byte(cpu, bus, pc); // opcode
+        let _ = read_program_byte(cpu, bus, pc.wrapping_add(1)); // dest bank
+        let _ = read_program_byte(cpu, bus, pc.wrapping_add(2)); // src bank
         cycles += 3;
 
         // --- Actual move ---
@@ -75,7 +75,7 @@ pub fn mvp<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 pub fn mvn<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     // Operands are in program space (PBR:PC+1 / PBR:PC+2)
     let dest_bank = read_offset_byte(cpu, bus);
-    let src_bank = read_byte(cpu, bus, cpu.registers.pc.wrapping_add(2));
+    let src_bank = read_program_byte(cpu, bus, cpu.registers.pc.wrapping_add(2));
 
     // MVN sets DBR to destination bank
     cpu.registers.db = dest_bank;

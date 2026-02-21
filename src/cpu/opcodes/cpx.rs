@@ -2,9 +2,9 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            calculate_direct_page_address, increment_program_counter, is_8bit_mode_x, read_byte,
-            read_offset_byte, read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8,
-            set_nz_flags_u16,
+            calculate_direct_page_address, increment_program_counter, is_8bit_mode_x,
+            read_offset_byte, read_offset_word, read_program_byte, read_program_word,
+            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
     },
@@ -50,11 +50,11 @@ pub fn cpx_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_x(cpu) {
-        let value = read_byte(cpu, bus, address) as u16;
+        let value = read_program_byte(cpu, bus, address) as u16;
         perform_compare_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_program_word(cpu, bus, address);
         perform_compare_u16(cpu, value);
         5
     };

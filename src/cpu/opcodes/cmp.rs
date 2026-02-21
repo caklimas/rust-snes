@@ -2,11 +2,12 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
+            calculate_absolute_x_address, calculate_absolute_y_address,
             calculate_direct_page_address, calculate_direct_page_x_address,
             calculate_indirect_page_address, calculate_indirect_page_x_address,
-            calculate_indirect_page_y_address, get_address_absolute_x, get_address_absolute_y,
-            increment_program_counter, is_8bit_mode_m, page_crossed, read_byte, read_offset_byte,
-            read_offset_word, read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            calculate_indirect_page_y_address, increment_program_counter, is_8bit_mode_m,
+            page_crossed, read_offset_byte, read_offset_word, read_program_byte, read_program_word,
+            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
     },
@@ -53,11 +54,11 @@ pub fn cmp_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address) as u16;
+        let value = read_program_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_program_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
         5
     };
@@ -83,14 +84,14 @@ pub fn cmp_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn cmp_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (base_address, address) = get_address_absolute_x(cpu, bus);
+    let (base_address, address) = calculate_absolute_x_address(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address) as u16;
+        let value = read_program_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_program_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
         5
     };
@@ -104,14 +105,14 @@ pub fn cmp_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn cmp_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (base_address, address) = get_address_absolute_y(cpu, bus);
+    let (base_address, address) = calculate_absolute_y_address(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address) as u16;
+        let value = read_program_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_program_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
         5
     };
@@ -128,11 +129,11 @@ pub fn cmp_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_, _, address) = calculate_indirect_page_x_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address) as u16;
+        let value = read_program_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
         6
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_program_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
         7
     };
@@ -145,11 +146,11 @@ pub fn cmp_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base_address, address) = calculate_indirect_page_y_address(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address) as u16;
+        let value = read_program_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
         5
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_program_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
         6
     };
@@ -166,11 +167,11 @@ pub fn cmp_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = calculate_indirect_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(cpu, bus, address) as u16;
+        let value = read_program_byte(cpu, bus, address) as u16;
         perform_compare_with_carry_u8(cpu, value);
         5
     } else {
-        let value = read_word(cpu, bus, address);
+        let value = read_program_word(cpu, bus, address);
         perform_compare_with_carry_u16(cpu, value);
         6
     };

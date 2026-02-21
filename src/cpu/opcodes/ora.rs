@@ -2,13 +2,13 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            calculate_absolute_long_address, calculate_direct_page_address,
+            calculate_absolute_long_address, calculate_absolute_long_x_address,
+            calculate_absolute_x_physical_address, calculate_direct_page_address,
             calculate_direct_page_x_address, calculate_indirect_page_address,
             calculate_indirect_page_x_address, calculate_indirect_page_y_address,
             calculate_stack_relative_address, calculate_stack_relative_indirect_y_address,
-            direct_page_low_is_zero, get_address_absolute_long_x,
-            get_address_absolute_x_data_physical, increment_program_counter, is_8bit_mode_m,
-            is_8bit_mode_x, page_crossed, read_data_byte, read_data_byte_indirect_y,
+            direct_page_low_is_zero, increment_program_counter, is_8bit_mode_m, is_8bit_mode_x,
+            page_crossed, read_data_byte, read_data_byte_indirect_y,
             read_data_byte_stack_relative_indirect_y, read_data_word, read_data_word_indirect_y,
             read_data_word_stack_relative_indirect_y, read_long_pointer_direct_page,
             read_long_pointer_direct_page_wrapped, read_offset_byte, read_offset_word,
@@ -116,7 +116,7 @@ pub fn ora_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn ora_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     // base = 16-bit operand, eff16 = low-16 effective, eff_phys = 24-bit effective (DBR:base + X)
-    let (base, eff16, eff_phys) = get_address_absolute_x_data_physical(cpu, bus);
+    let (base, eff16, eff_phys) = calculate_absolute_x_physical_address(cpu, bus);
 
     // Perform the read + ORA using the *physical* effective address
     let mut cycles = if is_8bit_mode_m(cpu) {
@@ -339,7 +339,7 @@ pub fn ora_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn ora_long_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (_, address) = get_address_absolute_long_x(cpu, bus);
+    let (_, address) = calculate_absolute_long_x_address(cpu, bus);
 
     // Read and ORA
     let cycles = if is_8bit_mode_m(cpu) {

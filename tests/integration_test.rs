@@ -21,7 +21,6 @@ fn test_json_file() {
     for file in files
         .iter()
         .filter(|f| !files_to_skip.contains(&f.file_name().to_str().unwrap_or("")))
-        .skip(185)
     {
         let path = file.path();
         println!("Testing file {}", path.display());

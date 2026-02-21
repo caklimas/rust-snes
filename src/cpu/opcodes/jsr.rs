@@ -2,7 +2,7 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            StackMode, get_address_absolute_long, normalize_stack_pointer, push_byte,
+            StackMode, calculate_absolute_long_address, normalize_stack_pointer, push_byte,
             read_offset_word,
         },
     },
@@ -25,7 +25,7 @@ pub fn jsr_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, stack_mode: StackM
 // JSL (0x22) - Jump to Subroutine Long
 // Pushes the program bank and return address onto the stack, then jumps to a 24-bit address for cross-bank subroutine calls.
 pub fn jsr_absolute_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let target_address = get_address_absolute_long(cpu, bus);
+    let target_address = calculate_absolute_long_address(cpu, bus);
     let return_address = cpu.registers.pc + 3;
 
     push_byte(cpu, bus, cpu.registers.pb, StackMode::Linear16);

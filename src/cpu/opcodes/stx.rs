@@ -3,7 +3,8 @@ use crate::{
         Cpu,
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_y_address,
-            increment_program_counter, is_8bit_mode_x, read_byte, write_byte, write_word,
+            increment_program_counter, is_8bit_mode_x, read_program_byte, write_data_byte,
+            write_data_word,
         },
     },
     memory::MemoryBus,
@@ -17,10 +18,10 @@ pub fn stx_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let target_address = calculate_direct_page_address(cpu, bus);
 
     let cycles = if is_8bit_mode_x(cpu) {
-        write_byte(cpu, bus, target_address, cpu.registers.x as u8);
+        write_data_byte(cpu, bus, target_address, cpu.registers.x as u8);
         3
     } else {
-        write_word(cpu, bus, target_address, cpu.registers.x);
+        write_data_word(cpu, bus, target_address, cpu.registers.x);
         4
     };
 
@@ -32,10 +33,10 @@ pub fn stx_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 pub fn stx_direct_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let target_address = calculate_direct_page_y_address(cpu, bus);
     let cycles = if is_8bit_mode_x(cpu) {
-        write_byte(cpu, bus, target_address, cpu.registers.x as u8);
+        write_data_byte(cpu, bus, target_address, cpu.registers.x as u8);
         4
     } else {
-        write_word(cpu, bus, target_address, cpu.registers.x);
+        write_data_word(cpu, bus, target_address, cpu.registers.x);
         5
     };
 
@@ -45,15 +46,15 @@ pub fn stx_direct_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 // STX (0x8E) - Absolute
 pub fn stx_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let address_low = read_byte(cpu, bus, cpu.registers.pc + 1);
-    let address_high = read_byte(cpu, bus, cpu.registers.pc + 2);
+    let address_low = read_program_byte(cpu, bus, cpu.registers.pc + 1);
+    let address_high = read_program_byte(cpu, bus, cpu.registers.pc + 2);
     let target_address = (address_high as u16) << 8 | (address_low as u16);
 
     let cycles = if is_8bit_mode_x(cpu) {
-        write_byte(cpu, bus, target_address, cpu.registers.x as u8);
+        write_data_byte(cpu, bus, target_address, cpu.registers.x as u8);
         4
     } else {
-        write_word(cpu, bus, target_address, cpu.registers.x);
+        write_data_word(cpu, bus, target_address, cpu.registers.x);
         5
     };
 
