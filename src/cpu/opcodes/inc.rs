@@ -4,8 +4,8 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address, get_x_register_value,
             increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, read_data_byte,
-            read_data_word, read_offset_word, read_phys_word, read_word_direct_page,
-            set_nz_flags_u8, set_nz_flags_u16, write_data_byte, write_data_word, write_phys_word,
+            read_data_word, read_offset_word, read_word, read_word_direct_page,
+            set_nz_flags_u8, set_nz_flags_u16, write_data_byte, write_data_word, write_word,
         },
     },
     memory::MemoryBus,
@@ -98,9 +98,9 @@ pub fn inc_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         7
     } else {
-        let value = read_phys_word(bus, phys);
+        let value = read_word(bus, phys);
         let result = value.wrapping_add(1);
-        write_phys_word(bus, phys, result);
+        write_word(bus, phys, result);
         set_nz_flags_u16(cpu, result);
         8
     };

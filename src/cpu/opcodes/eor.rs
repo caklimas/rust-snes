@@ -12,7 +12,7 @@ use crate::{
             read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y, read_data_word,
             read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
             read_long_pointer_direct_page_wrapped, read_offset_byte, read_offset_word,
-            read_phys_byte, read_phys_word, read_word_direct_page, set_nz_flags_u8,
+            read_byte, read_word, read_word_direct_page, set_nz_flags_u8,
             set_nz_flags_u16, stack_relative_indirect_y_dummy_read,
         },
     },
@@ -122,10 +122,10 @@ pub fn eor_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     }
 
     if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, effective_phys);
+        let value = read_byte(bus, effective_phys);
         perform_eor_u8(cpu, value);
     } else {
-        let value = read_phys_word(bus, effective_phys);
+        let value = read_word(bus, effective_phys);
         perform_eor_u16(cpu, value);
     }
 
@@ -160,10 +160,10 @@ pub fn eor_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     }
 
     if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, effective_phys);
+        let value = read_byte(bus, effective_phys);
         perform_eor_u8(cpu, value);
     } else {
-        let value = read_phys_word(bus, effective_phys);
+        let value = read_word(bus, effective_phys);
         perform_eor_u16(cpu, value);
     }
 
@@ -321,11 +321,11 @@ pub fn eor_absolute_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
     // EOR long: 5 cycles (+1 if m=0 because 16-bit acc reads a word)
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, phys_addr);
+        let value = read_byte(bus, phys_addr);
         perform_eor_u8(cpu, value);
         5
     } else {
-        let value = read_phys_word(bus, phys_addr);
+        let value = read_word(bus, phys_addr);
         perform_eor_u16(cpu, value);
         6
     };
@@ -377,10 +377,10 @@ pub fn eor_direct_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u
     }
 
     if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, effective_phys);
+        let value = read_byte(bus, effective_phys);
         perform_eor_u8(cpu, value);
     } else {
-        let value = read_phys_word(bus, effective_phys);
+        let value = read_word(bus, effective_phys);
         perform_eor_u16(cpu, value);
     }
 
@@ -393,14 +393,14 @@ pub fn eor_absolute_long_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let cycles = if is_8bit_mode_m(cpu) { 5 } else { 6 };
 
     if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, effective_phys);
+        let value = read_byte(bus, effective_phys);
         let a_lo = (cpu.registers.a & 0x00FF) as u8;
         let result = a_lo ^ value;
 
         cpu.registers.a = (cpu.registers.a & 0xFF00) | (result as u16);
         set_nz_flags_u8(cpu, result);
     } else {
-        let value = read_phys_word(bus, effective_phys);
+        let value = read_word(bus, effective_phys);
         let result = cpu.registers.a ^ value;
 
         cpu.registers.a = result;

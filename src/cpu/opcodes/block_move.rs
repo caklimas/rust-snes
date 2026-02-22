@@ -3,7 +3,7 @@ use crate::{
         Cpu,
         opcodes::{
             get_x_register_value, increment_program_counter, is_8bit_mode_x, read_offset_byte,
-            read_phys_byte, read_program_byte,
+            read_byte, read_program_byte,
         },
     },
     memory::MemoryBus,
@@ -94,7 +94,7 @@ pub fn mvn<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let src_phys = (((src_bank as u32) << 16) | (x as u32)) & 0x00FF_FFFF;
     let dst_phys = (((dest_bank as u32) << 16) | (y as u32)) & 0x00FF_FFFF;
 
-    let value = read_phys_byte(bus, src_phys);
+    let value = read_byte(bus, src_phys);
     bus.write(dst_phys, value);
 
     // X++, Y++

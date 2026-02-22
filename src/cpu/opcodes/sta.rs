@@ -6,7 +6,7 @@ use crate::{
             calculate_indirect_page_address, calculate_indirect_page_x_address,
             calculate_indirect_page_y_address, effective_phys_indirect_y, get_x_register_value,
             increment_program_counter, is_8bit_mode_m, read_program_byte, write_data_byte,
-            write_data_word, write_phys_word,
+            write_data_word, write_word,
         },
     },
     memory::MemoryBus,
@@ -81,7 +81,7 @@ pub fn sta_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         bus.write(phys, cpu.registers.a as u8);
         5
     } else {
-        write_phys_word(bus, phys, cpu.registers.a);
+        write_word(bus, phys, cpu.registers.a);
         6
     };
 
@@ -101,7 +101,7 @@ pub fn sta_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         bus.write(phys, cpu.registers.a as u8);
         5
     } else {
-        write_phys_word(bus, phys, cpu.registers.a);
+        write_word(bus, phys, cpu.registers.a);
         6
     };
 
@@ -156,7 +156,7 @@ pub fn sta_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         bus.write(phys, cpu.registers.a as u8);
         6
     } else {
-        write_phys_word(bus, phys, cpu.registers.a);
+        write_word(bus, phys, cpu.registers.a);
         7
     };
 

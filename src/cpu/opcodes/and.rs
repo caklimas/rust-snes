@@ -10,8 +10,8 @@ use crate::{
             increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed,
             read_data_byte, read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y,
             read_data_word, read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
-            read_long_pointer_direct_page, read_offset_byte, read_offset_word, read_phys_byte,
-            read_phys_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            read_long_pointer_direct_page, read_offset_byte, read_offset_word, read_byte,
+            read_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
             stack_relative_indirect_y_dummy_read,
         },
     },
@@ -99,11 +99,11 @@ pub fn and_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base, eff16, phys) = calculate_absolute_x_physical_address(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, phys);
+        let value = read_byte(bus, phys);
         perform_and_u8(cpu, value);
         4
     } else {
-        let value = read_phys_word(bus, phys);
+        let value = read_word(bus, phys);
         perform_and_u16(cpu, value);
         5
     };
@@ -131,11 +131,11 @@ pub fn and_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let phys = (base_phys.wrapping_add(y16 as u32)) & 0x00FF_FFFF;
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, phys);
+        let value = read_byte(bus, phys);
         perform_and_u8(cpu, value);
         4
     } else {
-        let value = read_phys_word(bus, phys);
+        let value = read_word(bus, phys);
         perform_and_u16(cpu, value);
         5
     };
@@ -249,11 +249,11 @@ pub fn and_direct_page_indirect_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -
     let phys = read_long_pointer_direct_page(bus, dp_addr) & 0x00FF_FFFF;
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, phys);
+        let value = read_byte(bus, phys);
         perform_and_u8(cpu, value);
         6
     } else {
-        let value = read_phys_word(bus, phys);
+        let value = read_word(bus, phys);
         perform_and_u16(cpu, value);
         7
     };
@@ -271,11 +271,11 @@ pub fn and_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let phys = calculate_absolute_long_address(cpu, bus) & 0x00FF_FFFF;
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, phys);
+        let value = read_byte(bus, phys);
         perform_and_u8(cpu, value);
         5
     } else {
-        let value = read_phys_word(bus, phys);
+        let value = read_word(bus, phys);
         perform_and_u16(cpu, value);
         6
     };
@@ -318,11 +318,11 @@ pub fn and_direct_page_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B)
     let eff_phys = (base_phys.wrapping_add(y)) & 0x00FF_FFFF;
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, eff_phys);
+        let value = read_byte(bus, eff_phys);
         perform_and_u8(cpu, value);
         6
     } else {
-        let value = read_phys_word(bus, eff_phys);
+        let value = read_word(bus, eff_phys);
         perform_and_u16(cpu, value);
         7
     };
@@ -339,11 +339,11 @@ pub fn and_long_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_base_phys, eff_phys) = calculate_absolute_long_x_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, eff_phys);
+        let value = read_byte(bus, eff_phys);
         perform_and_u8(cpu, value);
         5
     } else {
-        let value = read_phys_word(bus, eff_phys);
+        let value = read_word(bus, eff_phys);
         perform_and_u16(cpu, value);
         6
     };

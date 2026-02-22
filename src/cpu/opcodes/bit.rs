@@ -5,7 +5,7 @@ use crate::{
             calculate_absolute_x_physical_address, calculate_direct_page_address,
             calculate_direct_page_x_address, direct_page_low_is_zero, increment_program_counter,
             is_8bit_mode_m, is_8bit_mode_x, page_crossed, read_data_byte, read_data_word,
-            read_offset_byte, read_offset_word, read_phys_byte, read_phys_word,
+            read_offset_byte, read_offset_word, read_byte, read_word,
             read_word_direct_page, write_byte_direct_page, write_data_byte, write_data_word,
             write_word_direct_page,
         },
@@ -100,12 +100,12 @@ pub fn bit_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base, eff16, phys) = calculate_absolute_x_physical_address(cpu, bus);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_phys_byte(bus, phys);
+        let value = read_byte(bus, phys);
         let a_value = (cpu.registers.a & 0xFF) as u8;
         perform_bit_test_u8(cpu, a_value, value);
         4
     } else {
-        let value = read_phys_word(bus, phys);
+        let value = read_word(bus, phys);
         perform_bit_test_u16(cpu, cpu.registers.a, value);
         5
     };
