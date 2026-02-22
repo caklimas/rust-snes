@@ -5,8 +5,8 @@ use crate::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             calculate_indirect_page_address, calculate_indirect_page_x_address,
             calculate_indirect_page_y_address, get_carry_in, get_x_register_value,
-            increment_program_counter, is_8bit_mode_m, page_crossed, read_offset_byte,
-            read_offset_word, read_program_byte, read_program_word, read_word_direct_page,
+            increment_program_counter, is_8bit_mode_m, page_crossed, read_data_byte,
+            read_data_word, read_offset_byte, read_offset_word, read_word_direct_page,
             set_nz_flags_u8, set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
@@ -36,7 +36,7 @@ pub fn sbc_immediate<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 pub fn sbc_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let source_address = calculate_direct_page_address(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(source_address as u32) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
         3
@@ -46,6 +46,10 @@ pub fn sbc_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         4
     };
 
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
+
     increment_program_counter(cpu, 2);
     cycles
 }
@@ -54,11 +58,11 @@ pub fn sbc_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_program_byte(cpu, bus, address) as u16;
+        let value = read_data_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_program_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
         5
     };
@@ -69,7 +73,7 @@ pub fn sbc_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn sbc_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_, address) = calculate_direct_page_x_address(cpu, bus);
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(address as u32) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
         4
@@ -78,6 +82,10 @@ pub fn sbc_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_subtraction_with_carry_u16(cpu, value);
         5
     };
+
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
@@ -88,11 +96,11 @@ pub fn sbc_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = base_address + get_x_register_value(cpu);
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_program_byte(cpu, bus, address) as u16;
+        let value = read_data_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_program_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
         5
     };
@@ -110,11 +118,11 @@ pub fn sbc_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = base_address + cpu.registers.y;
 
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_program_byte(cpu, bus, address) as u16;
+        let value = read_data_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_program_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
         5
     };
@@ -129,15 +137,19 @@ pub fn sbc_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn sbc_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_, _, address) = calculate_indirect_page_x_address(cpu, bus);
-    let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_program_byte(cpu, bus, address) as u16;
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = read_data_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
         6
     } else {
-        let value = read_program_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
         7
     };
+
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
@@ -146,16 +158,20 @@ pub fn sbc_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 pub fn sbc_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (base_address, address) = calculate_indirect_page_y_address(cpu, bus);
     let mut cycles = if is_8bit_mode_m(cpu) {
-        let value = read_program_byte(cpu, bus, address) as u16;
+        let value = read_data_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
         5
     } else {
-        let value = read_program_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
         6
     };
 
     if page_crossed(base_address, address) {
+        cycles += 1;
+    }
+
+    if (cpu.registers.d & 0x00FF) != 0 {
         cycles += 1;
     }
 
@@ -165,15 +181,19 @@ pub fn sbc_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn sbc_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = calculate_indirect_page_address(cpu, bus);
-    let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_program_byte(cpu, bus, address) as u16;
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = read_data_byte(cpu, bus, address) as u16;
         perform_subtraction_with_carry_u8(cpu, value);
         5
     } else {
-        let value = read_program_word(cpu, bus, address);
+        let value = read_data_word(cpu, bus, address);
         perform_subtraction_with_carry_u16(cpu, value);
         6
     };
+
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles

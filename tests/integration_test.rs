@@ -18,9 +18,14 @@ fn test_json_file() {
 
     let files_to_skip = ["44.e.json", "44.n.json", "54.e.json", "54.n.json"];
 
+    // Skip the first N files to start testing from a specific opcode.
+    // Adjust this number to resume where you left off.
+    let skip_count = 0;
+
     for file in files
         .iter()
         .filter(|f| !files_to_skip.contains(&f.file_name().to_str().unwrap_or("")))
+        .skip(skip_count)
     {
         let path = file.path();
         println!("Testing file {}", path.display());

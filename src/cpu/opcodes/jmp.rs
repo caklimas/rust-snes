@@ -2,8 +2,8 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            calculate_absolute_long_address, get_x_register_value, read_offset_word,
-            read_program_byte, read_program_word,
+            calculate_absolute_long_address, get_x_register_value, read_byte_direct_page,
+            read_offset_word, read_program_word, read_word_direct_page,
         },
     },
     memory::MemoryBus,
@@ -34,7 +34,7 @@ pub fn jmp_absolute_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // Jumps to the address stored at the specified memory location (pointer jump).
 pub fn jmp_absolute_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let pointer_address = read_offset_word(cpu, bus);
-    let address = read_program_word(cpu, bus, pointer_address);
+    let address = read_word_direct_page(bus, pointer_address);
 
     cpu.registers.pc = address;
 
@@ -57,9 +57,9 @@ pub fn jmp_absolute_indexed_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> 
 // Jumps to the 24-bit address stored at the specified memory location, allowing indirect jumps across banks.
 pub fn jmp_absolute_indirect_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let pointer_address = read_offset_word(cpu, bus);
-    let address_low = read_program_byte(cpu, bus, pointer_address + 1);
-    let address_mid = read_program_byte(cpu, bus, pointer_address + 2);
-    let address_high = read_program_byte(cpu, bus, pointer_address + 3);
+    let address_low = read_byte_direct_page(bus, pointer_address);
+    let address_mid = read_byte_direct_page(bus, pointer_address.wrapping_add(1));
+    let address_high = read_byte_direct_page(bus, pointer_address.wrapping_add(2));
     let target_address =
         (address_high as u32) << 16 | (address_mid as u32) << 8 | (address_low as u32);
 

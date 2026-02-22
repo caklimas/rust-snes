@@ -16,7 +16,7 @@ use crate::{
 pub fn stz_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = calculate_direct_page_address(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         write_data_byte(cpu, bus, address, 0);
         3
     } else {
@@ -24,19 +24,27 @@ pub fn stz_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         4
     };
 
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
+
     increment_program_counter(cpu, 2);
     cycles
 }
 
 pub fn stz_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_, address) = calculate_direct_page_x_address(cpu, bus);
-    let cycles = if is_8bit_mode_m(cpu) {
+    let mut cycles = if is_8bit_mode_m(cpu) {
         write_data_byte(cpu, bus, address, 0);
         4
     } else {
         write_data_word(cpu, bus, address, 0);
         5
     };
+
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
