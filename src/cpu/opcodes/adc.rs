@@ -198,9 +198,6 @@ fn perform_addition_with_carry_u8(cpu: &mut Cpu, value: u16) {
     let carry_in = get_carry_in(cpu) & 0x0001;
     let v = value & 0x00FF;
 
-    let binary_sum = a + v + carry_in;
-    let binary_result8 = (binary_sum & 0x00FF) as u8;
-
     let decimal = cpu.registers.p.contains(ProcessorStatus::DECIMAL);
 
     let (final_result8, carry_out) = if decimal {
@@ -213,12 +210,21 @@ fn perform_addition_with_carry_u8(cpu: &mut Cpu, value: u16) {
         if lo > 0x000F {
             hi += 0x0010;
         }
+
+        // V flag is computed from the intermediate result: after low nibble
+        // correction but before high nibble correction (matches 65C816 behavior)
+        let intermediate = ((hi | (lo & 0x000F)) & 0x00FF) as u16;
+        set_v_flag_u8(cpu, a, intermediate, v);
+
         if hi > 0x0090 {
             hi += 0x0060;
         }
 
         (((hi & 0x00F0) | (lo & 0x000F)) as u8, hi > 0x00FF)
     } else {
+        let binary_sum = a + v + carry_in;
+        let binary_result8 = (binary_sum & 0x00FF) as u8;
+        set_v_flag_u8(cpu, a, binary_result8 as u16, v);
         (binary_result8, binary_sum > 0x00FF)
     };
 
@@ -226,23 +232,63 @@ fn perform_addition_with_carry_u8(cpu: &mut Cpu, value: u16) {
 
     set_nz_flags_u8(cpu, final_result8);
     cpu.registers.p.set(ProcessorStatus::CARRY, carry_out);
-    set_v_flag_u8(cpu, a, binary_result8 as u16, v);
 }
 
 fn perform_addition_with_carry_u16(cpu: &mut Cpu, value: u16) {
     let old_accumulator = cpu.registers.a;
     let carry_in = get_carry_in(cpu);
-    let result = (old_accumulator as u32) + (value as u32) + (carry_in as u32);
-    let result_u16 = result as u16;
 
-    cpu.registers.a = result_u16;
-    set_nz_flags_u16(cpu, result_u16);
-    set_c_flag_u16(cpu, result);
-    set_v_flag_u16(cpu, old_accumulator, result_u16, value);
-}
+    let decimal = cpu.registers.p.contains(ProcessorStatus::DECIMAL);
 
-fn set_c_flag_u8(cpu: &mut Cpu, result: u16) {
-    cpu.registers.p.set(ProcessorStatus::CARRY, result > 0xFF);
+    if decimal {
+        let a = old_accumulator as u32;
+        let v = value as u32;
+
+        // Nibble 0 (bits 0-3)
+        let mut r = (a & 0x000F) + (v & 0x000F) + (carry_in as u32);
+        if r > 0x0009 {
+            r += 0x0006;
+        }
+        let n0_carry: u32 = if r > 0x000F { 0x0010 } else { 0x0000 };
+
+        // Nibble 1 (bits 4-7)
+        r = (a & 0x00F0) + (v & 0x00F0) + n0_carry + (r & 0x000F);
+        if r > 0x009F {
+            r += 0x0060;
+        }
+        let n1_carry: u32 = if r > 0x00FF { 0x0100 } else { 0x0000 };
+
+        // Nibble 2 (bits 8-11)
+        r = (a & 0x0F00) + (v & 0x0F00) + n1_carry + (r & 0x00FF);
+        if r > 0x09FF {
+            r += 0x0600;
+        }
+        let n2_carry: u32 = if r > 0x0FFF { 0x1000 } else { 0x0000 };
+
+        // Nibble 3 (bits 12-15)
+        r = (a & 0xF000) + (v & 0xF000) + n2_carry + (r & 0x0FFF);
+
+        // V from intermediate (before final nibble correction)
+        let intermediate = (r & 0xFFFF) as u16;
+        set_v_flag_u16(cpu, old_accumulator, intermediate, value);
+
+        if r > 0x9FFF {
+            r += 0x6000;
+        }
+
+        let final_result = (r & 0xFFFF) as u16;
+        cpu.registers.a = final_result;
+        set_nz_flags_u16(cpu, final_result);
+        cpu.registers.p.set(ProcessorStatus::CARRY, r > 0xFFFF);
+    } else {
+        let result = (old_accumulator as u32) + (value as u32) + (carry_in as u32);
+        let result_u16 = result as u16;
+
+        cpu.registers.a = result_u16;
+        set_nz_flags_u16(cpu, result_u16);
+        set_c_flag_u16(cpu, result);
+        set_v_flag_u16(cpu, old_accumulator, result_u16, value);
+    }
 }
 
 fn set_v_flag_u8(cpu: &mut Cpu, old_accumulator: u16, result: u16, value: u16) {

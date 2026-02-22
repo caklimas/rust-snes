@@ -179,43 +179,128 @@ pub fn sbc_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     cycles
 }
 
+// SBC in decimal mode is implemented as ADC with one's-complemented operand.
+// A - M - (1-C) is algebraically identical to A + ~M + C.
+// The BCD correction for subtraction mirrors ADC but subtracts 6 when a nibble
+// does NOT carry (underflow) instead of adding 6 when it overflows.
+//
+// Flag behavior on the 65C816 in decimal mode:
+//   N, Z  — from the final BCD-corrected result
+//   C     — from the BCD computation (carry out = no borrow)
+//   V     — from the intermediate result (after low nibble fix, before high nibble fix)
+
 fn perform_subtraction_with_carry_u8(cpu: &mut Cpu, value: u16) {
     let old_accumulator_full = cpu.registers.a;
-    let old_accumulator = old_accumulator_full & 0x00FF;
-    let v = value & 0x00FF;
-    let carry_in = get_carry_in(cpu); // 0 or 1
-    let diff = (old_accumulator as i16) - (v as i16) - (1 - carry_in as i16);
-    let result8 = (diff as u16) & 0x00FF;
+    let a = (old_accumulator_full & 0x00FF) as i32;
+    let v = (value & 0x00FF) as i32;
+    let carry_in = get_carry_in(cpu) as i32;
 
-    cpu.registers.a = (old_accumulator_full & 0xFF00) | result8;
+    let decimal = cpu.registers.p.contains(ProcessorStatus::DECIMAL);
 
-    set_nz_flags_u8(cpu, result8 as u8);
+    if decimal {
+        let complement = v ^ 0xFF;
 
-    cpu.registers.p.set(ProcessorStatus::CARRY, diff >= 0);
+        // Low nibble: A + ~M + C (using signed arithmetic to handle underflow)
+        let mut r: i32 = (a & 0x0F) + (complement & 0x0F) + carry_in;
+        if r <= 0x0F {
+            r -= 0x06;
+        }
+        let lo_carry: i32 = if r > 0x0F { 0x10 } else { 0x00 };
 
-    // Overflow for SBC uses same form, but with operand effectively inverted.
-    // Easiest correct rule:
-    // V = ((A ^ R) & (A ^ M) & 0x80) != 0   (note: differs from ADC form)
-    let a8 = old_accumulator as u8;
-    let m8 = v as u8;
-    let r8 = result8 as u8;
-    cpu.registers.p.set(
-        ProcessorStatus::OVERFLOW,
-        ((a8 ^ r8) & (a8 ^ m8) & 0x80) != 0,
-    );
+        // High nibble + carry from low + corrected low nibble
+        r = (a & 0xF0) + (complement & 0xF0) + lo_carry + (r & 0x0F);
+
+        // V from intermediate (after low nibble fix, before high nibble fix)
+        let intermediate = (r & 0xFF) as u16;
+        let a_u16 = a as u16;
+        let v_u16 = v as u16;
+        cpu.registers.p.set(
+            ProcessorStatus::OVERFLOW,
+            ((a_u16 ^ intermediate) & (a_u16 ^ v_u16) & 0x80) != 0,
+        );
+
+        if r <= 0xFF {
+            r -= 0x60;
+        }
+
+        let final_result = (r & 0xFF) as u8;
+        cpu.registers.a = (old_accumulator_full & 0xFF00) | (final_result as u16);
+        set_nz_flags_u8(cpu, final_result);
+        cpu.registers.p.set(ProcessorStatus::CARRY, r > 0xFF);
+    } else {
+        let diff = a - v - (1 - carry_in);
+        let result8 = (diff as u16) & 0x00FF;
+
+        cpu.registers.a = (old_accumulator_full & 0xFF00) | result8;
+        set_nz_flags_u8(cpu, result8 as u8);
+        cpu.registers.p.set(ProcessorStatus::CARRY, diff >= 0);
+        cpu.registers.p.set(
+            ProcessorStatus::OVERFLOW,
+            (((a as u16) ^ result8) & ((a as u16) ^ (v as u16)) & 0x80) != 0,
+        );
+    }
 }
 
 fn perform_subtraction_with_carry_u16(cpu: &mut Cpu, value: u16) {
     let old_accumulator = cpu.registers.a;
     let carry_in = get_carry_in(cpu) as i32;
-    let result = (old_accumulator as i32) - (value as i32) - (1 - carry_in);
-    let result_u16 = result as u16;
 
-    cpu.registers.a = result_u16;
-    set_nz_flags_u16(cpu, result_u16);
-    cpu.registers.p.set(ProcessorStatus::CARRY, result >= 0);
-    cpu.registers.p.set(
-        ProcessorStatus::OVERFLOW,
-        ((old_accumulator ^ result_u16) & (old_accumulator ^ value) & 0x8000) != 0,
-    );
+    let decimal = cpu.registers.p.contains(ProcessorStatus::DECIMAL);
+
+    if decimal {
+        let a = old_accumulator as i32;
+        let v = value as i32;
+        let complement = v ^ 0xFFFF;
+
+        // Nibble 0 (bits 0-3)
+        let mut r: i32 = (a & 0x000F) + (complement & 0x000F) + carry_in;
+        if r <= 0x000F {
+            r -= 0x0006;
+        }
+        let n0_carry: i32 = if r > 0x000F { 0x0010 } else { 0x0000 };
+
+        // Nibble 1 (bits 4-7)
+        r = (a & 0x00F0) + (complement & 0x00F0) + n0_carry + (r & 0x000F);
+        if r <= 0x00FF {
+            r -= 0x0060;
+        }
+        let n1_carry: i32 = if r > 0x00FF { 0x0100 } else { 0x0000 };
+
+        // Nibble 2 (bits 8-11)
+        r = (a & 0x0F00) + (complement & 0x0F00) + n1_carry + (r & 0x00FF);
+        if r <= 0x0FFF {
+            r -= 0x0600;
+        }
+        let n2_carry: i32 = if r > 0x0FFF { 0x1000 } else { 0x0000 };
+
+        // Nibble 3 (bits 12-15)
+        r = (a & 0xF000) + (complement & 0xF000) + n2_carry + (r & 0x0FFF);
+
+        // V from intermediate (before final nibble correction)
+        let intermediate = (r & 0xFFFF) as u16;
+        cpu.registers.p.set(
+            ProcessorStatus::OVERFLOW,
+            ((old_accumulator ^ intermediate) & (old_accumulator ^ value) & 0x8000) != 0,
+        );
+
+        if r <= 0xFFFF {
+            r -= 0x6000;
+        }
+
+        let final_result = (r & 0xFFFF) as u16;
+        cpu.registers.a = final_result;
+        set_nz_flags_u16(cpu, final_result);
+        cpu.registers.p.set(ProcessorStatus::CARRY, r > 0xFFFF);
+    } else {
+        let result = (old_accumulator as i32) - (value as i32) - (1 - carry_in);
+        let result_u16 = result as u16;
+
+        cpu.registers.a = result_u16;
+        set_nz_flags_u16(cpu, result_u16);
+        cpu.registers.p.set(ProcessorStatus::CARRY, result >= 0);
+        cpu.registers.p.set(
+            ProcessorStatus::OVERFLOW,
+            ((old_accumulator ^ result_u16) & (old_accumulator ^ value) & 0x8000) != 0,
+        );
+    }
 }
