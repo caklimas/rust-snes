@@ -45,7 +45,7 @@ pub fn jmp_absolute_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // Jumps to the address stored at (base pointer + X register), useful for jump tables.
 pub fn jmp_absolute_indexed_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_pointer = read_offset_word(cpu, bus);
-    let pointer_address = base_pointer + get_x_register_value(cpu);
+    let pointer_address = base_pointer.wrapping_add(get_x_register_value(cpu));
     let address = read_program_word(cpu, bus, pointer_address);
 
     cpu.registers.pc = address;

@@ -67,7 +67,7 @@ pub fn stz_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 pub fn stz_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
-    let address = base_address + cpu.registers.x;
+    let address = base_address.wrapping_add(cpu.registers.x);
 
     let cycles = if is_8bit_mode_m(cpu) {
         write_data_byte(cpu, bus, address, 0);

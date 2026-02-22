@@ -109,6 +109,15 @@ pub(crate) fn read_phys_word<B: MemoryBus>(bus: &mut B, physical_address: u32) -
     u16::from_le_bytes([lo, hi])
 }
 
+pub(crate) fn write_phys_byte<B: MemoryBus>(bus: &mut B, phys: u32, value: u8) {
+    bus.write(phys, value);
+}
+
+pub(crate) fn write_phys_word<B: MemoryBus>(bus: &mut B, phys: u32, value: u16) {
+    bus.write(phys, value as u8);
+    bus.write((phys.wrapping_add(1)) & 0x00FF_FFFF, (value >> 8) as u8);
+}
+
 /// Write a byte to direct page (bank 0)
 pub(crate) fn write_byte_direct_page<B: MemoryBus>(bus: &mut B, address: u16, value: u8) {
     bus.write(address as u32, value);

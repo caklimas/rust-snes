@@ -4,8 +4,9 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_x_address,
             calculate_indirect_page_address, calculate_indirect_page_x_address,
-            calculate_indirect_page_y_address, get_x_register_value, increment_program_counter,
-            is_8bit_mode_m, read_program_byte, write_data_byte, write_data_word,
+            calculate_indirect_page_y_address, effective_phys_indirect_y, get_x_register_value,
+            increment_program_counter, is_8bit_mode_m, read_program_byte, write_data_byte,
+            write_data_word, write_phys_word,
         },
     },
     memory::MemoryBus,
@@ -72,13 +73,15 @@ pub fn sta_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address_low = read_program_byte(cpu, bus, cpu.registers.pc + 1);
     let address_high = read_program_byte(cpu, bus, cpu.registers.pc + 2);
     let base_address = (address_high as u16) << 8 | (address_low as u16);
-    let target_address = base_address + get_x_register_value(cpu);
+    let index = get_x_register_value(cpu);
+    let phys =
+        (((cpu.registers.db as u32) << 16) + (base_address as u32) + (index as u32)) & 0x00FF_FFFF;
 
     let cycles = if is_8bit_mode_m(cpu) {
-        write_data_byte(cpu, bus, target_address, cpu.registers.a as u8);
+        bus.write(phys, cpu.registers.a as u8);
         5
     } else {
-        write_data_word(cpu, bus, target_address, cpu.registers.a);
+        write_phys_word(bus, phys, cpu.registers.a);
         6
     };
 
@@ -90,13 +93,15 @@ pub fn sta_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address_low = read_program_byte(cpu, bus, cpu.registers.pc + 1);
     let address_high = read_program_byte(cpu, bus, cpu.registers.pc + 2);
     let base_address = (address_high as u16) << 8 | (address_low as u16);
-    let target_address = base_address + cpu.registers.y;
+    let phys =
+        (((cpu.registers.db as u32) << 16) + (base_address as u32) + (cpu.registers.y as u32))
+            & 0x00FF_FFFF;
 
     let cycles = if is_8bit_mode_m(cpu) {
-        write_data_byte(cpu, bus, target_address, cpu.registers.a as u8);
+        bus.write(phys, cpu.registers.a as u8);
         5
     } else {
-        write_data_word(cpu, bus, target_address, cpu.registers.a);
+        write_phys_word(bus, phys, cpu.registers.a);
         6
     };
 
@@ -145,12 +150,13 @@ pub fn sta_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 }
 
 pub fn sta_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (_, target_address) = calculate_indirect_page_y_address(cpu, bus);
+    let (base_address, _) = calculate_indirect_page_y_address(cpu, bus);
+    let phys = effective_phys_indirect_y(cpu, base_address);
     let mut cycles = if is_8bit_mode_m(cpu) {
-        write_data_byte(cpu, bus, target_address, cpu.registers.a as u8);
+        bus.write(phys, cpu.registers.a as u8);
         6
     } else {
-        write_data_word(cpu, bus, target_address, cpu.registers.a);
+        write_phys_word(bus, phys, cpu.registers.a);
         7
     };
 

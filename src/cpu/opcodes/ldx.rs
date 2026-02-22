@@ -4,7 +4,7 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_y_address,
             increment_program_counter, is_8bit_mode_x, page_crossed, read_data_byte,
-            read_data_word, read_offset_byte, read_offset_word, read_program_byte,
+            read_data_word, read_offset_byte, read_offset_word, read_phys_word, read_program_byte,
             read_program_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
     },
@@ -110,22 +110,25 @@ pub fn ldx_direct_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // LDX (0xBE) - Absolute Indexed by Y
 pub fn ldx_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
-    let target_address = base_address + cpu.registers.y;
+    let target_address = base_address.wrapping_add(cpu.registers.y);
+    let phys =
+        (((cpu.registers.db as u32) << 16) + (base_address as u32) + (cpu.registers.y as u32))
+            & 0x00FF_FFFF;
     let mut cycles;
 
     if is_8bit_mode_x(cpu) {
-        let value = read_data_byte(cpu, bus, target_address);
+        let value = bus.read(phys);
         cpu.registers.x = value as u16;
         set_nz_flags_u8(cpu, value);
         cycles = 4;
     } else {
-        let value = read_data_word(cpu, bus, target_address);
+        let value = read_phys_word(bus, phys);
         cpu.registers.x = value;
         set_nz_flags_u16(cpu, value);
         cycles = 5;
     }
 
-    if page_crossed(base_address, target_address) {
+    if !is_8bit_mode_x(cpu) || page_crossed(base_address, target_address) {
         cycles += 1;
     }
 

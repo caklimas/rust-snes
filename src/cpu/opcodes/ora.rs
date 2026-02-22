@@ -160,9 +160,8 @@ pub fn ora_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_ora_u8(cpu, value);
         4
     } else {
-        let lo = bus.read(phys);
-        let hi = bus.read((phys.wrapping_add(1)) & 0x00FF_FFFF);
-        perform_ora_u16(cpu, u16::from_le_bytes([lo, hi]));
+        let value = read_phys_word(bus, phys);
+        perform_ora_u16(cpu, value);
         5
     };
 
@@ -324,9 +323,8 @@ pub fn ora_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_ora_u8(cpu, value);
         6
     } else {
-        let lo = bus.read(phys);
-        let hi = bus.read((phys.wrapping_add(1)) & 0x00FF_FFFF);
-        perform_ora_u16(cpu, u16::from_le_bytes([lo, hi]));
+        let value = read_phys_word(bus, phys);
+        perform_ora_u16(cpu, value);
         7
     };
 
