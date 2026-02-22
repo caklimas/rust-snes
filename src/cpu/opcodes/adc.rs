@@ -12,7 +12,7 @@ use crate::{
                 read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y,
                 read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
                 read_long_pointer_direct_page, read_long_pointer_direct_page_wrapped,
-                read_offset_byte, read_offset_word, read_word, read_word_direct_page,
+                read_offset_byte, read_offset_word, read_word_direct_page,
                 set_nz_flags_u8, set_nz_flags_u16, stack_relative_indirect_y_dummy_read,
             },
             read_data_byte, read_data_word,
@@ -110,7 +110,7 @@ pub fn adc_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_addition_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_word(bus, phys);
+        let value = bus.read_word( phys);
         perform_addition_with_carry_u16(cpu, value);
         5
     };
@@ -135,7 +135,7 @@ pub fn adc_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_addition_with_carry_u8(cpu, value);
         4
     } else {
-        let value = read_word(bus, phys);
+        let value = bus.read_word( phys);
         perform_addition_with_carry_u16(cpu, value);
         5
     };
@@ -312,7 +312,7 @@ pub fn adc_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_addition_with_carry_u8(cpu, value);
         6
     } else {
-        let value = read_word(bus, phys);
+        let value = bus.read_word( phys);
         perform_addition_with_carry_u16(cpu, value);
         7
     };

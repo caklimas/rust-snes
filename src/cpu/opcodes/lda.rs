@@ -6,7 +6,7 @@ use crate::{
             calculate_direct_page_x_address, calculate_indirect_page_x_address,
             calculate_indirect_page_y_address, increment_program_counter, is_8bit_mode_m,
             is_8bit_mode_x, page_crossed, read_data_byte, read_data_byte_indirect_y,
-            read_data_word, read_data_word_indirect_y, read_offset_word, read_word,
+            read_data_word, read_data_word_indirect_y, read_offset_word,
             read_program_byte, read_program_word, read_word_direct_page, set_nz_flags_u8,
             set_nz_flags_u16,
         },
@@ -128,7 +128,7 @@ pub fn lda_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, value);
         4
     } else {
-        let value = read_word(bus, phys);
+        let value = bus.read_word( phys);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         5
@@ -157,7 +157,7 @@ pub fn lda_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, value);
         4
     } else {
-        let value = read_word(bus, phys);
+        let value = bus.read_word( phys);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         5

@@ -6,9 +6,9 @@ use crate::{
             calculate_direct_page_x_address, direct_page_low_is_zero, get_x_register_value,
             increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed,
             read_byte_direct_page, read_data_byte, read_data_word, read_offset_word,
-            read_byte, read_word, read_word_direct_page, set_nz_flags_u8,
+            read_word_direct_page, set_nz_flags_u8,
             set_nz_flags_u16, write_byte_direct_page, write_data_byte, write_data_word,
-            write_word, write_word_direct_page,
+            write_word_direct_page,
         },
         processor_status::ProcessorStatus,
     },
@@ -136,7 +136,7 @@ pub fn asl_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_base, _eff16, phys) = calculate_absolute_x_physical_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, phys);
+        let value = bus.read(phys);
         let result = value << 1;
 
         cpu.registers
@@ -150,7 +150,7 @@ pub fn asl_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         7
     } else {
-        let value = read_word(bus, phys);
+        let value = bus.read_word(phys);
         let result = value << 1;
 
         cpu.registers
@@ -158,10 +158,10 @@ pub fn asl_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
             .set(ProcessorStatus::CARRY, (value & 0x8000) != 0);
 
         // dummy write old word
-        write_word(bus, phys, value);
+        bus.write_word(phys, value);
 
         // final write new word
-        write_word(bus, phys, result);
+        bus.write_word(phys, result);
 
         set_nz_flags_u16(cpu, result);
         9
@@ -338,7 +338,7 @@ pub fn lsr_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     }
 
     if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, effective_phys);
+        let value = bus.read(effective_phys);
         let result = value >> 1;
 
         cpu.registers
@@ -348,14 +348,14 @@ pub fn lsr_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         bus.write(effective_phys, result);
         set_nz_flags_u8(cpu, result);
     } else {
-        let value = read_word(bus, effective_phys);
+        let value = bus.read_word(effective_phys);
         let result = value >> 1;
 
         cpu.registers
             .p
             .set(ProcessorStatus::CARRY, (value & 0x0001) != 0);
 
-        write_word(bus, effective_phys, result);
+        bus.write_word(effective_phys, result);
 
         set_nz_flags_u16(cpu, result);
     }
@@ -555,7 +555,7 @@ pub fn rol_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let (_base, _eff16, phys) = calculate_absolute_x_physical_address(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        let value = read_byte(bus, phys);
+        let value = bus.read(phys);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
@@ -573,7 +573,7 @@ pub fn rol_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         7
     } else {
-        let value = read_word(bus, phys);
+        let value = bus.read_word(phys);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             1
         } else {
@@ -585,8 +585,8 @@ pub fn rol_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
             .p
             .set(ProcessorStatus::CARRY, (value & 0x8000) != 0);
 
-        write_word(bus, phys, value);
-        write_word(bus, phys, result);
+        bus.write_word(phys, value);
+        bus.write_word(phys, result);
 
         set_nz_flags_u16(cpu, result);
         9
@@ -774,7 +774,7 @@ pub fn ror_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         7
     } else {
-        let value = read_word(bus, phys);
+        let value = bus.read_word(phys);
         let carry_in = if cpu.registers.p.contains(ProcessorStatus::CARRY) {
             0x8000
         } else {
@@ -784,7 +784,7 @@ pub fn ror_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         cpu.registers
             .p
             .set(ProcessorStatus::CARRY, value & 0x0001 != 0);
-        write_word(bus, phys, result);
+        bus.write_word(phys, result);
         set_nz_flags_u16(cpu, result);
         9
     };

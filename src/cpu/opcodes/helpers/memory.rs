@@ -99,24 +99,6 @@ pub(crate) fn read_data_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16)
     u16::from_le_bytes([lo, hi])
 }
 
-pub(crate) fn read_byte<B: MemoryBus>(bus: &mut B, address: u32) -> u8 {
-    bus.read(address)
-}
-
-pub(crate) fn read_word<B: MemoryBus>(bus: &mut B, address: u32) -> u16 {
-    let lo = read_byte(bus, address);
-    let hi = read_byte(bus, (address.wrapping_add(1)) & 0x00FF_FFFF);
-    u16::from_le_bytes([lo, hi])
-}
-
-pub(crate) fn write_byte<B: MemoryBus>(bus: &mut B, address: u32, value: u8) {
-    bus.write(address, value);
-}
-
-pub(crate) fn write_word<B: MemoryBus>(bus: &mut B, address: u32, value: u16) {
-    write_byte(bus, address, value as u8);
-    write_byte(bus, (address.wrapping_add(1)) & 0x00FF_FFFF, (value >> 8) as u8);
-}
 
 /// Write a byte to direct page (bank 0)
 pub(crate) fn write_byte_direct_page<B: MemoryBus>(bus: &mut B, address: u16, value: u8) {
