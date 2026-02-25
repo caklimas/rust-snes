@@ -2,13 +2,19 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
+            calculate_absolute_long_address, calculate_absolute_long_x_address,
             calculate_absolute_x_address, calculate_direct_page_address,
-            calculate_direct_page_x_address, calculate_indirect_page_x_address,
-            calculate_indirect_page_y_address, increment_program_counter, is_8bit_mode_m,
+            calculate_direct_page_x_address, calculate_indirect_page_address,
+            calculate_indirect_page_x_address,
+            calculate_indirect_page_y_address, calculate_stack_relative_address,
+            calculate_stack_relative_indirect_y_address, direct_page_low_is_zero,
+            effective_phys_stack_relative_indirect_y, increment_program_counter, is_8bit_mode_m,
             is_8bit_mode_x, page_crossed, read_data_byte, read_data_byte_indirect_y,
-            read_data_word, read_data_word_indirect_y, read_offset_word,
-            read_program_byte, read_program_word, read_word_direct_page, set_nz_flags_u8,
-            set_nz_flags_u16,
+            read_data_byte_stack_relative_indirect_y, read_data_word, read_data_word_indirect_y,
+            read_data_word_stack_relative_indirect_y, read_long_pointer_direct_page,
+            read_long_pointer_direct_page_wrapped, read_offset_word, read_program_byte,
+            read_program_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            stack_relative_indirect_y_dummy_read,
         },
     },
     memory::MemoryBus,
@@ -64,11 +70,6 @@ pub fn lda_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     }
 
     increment_program_counter(cpu, 2);
-
-    if page_crossed(target_address, base_address) {
-        cycles += 1;
-    }
-
     cycles
 }
 
@@ -175,8 +176,8 @@ pub fn lda_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // LDA (0xB2) - Direct Page Indirect
 // Loads from the address stored at (Direct Page + offset).
 pub fn lda_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (_, _, target_address) = calculate_indirect_page_x_address(cpu, bus);
-    let cycles = if is_8bit_mode_m(cpu) {
+    let target_address = calculate_indirect_page_address(cpu, bus);
+    let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_data_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
         set_nz_flags_u8(cpu, value);
@@ -188,6 +189,10 @@ pub fn lda_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         6
     };
 
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
+
     increment_program_counter(cpu, 2);
     cycles
 }
@@ -195,8 +200,7 @@ pub fn lda_indirect<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // LDA (0xA1) - Direct Page Indexed Indirect
 // Loads from the address stored at (Direct Page + offset + X).
 pub fn lda_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (base_pointer_address, pointer_address, target_address) =
-        calculate_indirect_page_x_address(cpu, bus);
+    let (_, _, target_address) = calculate_indirect_page_x_address(cpu, bus);
     let mut cycles = if is_8bit_mode_m(cpu) {
         let value = read_data_byte(cpu, bus, target_address);
         set_accumulator_u8(cpu, value);
@@ -214,11 +218,6 @@ pub fn lda_indirect_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     }
 
     increment_program_counter(cpu, 2);
-
-    if page_crossed(base_pointer_address, pointer_address) {
-        cycles += 1;
-    }
-
     cycles
 }
 
@@ -244,6 +243,151 @@ pub fn lda_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     }
 
     increment_program_counter(cpu, 2);
+    cycles
+}
+
+// 0xA3 - LDA Stack Relative
+pub fn lda_stack_relative<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let address = calculate_stack_relative_address(cpu, bus);
+
+    let cycles = if is_8bit_mode_m(cpu) {
+        let value = bus.read(address as u32);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        4
+    } else {
+        let value = read_word_direct_page(bus, address);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        5
+    };
+
+    increment_program_counter(cpu, 2);
+    cycles
+}
+
+// 0xA7 - LDA Direct Page Indirect Long: [dp]
+pub fn lda_direct_page_indirect_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let dp_addr = calculate_direct_page_address(cpu, bus);
+    let effective = read_long_pointer_direct_page(bus, dp_addr);
+
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = bus.read(effective);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        6
+    } else {
+        let lo = bus.read(effective);
+        let hi = bus.read(effective.wrapping_add(1));
+        let value = u16::from_le_bytes([lo, hi]);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        7
+    };
+
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
+
+    increment_program_counter(cpu, 2);
+    cycles
+}
+
+// 0xAF - LDA Absolute Long
+pub fn lda_absolute_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let address = calculate_absolute_long_address(cpu, bus);
+
+    let cycles = if is_8bit_mode_m(cpu) {
+        let value = bus.read(address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        5
+    } else {
+        let lo = bus.read(address);
+        let hi = bus.read(address.wrapping_add(1));
+        let value = u16::from_le_bytes([lo, hi]);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        6
+    };
+
+    increment_program_counter(cpu, 4);
+    cycles
+}
+
+// 0xB3 - LDA Stack Relative Indirect Indexed Y: (sr,S),Y
+pub fn lda_stack_relative_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let (pointer_address, base_address, _) =
+        calculate_stack_relative_indirect_y_address(cpu, bus);
+
+    stack_relative_indirect_y_dummy_read(cpu, bus, pointer_address);
+
+    let cycles = if is_8bit_mode_m(cpu) {
+        let value = read_data_byte_stack_relative_indirect_y(cpu, bus, base_address);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        7
+    } else {
+        let value = read_data_word_stack_relative_indirect_y(cpu, bus, base_address);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        8
+    };
+
+    increment_program_counter(cpu, 2);
+    cycles
+}
+
+// 0xB7 - LDA Direct Page Indirect Long Indexed Y: [dp],Y
+pub fn lda_direct_page_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let dp_base = calculate_direct_page_address(cpu, bus);
+    let base_phys = read_long_pointer_direct_page_wrapped(cpu, bus, dp_base);
+
+    let y = if cpu.emulation_mode || is_8bit_mode_x(cpu) {
+        (cpu.registers.y & 0x00FF) as u32
+    } else {
+        cpu.registers.y as u32
+    };
+
+    let phys = (base_phys.wrapping_add(y)) & 0x00FF_FFFF;
+
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        let value = bus.read(phys);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        6
+    } else {
+        let value = bus.read_word(phys);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        7
+    };
+
+    if !direct_page_low_is_zero(cpu) {
+        cycles += 1;
+    }
+
+    increment_program_counter(cpu, 2);
+    cycles
+}
+
+// 0xBF - LDA Absolute Long Indexed X: addr_long,X
+pub fn lda_absolute_long_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let (_, eff_phys) = calculate_absolute_long_x_address(cpu, bus);
+
+    let cycles = if is_8bit_mode_m(cpu) {
+        let value = bus.read(eff_phys);
+        set_accumulator_u8(cpu, value);
+        set_nz_flags_u8(cpu, value);
+        5
+    } else {
+        let value = bus.read_word(eff_phys);
+        set_accumulator_u16(cpu, value);
+        set_nz_flags_u16(cpu, value);
+        6
+    };
+
+    increment_program_counter(cpu, 4);
     cycles
 }
 

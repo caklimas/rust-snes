@@ -17,7 +17,7 @@ pub fn bra_relative<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
     cpu.registers.pc = target;
 
-    if page_crossed { 4 } else { 3 }
+    if cpu.emulation_mode && page_crossed { 4 } else { 3 }
 }
 
 // BRL (0x82) - Branch Always Long
@@ -34,13 +34,13 @@ pub fn bra_relative_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // BEQ (0xF0) - Branch if Equal (Zero flag set)
 // Branches if the last operation resulted in zero (Z flag = 1), commonly used after comparisons.
 pub fn beq<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    branch_conditional(cpu, bus, !cpu.registers.p.contains(ProcessorStatus::ZERO))
+    branch_conditional(cpu, bus, cpu.registers.p.contains(ProcessorStatus::ZERO))
 }
 
 // BNE (0xD0) - Branch if Not Equal (Zero flag clear)
 // Branches if the last operation did not result in zero (Z flag = 0), often used in loops.
 pub fn bne<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    branch_conditional(cpu, bus, cpu.registers.p.contains(ProcessorStatus::ZERO))
+    branch_conditional(cpu, bus, !cpu.registers.p.contains(ProcessorStatus::ZERO))
 }
 
 // BCC (0x90) - Branch if Carry Clear

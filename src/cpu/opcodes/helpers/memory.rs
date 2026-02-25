@@ -37,6 +37,20 @@ pub(crate) fn read_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16) -> 
     ((high as u16) << 8) | (low as u16)
 }
 
+/// Read a 16-bit word from direct page, wrapping within the page in emulation mode with DL=0
+pub(crate) fn read_word_direct_page_wrapped<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
+    if cpu.emulation_mode && direct_page_low_is_zero(cpu) {
+        let page = address & 0xFF00;
+        let lo_addr = address;
+        let hi_addr = page | ((address.wrapping_add(1)) as u8 as u16);
+        let lo = bus.read(lo_addr as u32);
+        let hi = bus.read(hi_addr as u32);
+        ((hi as u16) << 8) | (lo as u16)
+    } else {
+        read_word_direct_page(bus, address)
+    }
+}
+
 /// Read a 24-bit pointer from direct page (bank 0)
 pub(crate) fn read_long_pointer_direct_page<B: MemoryBus>(bus: &mut B, dp_addr: u16) -> u32 {
     // Reads 24-bit pointer from bank 0 at dp_addr..dp_addr+2

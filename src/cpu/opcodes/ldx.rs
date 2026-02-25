@@ -4,8 +4,8 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_y_address,
             increment_program_counter, is_8bit_mode_x, page_crossed, read_data_byte,
-            read_data_word, read_offset_byte, read_offset_word, read_program_byte,
-            read_program_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            read_data_word, read_offset_byte, read_offset_word,
+            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -68,12 +68,12 @@ pub fn ldx_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         let value = read_data_byte(cpu, bus, absolute_address);
         cpu.registers.x = value as u16;
         set_nz_flags_u8(cpu, value);
-        cycles = 3;
+        cycles = 4;
     } else {
         let value = read_data_word(cpu, bus, absolute_address);
         cpu.registers.x = value;
         set_nz_flags_u16(cpu, value);
-        cycles = 4;
+        cycles = 5;
     }
 
     increment_program_counter(cpu, 3);
@@ -87,12 +87,12 @@ pub fn ldx_direct_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let mut cycles;
 
     if is_8bit_mode_x(cpu) {
-        let value = read_program_byte(cpu, bus, source_address);
+        let value = bus.read(source_address as u32);
         cpu.registers.x = value as u16;
         set_nz_flags_u8(cpu, value);
         cycles = 4;
     } else {
-        let value = read_program_word(cpu, bus, source_address);
+        let value = read_word_direct_page(bus, source_address);
         cpu.registers.x = value;
         set_nz_flags_u16(cpu, value);
         cycles = 5;

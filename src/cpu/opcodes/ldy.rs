@@ -68,12 +68,12 @@ pub fn ldy_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         let value = read_data_byte(cpu, bus, absolute_address);
         cpu.registers.y = value as u16;
         set_nz_flags_u8(cpu, value);
-        cycles = 3;
+        cycles = 4;
     } else {
         let value = read_data_word(cpu, bus, absolute_address);
         cpu.registers.y = value;
         set_nz_flags_u16(cpu, value);
-        cycles = 4;
+        cycles = 5;
     }
 
     increment_program_counter(cpu, 3);

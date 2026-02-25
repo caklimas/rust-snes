@@ -136,7 +136,7 @@ pub fn cop<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, stack_mode: StackMode) -> u
 pub fn wai<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.waiting_for_interrupt = true;
     increment_program_counter(cpu, 1);
-    3
+    4
 }
 
 // STP - Stop the Processor
@@ -146,7 +146,7 @@ pub fn wai<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 pub fn stp<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.stopped = true;
     increment_program_counter(cpu, 1);
-    3
+    4
 }
 
 // WDM - Reserved

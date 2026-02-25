@@ -1,7 +1,7 @@
 ---
 name: implement-opcode
 description: Implement and fix 65C816 CPU opcodes for the SNES emulator. Use when implementing new opcodes, fixing opcode test failures, or debugging CPU instruction behavior.
-argument-hint: [opcode-hex-or-error-message]
+argument-hint: "[opcode-hex-or-error-message]"
 ---
 
 # Implement/Fix 65C816 Opcodes
@@ -70,6 +70,7 @@ All shared logic lives in `src/cpu/opcodes/helpers/`:
 | `read_data_word(cpu, bus, addr)` | DBR:addr | **Absolute addressing data reads** |
 | `read_byte_direct_page(bus, addr)` | 00:addr | **Direct page reads** (always bank 0) |
 | `read_word_direct_page(bus, addr)` | 00:addr | **Direct page reads** (always bank 0) |
+| `read_word_direct_page_wrapped(cpu, bus, addr)` | 00:addr | DP 16-bit read with page-wrap (use for PEI and any instruction that reads a 16-bit value from DP in emulation mode) |
 | `read_long_pointer_direct_page(bus, addr)` | 00:addr | Read 3-byte (24-bit) pointer from DP |
 | `write_data_byte(cpu, bus, addr, val)` | DBR:addr | **Absolute addressing data writes** |
 | `write_data_word(cpu, bus, addr, val)` | DBR:addr | **Absolute addressing data writes** |
@@ -97,7 +98,13 @@ All shared logic lives in `src/cpu/opcodes/helpers/`:
 - **JMP (abs,X)** (0x7C) reads pointer from PBR (this one IS correct with read_program_word)
 - Only instruction fetches and operand reads use PBR
 
-### 2. Missing direct page cycle penalty
+### 2. Wrong write helper for direct page stores
+Store instructions (STA, STX, STY, STZ) writing to **direct page** must use `write_byte_direct_page(bus, addr, val)` / `write_word_direct_page(bus, addr, val)` (bank 0), NOT `write_data_byte`/`write_data_word` (which apply DBR and write to the wrong bank when DBR ≠ 0).
+
+### 3. PC wrapping in operand reads
+Use `cpu.registers.pc.wrapping_add(n)` instead of `cpu.registers.pc + n` when reading operand bytes via `read_program_byte`. Plain `+` panics on overflow when PC is near `0xFFFF`.
+
+### 4. Missing direct page cycle penalty
 Any instruction using direct page addressing needs `+1 cycle when D register low byte != 0`:
 ```rust
 if (cpu.registers.d & 0x00FF) != 0 {
@@ -105,10 +112,10 @@ if (cpu.registers.d & 0x00FF) != 0 {
 }
 ```
 
-### 3. Wrong cycle counts for 16-bit mode
-Read-modify-write instructions (ASL, LSR, ROL, ROR) on direct page add +2 cycles for 16-bit mode (M=0), not +1. Check against `asl_direct` (5/7) and `asl_direct_x` (6/8) as reference.
+### 5. Wrong cycle counts for 16-bit read-modify-write
+Read-modify-write instructions (ASL, LSR, ROL, ROR, INC, DEC) on direct page add **+2 cycles** for 16-bit mode (M=0), not +1. Same applies to absolute addressing. Reference: `asl_direct` (5 8-bit / 7 16-bit), `dec_absolute` (6 8-bit / 8 16-bit).
 
-### 4. BCD (Decimal mode) in ADC/SBC
+### 6. BCD (Decimal mode) in ADC/SBC
 ADC and SBC must handle decimal mode (D flag set). Key points:
 - Process each nibble (4 bits) separately, applying +6 or -6 correction
 - V flag is computed from the INTERMEDIATE result (after low nibble correction, before high nibble correction)
@@ -117,13 +124,50 @@ ADC and SBC must handle decimal mode (D flag set). Key points:
 - SBC in decimal mode is implemented as ADC with one's-complemented operand: `A + ~M + C`
 - 16-bit BCD requires 4-nibble processing
 
-### 5. Page crossing penalty
+### 5. Branch page crossing penalty (emulation mode only)
+Branch instructions (BRA, BEQ, BNE, BCC, BCS, BMI, BPL, BVC, BVS) add +1 cycle when crossing a page boundary **only in emulation mode**. In native mode there is no page crossing penalty for branches:
+```rust
+if cpu.emulation_mode && page_crossed { cycles += 1; }
+```
+
+### 7. REP in emulation mode
+In emulation mode, REP cannot clear the M (0x20) and X (0x10) flags — they are hardwired to 1. After `cpu.registers.p.remove(bits_to_clear)`, re-insert them if `cpu.emulation_mode`:
+```rust
+if cpu.emulation_mode {
+    cpu.registers.p.insert(ProcessorStatus::MEMORY_WIDTH | ProcessorStatus::INDEX_WIDTH);
+}
+```
+
+### 8. Direct page 16-bit read page-wrapping
+In emulation mode with DL=0, when reading a 16-bit value from a DP address at `0xXXFF`, the second byte wraps to `0xXX00` (stays within the 256-byte page). Use `read_word_direct_page_wrapped(cpu, bus, addr)` instead of `read_word_direct_page` for instructions that read 16-bit values from DP in emulation mode (e.g., PEI).
+
+### 9. Page crossing penalty (absolute indexed)
 Absolute,X and Absolute,Y addressing modes add +1 cycle when the indexing crosses a page boundary:
 ```rust
 if page_crossed(base_address, effective_address) {
     cycles += 1;
 }
 ```
+
+## Workflow Rules (IMPORTANT)
+
+### When fixing an existing (already-implemented) opcode
+1. Fix it — no need to ask permission first
+2. Run the tests
+3. **STOP and explain what was fixed and why**
+4. **Wait for the user to say "proceed" before continuing**
+
+### When implementing a new (unimplemented) opcode
+- Implement, run tests, and continue without pausing unless a test failure reveals a bug in an existing opcode
+
+### files_to_skip
+- **NEVER add entries to `files_to_skip` in `tests/integration_test.rs` without first discussing it with the user**
+- If a test file causes a JSON parse error or other infrastructure failure, explain the issue and ask what to do — don't silently skip it
+- The existing skipped files (44.e, 44.n, 54.e, 54.n) are for a known reason that may be investigated later
+
+### skip_count
+- Update `skip_count` in `tests/integration_test.rs` to point at the current failing opcode each time, to avoid re-running already-passing tests
+- To find the correct value: `ls external/ProcessorTests/65816/v1/ | sort | grep -n "^<hex>\."` gives the 1-indexed position; subtract 1 for skip_count
 
 ## How to Implement a New Opcode
 
@@ -156,31 +200,10 @@ Test failures look like: `[6d e 1] A mismatch: expected 19698, got 19562`
 
 ## Currently Unimplemented Opcodes
 
-These opcodes are missing from `mod.rs` and need implementation:
+**The authoritative source is `src/cpu/opcodes/mod.rs`** — check the `execute_opcode()` match for gaps (opcodes missing from the match fall through to the `_ => unimplemented` arm). The table below reflects the current state but may be stale; always verify against `mod.rs`.
 
 | Opcode | Instruction | Addressing Mode |
 |--------|------------|-----------------|
-| 0x6F | ADC | Absolute Long |
-| 0x73 | ADC | Stack Relative Indirect Indexed Y |
-| 0x77 | ADC | Direct Page Indirect Long Y |
-| 0x7F | ADC | Absolute Long X |
-| 0x83 | STA | Stack Relative |
-| 0x87 | STA | Direct Page Indirect Long |
-| 0x8F | STA | Absolute Long |
-| 0x93 | STA | Stack Relative Indirect Indexed Y |
-| 0x97 | STA | Direct Page Indirect Long Y |
-| 0x9F | STA | Absolute Long X |
-| 0xA3 | LDA | Stack Relative |
-| 0xA7 | LDA | Direct Page Indirect Long |
-| 0xAF | LDA | Absolute Long |
-| 0xB3 | LDA | Stack Relative Indirect Indexed Y |
-| 0xB7 | LDA | Direct Page Indirect Long Y |
-| 0xBF | LDA | Absolute Long X |
-| 0xC3 | CMP | Stack Relative |
-| 0xC7 | CMP | Direct Page Indirect Long |
-| 0xCF | CMP | Absolute Long |
-| 0xD3 | CMP | Stack Relative Indirect Indexed Y |
-| 0xD7 | CMP | Direct Page Indirect Long Y |
 | 0xDF | CMP | Absolute Long X |
 | 0xE3 | SBC | Stack Relative |
 | 0xE7 | SBC | Direct Page Indirect Long |

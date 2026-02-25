@@ -38,7 +38,8 @@ pub struct CpuState {
 
 #[derive(Debug, PartialEq)]
 pub struct BusCycle {
-    pub address: u32,
+    /// None for internal cycles (no bus access)
+    pub address: Option<u32>,
 
     /// Value read or written (None for internal cycles)
     pub value: Option<u8>,
@@ -51,7 +52,7 @@ impl<'de> Deserialize<'de> for BusCycle {
     where
         D: serde::Deserializer<'de>,
     {
-        let tuple: (u32, Option<u8>, String) = Deserialize::deserialize(deserializer)?;
+        let tuple: (Option<u32>, Option<u8>, String) = Deserialize::deserialize(deserializer)?;
         Ok(BusCycle {
             address: tuple.0,
             value: tuple.1,

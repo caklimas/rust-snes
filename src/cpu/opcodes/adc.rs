@@ -3,7 +3,8 @@ use crate::{
         Cpu,
         opcodes::{
             helpers::{
-                calculate_absolute_long_address, calculate_absolute_x_address,
+                calculate_absolute_long_address, calculate_absolute_long_x_address,
+                calculate_absolute_x_address,
                 calculate_direct_page_address, calculate_direct_page_x_address,
                 calculate_indirect_page_address, calculate_indirect_page_x_address,
                 calculate_indirect_page_y_address, calculate_stack_relative_address,
@@ -267,6 +268,23 @@ pub fn adc_absolute_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         let lo = bus.read(address);
         let hi = bus.read(address.wrapping_add(1));
         let value = u16::from_le_bytes([lo, hi]);
+        perform_addition_with_carry_u16(cpu, value);
+        6
+    };
+
+    increment_program_counter(cpu, 4);
+    cycles
+}
+
+pub fn adc_absolute_long_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let (_, eff_phys) = calculate_absolute_long_x_address(cpu, bus);
+
+    let cycles = if is_8bit_mode_m(cpu) {
+        let value = bus.read(eff_phys) as u16;
+        perform_addition_with_carry_u8(cpu, value);
+        5
+    } else {
+        let value = bus.read_word(eff_phys);
         perform_addition_with_carry_u16(cpu, value);
         6
     };

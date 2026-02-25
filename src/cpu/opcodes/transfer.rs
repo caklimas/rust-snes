@@ -92,7 +92,12 @@ pub fn tsx<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
 // TXS (0x9A) - Transfer X to Stack Pointer (does NOT set flags)
 // Sets the stack pointer to the value in X, used to restore a saved stack position or initialize the stack to a specific location.
 pub fn txs<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
-    cpu.registers.s = cpu.registers.x;
+    // In emulation mode the stack is always page 1 ($01xx): force high byte to 0x01
+    cpu.registers.s = if cpu.emulation_mode {
+        0x0100 | (cpu.registers.x & 0x00FF)
+    } else {
+        cpu.registers.x
+    };
 
     increment_program_counter(cpu, 1);
     2
