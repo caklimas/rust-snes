@@ -74,6 +74,12 @@ pub fn sep<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let bits_to_set = ProcessorStatus::from_bits_truncate(mask);
     cpu.registers.p.insert(bits_to_set);
 
+    // When switching to 8-bit index mode, the high bytes of X and Y are zeroed.
+    if cpu.registers.p.contains(ProcessorStatus::INDEX_WIDTH) {
+        cpu.registers.x &= 0x00FF;
+        cpu.registers.y &= 0x00FF;
+    }
+
     increment_program_counter(cpu, 2);
     3
 }

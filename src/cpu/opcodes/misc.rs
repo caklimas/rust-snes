@@ -40,12 +40,14 @@ pub fn xce<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.registers.p.set(ProcessorStatus::CARRY, old_emulation);
     cpu.emulation_mode = old_carry;
 
-    // When entering emulation mode, set M and X flags and clear high bytes
+    // When entering emulation mode, set M and X flags, clear high bytes of X/Y,
+    // and force the stack pointer into page 1 (0x01xx), matching 6502 behavior.
     if cpu.emulation_mode {
         cpu.registers.p.insert(ProcessorStatus::MEMORY_WIDTH);
         cpu.registers.p.insert(ProcessorStatus::INDEX_WIDTH);
-        cpu.registers.x &= 0xFF;
-        cpu.registers.y &= 0xFF;
+        cpu.registers.x &= 0x00FF;
+        cpu.registers.y &= 0x00FF;
+        cpu.registers.s = 0x0100 | (cpu.registers.s & 0x00FF);
     }
 
     increment_program_counter(cpu, 1);

@@ -99,11 +99,11 @@ pub fn dec_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, result);
         7
     } else {
-        let value = bus.read_word( phys);
+        let value = bus.read_word(phys);
         let result = value.wrapping_sub(1);
-        bus.write_word( phys, result);
+        bus.write_word(phys, result);
         set_nz_flags_u16(cpu, result);
-        8
+        9
     };
 
     increment_program_counter(cpu, 3);

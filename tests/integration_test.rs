@@ -20,7 +20,7 @@ fn test_json_file() {
 
     // Skip the first N files to start testing from a specific opcode.
     // Adjust this number to resume where you left off.
-    let skip_count = 406;
+    let skip_count = 0;
 
     for file in files
         .iter()

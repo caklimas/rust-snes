@@ -107,9 +107,12 @@ pub(crate) fn read_data_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16)
 }
 
 /// Read a word from data space (uses Data Bank)
+/// The high byte address is the full 24-bit physical address + 1 (can cross bank boundary).
 pub(crate) fn read_data_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
-    let lo = read_data_byte(cpu, bus, address);
-    let hi = read_data_byte(cpu, bus, address.wrapping_add(1));
+    let lo_phys = ((cpu.registers.db as u32) << 16) | (address as u32);
+    let hi_phys = lo_phys.wrapping_add(1) & 0x00FF_FFFF;
+    let lo = bus.read(lo_phys);
+    let hi = bus.read(hi_phys);
     u16::from_le_bytes([lo, hi])
 }
 
@@ -132,14 +135,12 @@ pub(crate) fn read_program_byte<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u
 }
 
 /// Write a word to data space (uses Data Bank)
+/// The high byte address is the full 24-bit physical address + 1 (can cross bank boundary).
 pub(crate) fn write_data_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16, value: u16) {
-    write_data_byte(cpu, bus, address, value as u8);
-    write_data_byte(
-        cpu,
-        bus,
-        address.wrapping_add(1),
-        ((value >> 8) & 0xFF) as u8,
-    );
+    let lo_phys = ((cpu.registers.db as u32) << 16) | (address as u32);
+    let hi_phys = lo_phys.wrapping_add(1) & 0x00FF_FFFF;
+    bus.write(lo_phys, value as u8);
+    bus.write(hi_phys, (value >> 8) as u8);
 }
 
 /// Write a byte to data space (uses Data Bank)

@@ -2,7 +2,8 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            calculate_absolute_long_address, calculate_absolute_x_address,
+            calculate_absolute_long_address, calculate_absolute_long_x_address,
+            calculate_absolute_x_address, calculate_stack_relative_address,
             calculate_absolute_y_address, calculate_direct_page_address,
             calculate_direct_page_x_address, calculate_indirect_page_address,
             calculate_indirect_page_x_address, calculate_indirect_page_y_address,
@@ -273,6 +274,43 @@ pub fn cmp_absolute_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     } else {
         let lo = bus.read(address);
         let hi = bus.read(address.wrapping_add(1));
+        let value = u16::from_le_bytes([lo, hi]);
+        perform_compare_with_carry_u16(cpu, value);
+        6
+    };
+
+    increment_program_counter(cpu, 4);
+    cycles
+}
+
+// 0xC3 - CMP Stack Relative: sr,S
+pub fn cmp_stack_relative<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let address = calculate_stack_relative_address(cpu, bus);
+
+    if is_8bit_mode_m(cpu) {
+        let value = bus.read(address as u32) as u16;
+        perform_compare_with_carry_u8(cpu, value);
+        increment_program_counter(cpu, 2);
+        4
+    } else {
+        let value = read_word_direct_page(bus, address);
+        perform_compare_with_carry_u16(cpu, value);
+        increment_program_counter(cpu, 2);
+        5
+    }
+}
+
+// 0xDF - CMP Absolute Long Indexed X: addr_long,X
+pub fn cmp_absolute_long_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let (_, effective_phys) = calculate_absolute_long_x_address(cpu, bus);
+
+    let cycles = if is_8bit_mode_m(cpu) {
+        let value = bus.read(effective_phys);
+        perform_compare_with_carry_u8(cpu, value as u16);
+        5
+    } else {
+        let lo = bus.read(effective_phys);
+        let hi = bus.read(effective_phys.wrapping_add(1));
         let value = u16::from_le_bytes([lo, hi]);
         perform_compare_with_carry_u16(cpu, value);
         6
