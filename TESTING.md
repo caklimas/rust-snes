@@ -96,10 +96,39 @@ Each JSON test file contains an array of test cases. Each test looks something l
 - Address is the **full 24-bit address** (not segmented)
 
 ### Cycles Array:
-- Each entry: `[address, value, operation]`
-- `operation`: "read" or "write"
-- Shows **every bus transaction** cycle-by-cycle
-- Length of array = total cycles the instruction took
+The `cycles` array shows **cycle-by-cycle bus activity** - every memory access during instruction execution.
+
+**Format:** Each cycle is `[address, value, operation_string]`
+- `address`: 24-bit address accessed
+- `value`: Byte value read or written
+- `operation_string`: 8-character string describing the operation
+
+**Operation String (8 characters):**
+
+Positions 1-4 - Bus Operation Type:
+- `d` = Direct page access
+- `p` = Program/opcode fetch
+- `v` = Interrupt vector read
+- `-` = Not applicable
+
+Position 5 - Read/Write:
+- `r` = Read operation
+- `w` = Write operation
+
+Positions 6-8 - CPU Status Flags:
+- `e` or `-` = Emulation mode (e=emulation, -=native)
+- `m` or `-` = Memory width (m=8-bit, -=16-bit)
+- `x` or `-` = Index width (x=8-bit, -=16-bit)
+
+**Example:**
+```json
+[387, 156, "d--w-mx-"]
+```
+- Address: 387
+- Value: 156
+- Operation: Direct page write, native mode, 8-bit memory, 8-bit index
+
+**Note:** The length of the cycles array equals the total cycles the instruction took.
 
 ## Test Execution Workflow
 

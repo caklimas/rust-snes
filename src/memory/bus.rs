@@ -4,6 +4,7 @@ use crate::memory::{
         WRAM_RANGE, WRAM_START,
     },
     cartridge::Cartridge,
+    memory_bus::MemoryBus,
     memory_region::MemoryRegion,
 };
 
@@ -68,5 +69,15 @@ impl Bus {
 
     fn write_nmi_status(&mut self, value: u8) {
         self.nmi_status_value = value;
+    }
+}
+
+impl MemoryBus for Bus {
+    fn read(&mut self, address: u32) -> u8 {
+        self.read(address)
+    }
+
+    fn write(&mut self, address: u32, value: u8) {
+        self.write(address, value)
     }
 }

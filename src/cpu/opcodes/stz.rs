@@ -2,65 +2,62 @@ use crate::{
     cpu::{
         Cpu,
         opcodes::{
-            increment_program_counter, is_8bit_mode_m, read_offset_byte, read_offset_word,
-            write_byte, write_word,
+            calculate_direct_page_address, calculate_direct_page_x_address,
+            increment_program_counter, is_8bit_mode_m, read_offset_word, write_data_byte,
+            write_data_word,
         },
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // STZ - Store Zero to Memory
 // Stores a zero value to memory. More efficient than loading zero into A and then storing.
 // Does not affect any flags.
-pub fn stz_direct(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let address = cpu.registers.d + offset;
+pub fn stz_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let address = calculate_direct_page_address(cpu, bus);
 
-    let cycles = if is_8bit_mode_m(cpu) {
-        write_byte(cpu, bus, address, 0);
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        write_data_byte(cpu, bus, address, 0);
         3
     } else {
-        write_word(cpu, bus, address, 0);
+        write_data_word(cpu, bus, address, 0);
         4
     };
+
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
 
     increment_program_counter(cpu, 2);
     cycles
 }
 
-pub fn stz_direct_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
-    let offset = read_offset_byte(cpu, bus);
-    let x_value = if cpu
-        .registers
-        .p
-        .contains(crate::cpu::processor_status::ProcessorStatus::INDEX_WIDTH)
-    {
-        cpu.registers.x & 0xFF
-    } else {
-        cpu.registers.x
-    };
-    let address = cpu.registers.d + offset + x_value;
-
-    let cycles = if is_8bit_mode_m(cpu) {
-        write_byte(cpu, bus, address, 0);
+pub fn stz_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
+    let (_, address) = calculate_direct_page_x_address(cpu, bus);
+    let mut cycles = if is_8bit_mode_m(cpu) {
+        write_data_byte(cpu, bus, address, 0);
         4
     } else {
-        write_word(cpu, bus, address, 0);
+        write_data_word(cpu, bus, address, 0);
         5
     };
 
+    if (cpu.registers.d & 0x00FF) != 0 {
+        cycles += 1;
+    }
+
     increment_program_counter(cpu, 2);
     cycles
 }
 
-pub fn stz_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn stz_absolute<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let address = read_offset_word(cpu, bus);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        write_byte(cpu, bus, address, 0);
+        write_data_byte(cpu, bus, address, 0);
         4
     } else {
-        write_word(cpu, bus, address, 0);
+        write_data_word(cpu, bus, address, 0);
         5
     };
 
@@ -68,15 +65,15 @@ pub fn stz_absolute(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
     cycles
 }
 
-pub fn stz_absolute_x(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn stz_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let base_address = read_offset_word(cpu, bus);
-    let address = base_address + cpu.registers.x;
+    let address = base_address.wrapping_add(cpu.registers.x);
 
     let cycles = if is_8bit_mode_m(cpu) {
-        write_byte(cpu, bus, address, 0);
+        write_data_byte(cpu, bus, address, 0);
         5
     } else {
-        write_word(cpu, bus, address, 0);
+        write_data_word(cpu, bus, address, 0);
         6
     };
 

@@ -4,12 +4,12 @@ use crate::{
         opcodes::{increment_program_counter, read_offset_byte},
         processor_status::ProcessorStatus,
     },
-    memory::bus::Bus,
+    memory::MemoryBus,
 };
 
 // SEC - Set Carry Flag
 // Sets the carry flag to 1. Commonly used before subtraction operations or to indicate success/true conditions.
-pub fn sec(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn sec<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.registers.p.insert(ProcessorStatus::CARRY);
     increment_program_counter(cpu, 1);
     2
@@ -17,7 +17,7 @@ pub fn sec(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 
 // CLC - Clear Carry Flag
 // Clears the carry flag to 0. Commonly used before addition operations or to indicate failure/false conditions.
-pub fn clc(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn clc<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.registers.p.remove(ProcessorStatus::CARRY);
     increment_program_counter(cpu, 1);
     2
@@ -26,7 +26,7 @@ pub fn clc(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // SEI - Set Interrupt Disable Flag
 // Sets the interrupt disable flag, preventing maskable interrupts (IRQ) from being processed.
 // Non-maskable interrupts (NMI) can still occur.
-pub fn sei(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn sei<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.registers.p.insert(ProcessorStatus::IRQ_DISABLE);
     increment_program_counter(cpu, 1);
     2
@@ -34,7 +34,7 @@ pub fn sei(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 
 // CLI - Clear Interrupt Disable Flag
 // Clears the interrupt disable flag, allowing maskable interrupts (IRQ) to be processed.
-pub fn cli(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn cli<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.registers.p.remove(ProcessorStatus::IRQ_DISABLE);
     increment_program_counter(cpu, 1);
     2
@@ -43,7 +43,7 @@ pub fn cli(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // SED - Set Decimal Mode Flag
 // Sets the decimal mode flag. In decimal mode, ADC and SBC operate on BCD (Binary Coded Decimal) values.
 // Note: The 65816 decimal mode is not fully implemented in all operations.
-pub fn sed(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn sed<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.registers.p.insert(ProcessorStatus::DECIMAL);
     increment_program_counter(cpu, 1);
     2
@@ -51,7 +51,7 @@ pub fn sed(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 
 // CLD - Clear Decimal Mode Flag
 // Clears the decimal mode flag. ADC and SBC operate on binary values (normal mode).
-pub fn cld(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn cld<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.registers.p.remove(ProcessorStatus::DECIMAL);
     increment_program_counter(cpu, 1);
     2
@@ -59,7 +59,7 @@ pub fn cld(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 
 // CLV - Clear Overflow Flag
 // Clears the overflow flag to 0. The overflow flag indicates signed arithmetic overflow.
-pub fn clv(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
+pub fn clv<B: MemoryBus>(cpu: &mut Cpu, _bus: &mut B) -> u8 {
     cpu.registers.p.remove(ProcessorStatus::OVERFLOW);
     increment_program_counter(cpu, 1);
     2
@@ -69,10 +69,16 @@ pub fn clv(cpu: &mut Cpu, _bus: &mut Bus) -> u8 {
 // Sets processor status bits according to the immediate operand.
 // Each bit in the operand that is 1 will set the corresponding flag.
 // 65816-specific instruction commonly used to switch between 8-bit and 16-bit modes.
-pub fn sep(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn sep<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let mask = read_offset_byte(cpu, bus);
-    let bits_to_set = ProcessorStatus::from_bits_truncate(mask as u8);
+    let bits_to_set = ProcessorStatus::from_bits_truncate(mask);
     cpu.registers.p.insert(bits_to_set);
+
+    // When switching to 8-bit index mode, the high bytes of X and Y are zeroed.
+    if cpu.registers.p.contains(ProcessorStatus::INDEX_WIDTH) {
+        cpu.registers.x &= 0x00FF;
+        cpu.registers.y &= 0x00FF;
+    }
 
     increment_program_counter(cpu, 2);
     3
@@ -82,10 +88,16 @@ pub fn sep(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
 // Clears processor status bits according to the immediate operand.
 // Each bit in the operand that is 1 will clear the corresponding flag.
 // 65816-specific instruction commonly used to switch between 8-bit and 16-bit modes.
-pub fn rep(cpu: &mut Cpu, bus: &mut Bus) -> u8 {
+pub fn rep<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let mask = read_offset_byte(cpu, bus);
-    let bits_to_clear = ProcessorStatus::from_bits_truncate(mask as u8);
+    let bits_to_clear = ProcessorStatus::from_bits_truncate(mask);
     cpu.registers.p.remove(bits_to_clear);
+
+    if cpu.emulation_mode {
+        cpu.registers
+            .p
+            .insert(ProcessorStatus::MEMORY_WIDTH | ProcessorStatus::INDEX_WIDTH);
+    }
 
     increment_program_counter(cpu, 2);
     3

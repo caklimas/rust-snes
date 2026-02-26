@@ -4,18 +4,18 @@ pub mod registers;
 
 pub use registers::Registers;
 
-use crate::{cpu::opcodes::execute_opcode, memory::bus::Bus};
+use crate::{cpu::opcodes::execute_opcode, memory::MemoryBus};
 
 #[derive(Debug, Default)]
 pub struct Cpu {
-    registers: Registers,
-    emulation_mode: bool,
-    waiting_for_interrupt: bool,
-    stopped: bool,
+    pub registers: Registers,
+    pub emulation_mode: bool,
+    pub waiting_for_interrupt: bool,
+    pub stopped: bool,
 }
 
 impl Cpu {
-    pub fn step(&mut self, bus: &mut Bus) -> u8 {
+    pub fn step<B: MemoryBus>(&mut self, bus: &mut B) -> u8 {
         // If CPU is stopped, do nothing
         if self.stopped {
             return 1;
@@ -26,7 +26,8 @@ impl Cpu {
             return 1;
         }
 
-        let opcode = bus.read(self.registers.pc as u32);
+        let opcode_address = ((self.registers.pb as u32) << 16) | (self.registers.pc as u32);
+        let opcode = bus.read(opcode_address);
 
         execute_opcode(self, bus, opcode)
     }
