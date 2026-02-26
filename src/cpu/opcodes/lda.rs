@@ -5,16 +5,15 @@ use crate::{
             calculate_absolute_long_address, calculate_absolute_long_x_address,
             calculate_absolute_x_address, calculate_direct_page_address,
             calculate_direct_page_x_address, calculate_indirect_page_address,
-            calculate_indirect_page_x_address,
-            calculate_indirect_page_y_address, calculate_stack_relative_address,
-            calculate_stack_relative_indirect_y_address, direct_page_low_is_zero,
-            effective_phys_stack_relative_indirect_y, increment_program_counter, is_8bit_mode_m,
-            is_8bit_mode_x, page_crossed, read_data_byte, read_data_byte_indirect_y,
-            read_data_byte_stack_relative_indirect_y, read_data_word, read_data_word_indirect_y,
-            read_data_word_stack_relative_indirect_y, read_long_pointer_direct_page,
-            read_long_pointer_direct_page_wrapped, read_offset_word, read_program_byte,
-            read_program_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
-            stack_relative_indirect_y_dummy_read,
+            calculate_indirect_page_x_address, calculate_indirect_page_y_address,
+            calculate_stack_relative_address, calculate_stack_relative_indirect_y_address,
+            direct_page_low_is_zero, effective_phys_stack_relative_indirect_y,
+            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed,
+            read_data_byte, read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y,
+            read_data_word, read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
+            read_long_pointer_direct_page, read_long_pointer_direct_page_wrapped, read_offset_word,
+            read_program_byte, read_program_word, read_word_direct_page, set_nz_flags_u8,
+            set_nz_flags_u16, stack_relative_indirect_y_dummy_read,
         },
     },
     memory::MemoryBus,
@@ -129,7 +128,7 @@ pub fn lda_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, value);
         4
     } else {
-        let value = bus.read_word( phys);
+        let value = bus.read_word(phys);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         5
@@ -158,7 +157,7 @@ pub fn lda_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, value);
         4
     } else {
-        let value = bus.read_word( phys);
+        let value = bus.read_word(phys);
         set_accumulator_u16(cpu, value);
         set_nz_flags_u16(cpu, value);
         5
@@ -317,8 +316,7 @@ pub fn lda_absolute_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 // 0xB3 - LDA Stack Relative Indirect Indexed Y: (sr,S),Y
 pub fn lda_stack_relative_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (pointer_address, base_address, _) =
-        calculate_stack_relative_indirect_y_address(cpu, bus);
+    let (pointer_address, base_address, _) = calculate_stack_relative_indirect_y_address(cpu, bus);
 
     stack_relative_indirect_y_dummy_read(cpu, bus, pointer_address);
 

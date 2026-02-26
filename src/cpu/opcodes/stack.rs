@@ -4,7 +4,7 @@ use crate::{
         opcodes::{
             StackMode, increment_program_counter, is_8bit_mode_m, is_8bit_mode_x,
             normalize_stack_pointer, pull_byte, push_byte, read_offset_byte, read_offset_word,
-            read_word_direct_page, read_word_direct_page_wrapped, set_nz_flags_u8, set_nz_flags_u16,
+            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
         },
         processor_status::ProcessorStatus,
     },
@@ -185,10 +185,16 @@ pub fn plp<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, stack_mode: StackMode) -> u
 
 // PLB (0xAB) - Pull Data Bank Register (65816 only)
 // Pulls a value from the stack into the Data Bank register. Sets N and Z flags.
-pub fn plb<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, stack_mode: StackMode) -> u8 {
-    let value = pull_byte(cpu, bus, stack_mode);
+pub fn plb<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, _stack_mode: StackMode) -> u8 {
+    // PLB is a 65816-specific op. In emulation mode, pre-normalize S to page 1,
+    // use linear 16-bit increment (may overflow to 0x02xx), then re-normalize S.
+    if cpu.emulation_mode {
+        cpu.registers.s = 0x0100 | (cpu.registers.s & 0x00FF);
+    }
+    let value = pull_byte(cpu, bus, StackMode::Linear16);
     cpu.registers.db = value;
     set_nz_flags_u8(cpu, value);
+    normalize_stack_pointer(cpu);
     increment_program_counter(cpu, 1);
     4
 }
@@ -224,8 +230,12 @@ pub fn pea<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 pub fn pei<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     let offset: u8 = read_offset_byte(cpu, bus);
     let address = cpu.registers.d.wrapping_add(offset as u16);
-    let value = read_word_direct_page_wrapped(cpu, bus, address);
+    let value = read_word_direct_page(bus, address);
 
+    // PEI is 65816-specific; pre-normalize S to page 1 in emulation mode before Linear16 pushes.
+    if cpu.emulation_mode {
+        cpu.registers.s = 0x0100 | (cpu.registers.s & 0x00FF);
+    }
     push_byte(cpu, bus, (value >> 8) as u8, StackMode::Linear16);
     push_byte(cpu, bus, (value & 0x00FF) as u8, StackMode::Linear16);
     increment_program_counter(cpu, 2);

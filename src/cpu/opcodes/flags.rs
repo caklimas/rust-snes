@@ -94,7 +94,9 @@ pub fn rep<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
     cpu.registers.p.remove(bits_to_clear);
 
     if cpu.emulation_mode {
-        cpu.registers.p.insert(ProcessorStatus::MEMORY_WIDTH | ProcessorStatus::INDEX_WIDTH);
+        cpu.registers
+            .p
+            .insert(ProcessorStatus::MEMORY_WIDTH | ProcessorStatus::INDEX_WIDTH);
     }
 
     increment_program_counter(cpu, 2);

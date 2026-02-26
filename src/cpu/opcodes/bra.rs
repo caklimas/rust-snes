@@ -17,7 +17,11 @@ pub fn bra_relative<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
     cpu.registers.pc = target;
 
-    if cpu.emulation_mode && page_crossed { 4 } else { 3 }
+    if cpu.emulation_mode && page_crossed {
+        4
+    } else {
+        3
+    }
 }
 
 // BRL (0x82) - Branch Always Long

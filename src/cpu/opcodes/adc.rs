@@ -4,17 +4,17 @@ use crate::{
         opcodes::{
             helpers::{
                 calculate_absolute_long_address, calculate_absolute_long_x_address,
-                calculate_absolute_x_address,
-                calculate_direct_page_address, calculate_direct_page_x_address,
-                calculate_indirect_page_address, calculate_indirect_page_x_address,
-                calculate_indirect_page_y_address, calculate_stack_relative_address,
-                calculate_stack_relative_indirect_y_address, direct_page_low_is_zero, get_carry_in,
-                increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed,
-                read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y,
-                read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
-                read_long_pointer_direct_page, read_long_pointer_direct_page_wrapped,
-                read_offset_byte, read_offset_word, read_word_direct_page,
-                set_nz_flags_u8, set_nz_flags_u16, stack_relative_indirect_y_dummy_read,
+                calculate_absolute_x_address, calculate_direct_page_address,
+                calculate_direct_page_x_address, calculate_indirect_page_address,
+                calculate_indirect_page_x_address, calculate_indirect_page_y_address,
+                calculate_stack_relative_address, calculate_stack_relative_indirect_y_address,
+                direct_page_low_is_zero, get_carry_in, increment_program_counter, is_8bit_mode_m,
+                is_8bit_mode_x, page_crossed, read_data_byte_indirect_y,
+                read_data_byte_stack_relative_indirect_y, read_data_word_indirect_y,
+                read_data_word_stack_relative_indirect_y, read_long_pointer_direct_page,
+                read_long_pointer_direct_page_wrapped, read_offset_byte, read_offset_word,
+                read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+                stack_relative_indirect_y_dummy_read,
             },
             read_data_byte, read_data_word,
         },
@@ -111,7 +111,7 @@ pub fn adc_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_addition_with_carry_u8(cpu, value);
         4
     } else {
-        let value = bus.read_word( phys);
+        let value = bus.read_word(phys);
         perform_addition_with_carry_u16(cpu, value);
         5
     };
@@ -136,7 +136,7 @@ pub fn adc_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_addition_with_carry_u8(cpu, value);
         4
     } else {
-        let value = bus.read_word( phys);
+        let value = bus.read_word(phys);
         perform_addition_with_carry_u16(cpu, value);
         5
     };
@@ -330,7 +330,7 @@ pub fn adc_indirect_long_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_addition_with_carry_u8(cpu, value);
         6
     } else {
-        let value = bus.read_word( phys);
+        let value = bus.read_word(phys);
         perform_addition_with_carry_u16(cpu, value);
         7
     };

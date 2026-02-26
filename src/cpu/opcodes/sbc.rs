@@ -109,7 +109,7 @@ pub fn sbc_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_subtraction_with_carry_u8(cpu, value);
         4
     } else {
-        let value = bus.read_word( phys);
+        let value = bus.read_word(phys);
         perform_subtraction_with_carry_u16(cpu, value);
         5
     };
@@ -134,7 +134,7 @@ pub fn sbc_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         perform_subtraction_with_carry_u8(cpu, value);
         4
     } else {
-        let value = bus.read_word( phys);
+        let value = bus.read_word(phys);
         perform_subtraction_with_carry_u16(cpu, value);
         5
     };

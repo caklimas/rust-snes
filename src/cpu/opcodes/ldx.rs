@@ -4,8 +4,8 @@ use crate::{
         opcodes::{
             calculate_direct_page_address, calculate_direct_page_y_address,
             increment_program_counter, is_8bit_mode_x, page_crossed, read_data_byte,
-            read_data_word, read_offset_byte, read_offset_word,
-            read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            read_data_word, read_offset_byte, read_offset_word, read_word_direct_page,
+            set_nz_flags_u8, set_nz_flags_u16,
         },
     },
     memory::MemoryBus,
@@ -122,7 +122,7 @@ pub fn ldx_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         set_nz_flags_u8(cpu, value);
         cycles = 4;
     } else {
-        let value = bus.read_word( phys);
+        let value = bus.read_word(phys);
         cpu.registers.x = value;
         set_nz_flags_u16(cpu, value);
         cycles = 5;

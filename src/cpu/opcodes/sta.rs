@@ -9,9 +9,9 @@ use crate::{
             calculate_stack_relative_indirect_y_address, direct_page_low_is_zero,
             effective_phys_indirect_y, effective_phys_stack_relative_indirect_y,
             get_x_register_value, increment_program_counter, is_8bit_mode_m, is_8bit_mode_x,
-            read_long_pointer_direct_page, read_long_pointer_direct_page_wrapped, read_program_byte,
-            stack_relative_indirect_y_dummy_read, write_byte_direct_page, write_data_byte,
-            write_data_word, write_word_direct_page,
+            read_long_pointer_direct_page, read_long_pointer_direct_page_wrapped,
+            read_program_byte, stack_relative_indirect_y_dummy_read, write_byte_direct_page,
+            write_data_byte, write_data_word, write_word_direct_page,
         },
     },
     memory::MemoryBus,
@@ -86,7 +86,7 @@ pub fn sta_absolute_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         bus.write(phys, cpu.registers.a as u8);
         5
     } else {
-        bus.write_word( phys, cpu.registers.a);
+        bus.write_word(phys, cpu.registers.a);
         6
     };
 
@@ -106,7 +106,7 @@ pub fn sta_absolute_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         bus.write(phys, cpu.registers.a as u8);
         5
     } else {
-        bus.write_word( phys, cpu.registers.a);
+        bus.write_word(phys, cpu.registers.a);
         6
     };
 
@@ -158,7 +158,7 @@ pub fn sta_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
         bus.write(phys, cpu.registers.a as u8);
         6
     } else {
-        bus.write_word( phys, cpu.registers.a);
+        bus.write_word(phys, cpu.registers.a);
         7
     };
 
@@ -225,8 +225,7 @@ pub fn sta_absolute_long<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 
 // 0x93 - STA Stack Relative Indirect Indexed Y: (sr,S),Y
 pub fn sta_stack_relative_indirect_y<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (pointer_address, base_address, _) =
-        calculate_stack_relative_indirect_y_address(cpu, bus);
+    let (pointer_address, base_address, _) = calculate_stack_relative_indirect_y_address(cpu, bus);
 
     stack_relative_indirect_y_dummy_read(cpu, bus, pointer_address);
 

@@ -38,7 +38,11 @@ pub(crate) fn read_word_direct_page<B: MemoryBus>(bus: &mut B, address: u16) -> 
 }
 
 /// Read a 16-bit word from direct page, wrapping within the page in emulation mode with DL=0
-pub(crate) fn read_word_direct_page_wrapped<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16) -> u16 {
+pub(crate) fn read_word_direct_page_wrapped<B: MemoryBus>(
+    cpu: &Cpu,
+    bus: &mut B,
+    address: u16,
+) -> u16 {
     if cpu.emulation_mode && direct_page_low_is_zero(cpu) {
         let page = address & 0xFF00;
         let lo_addr = address;
@@ -63,26 +67,13 @@ pub(crate) fn read_long_pointer_direct_page<B: MemoryBus>(bus: &mut B, dp_addr: 
 }
 
 pub(crate) fn read_long_pointer_direct_page_wrapped<B: MemoryBus>(
-    cpu: &Cpu,
+    _cpu: &Cpu,
     bus: &mut B,
     dp_base: u16,
 ) -> u32 {
-    // In emulation mode with page-aligned D (D.l == 0), SST expects DP wrapping for dp+1/dp+2
-    if cpu.emulation_mode && direct_page_low_is_zero(cpu) {
-        let page = dp_base & 0xFF00;
-        let lo_addr = dp_base;
-        let hi_addr = page | ((dp_base.wrapping_add(1)) as u8 as u16);
-        let bank_addr = page | ((dp_base.wrapping_add(2)) as u8 as u16);
-
-        let lo = bus.read(lo_addr as u32);
-        let hi = bus.read(hi_addr as u32);
-        let bank = bus.read(bank_addr as u32);
-
-        let addr16 = u16::from_le_bytes([lo, hi]);
-        ((bank as u32) << 16) | (addr16 as u32)
-    } else {
-        read_long_pointer_direct_page(bus, dp_base)
-    }
+    // 3-byte long pointer reads never apply page wrapping, even in emulation mode with DL=0.
+    // Page wrapping only applies to 2-byte (16-bit) indirect pointer reads.
+    read_long_pointer_direct_page(bus, dp_base)
 }
 
 pub(crate) fn calculate_absolute_x_physical_address<B: MemoryBus>(
@@ -115,7 +106,6 @@ pub(crate) fn read_data_word<B: MemoryBus>(cpu: &Cpu, bus: &mut B, address: u16)
     let hi = bus.read(hi_phys);
     u16::from_le_bytes([lo, hi])
 }
-
 
 /// Write a byte to direct page (bank 0)
 pub(crate) fn write_byte_direct_page<B: MemoryBus>(bus: &mut B, address: u16, value: u8) {
