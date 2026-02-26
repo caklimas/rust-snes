@@ -7,13 +7,13 @@ use crate::{
             calculate_direct_page_x_address, calculate_indirect_page_address,
             calculate_indirect_page_x_address, calculate_indirect_page_y_address,
             calculate_stack_relative_address, calculate_stack_relative_indirect_y_address,
-            direct_page_low_is_zero, effective_phys_stack_relative_indirect_y,
-            increment_program_counter, is_8bit_mode_m, is_8bit_mode_x, page_crossed,
-            read_data_byte, read_data_byte_indirect_y, read_data_byte_stack_relative_indirect_y,
-            read_data_word, read_data_word_indirect_y, read_data_word_stack_relative_indirect_y,
-            read_long_pointer_direct_page, read_long_pointer_direct_page_wrapped, read_offset_word,
-            read_program_byte, read_program_word, read_word_direct_page, set_nz_flags_u8,
-            set_nz_flags_u16, stack_relative_indirect_y_dummy_read,
+            direct_page_low_is_zero, increment_program_counter, is_8bit_mode_m, is_8bit_mode_x,
+            page_crossed, read_data_byte, read_data_byte_indirect_y,
+            read_data_byte_stack_relative_indirect_y, read_data_word, read_data_word_indirect_y,
+            read_data_word_stack_relative_indirect_y, read_long_pointer_direct_page,
+            read_long_pointer_direct_page_wrapped, read_offset_word, read_program_byte,
+            read_program_word, read_word_direct_page, set_nz_flags_u8, set_nz_flags_u16,
+            stack_relative_indirect_y_dummy_read,
         },
     },
     memory::MemoryBus,
@@ -51,7 +51,7 @@ pub fn lda_direct<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
 // LDA (0xB5) - Direct Page Indexed by X
 // Loads from memory at (Direct Page + offset + X).
 pub fn lda_direct_x<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B) -> u8 {
-    let (base_address, target_address) = calculate_direct_page_x_address(cpu, bus);
+    let (_, target_address) = calculate_direct_page_x_address(cpu, bus);
     let mut cycles = if is_8bit_mode_m(cpu) {
         let value = bus.read(target_address as u32);
         set_accumulator_u8(cpu, value);

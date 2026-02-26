@@ -365,7 +365,7 @@ fn perform_addition_with_carry_u8(cpu: &mut Cpu, value: u16) {
 
         // V flag is computed from the intermediate result: after low nibble
         // correction but before high nibble correction (matches 65C816 behavior)
-        let intermediate = ((hi | (lo & 0x000F)) & 0x00FF) as u16;
+        let intermediate = (hi | (lo & 0x000F)) & 0x00FF;
         set_v_flag_u8(cpu, a, intermediate, v);
 
         if hi > 0x0090 {

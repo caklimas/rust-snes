@@ -320,13 +320,5 @@ pub fn execute_opcode<B: MemoryBus>(cpu: &mut Cpu, bus: &mut B, opcode: u8) -> u
         0xFD => sbc::sbc_absolute_x(cpu, bus),
         0xFE => inc::inc_absolute_x(cpu, bus),
         0xFF => sbc::sbc_absolute_long_x(cpu, bus),
-
-        _ => {
-            println!(
-                "Unimplemented opcode: 0x{:02X} at PC: 0x{:04X}",
-                opcode, cpu.registers.pc
-            );
-            std::process::exit(1);
-        }
     }
 }
