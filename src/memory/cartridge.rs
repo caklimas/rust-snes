@@ -45,10 +45,10 @@ impl Cartridge {
             return self.sram.read(&sram_addr);
         }
 
-        if let Some(file_offset) = Self::lorom_file_offset(bank, offset) {
-            if file_offset < self.data.len() {
-                return self.data[file_offset];
-            }
+        if let Some(file_offset) = Self::lorom_file_offset(bank, offset)
+            && file_offset < self.data.len()
+        {
+            return self.data[file_offset];
         }
 
         0
@@ -69,10 +69,10 @@ impl Cartridge {
             return self.sram.read(&sram_addr);
         }
 
-        if let Some(file_offset) = Self::hirom_file_offset(bank, offset) {
-            if file_offset < self.data.len() {
-                return self.data[file_offset];
-            }
+        if let Some(file_offset) = Self::hirom_file_offset(bank, offset)
+            && file_offset < self.data.len()
+        {
+            return self.data[file_offset];
         }
 
         0
