@@ -1,7 +1,6 @@
 use crate::memory::{
     addresses::{
-        APU_REGISTERS_RANGE, CARTRIDGE_ROM_RANGE, NMI_STATUS_REGISTER, PPU_REGISTERS_RANGE,
-        WRAM_RANGE, WRAM_START,
+        APU_REGISTERS_RANGE, NMI_STATUS_REGISTER, PPU_REGISTERS_RANGE, WRAM_RANGE, WRAM_START,
     },
     cartridge::Cartridge,
     memory_bus::MemoryBus,
@@ -35,14 +34,7 @@ impl Bus {
                 // APU register access
                 0
             }
-            addr if CARTRIDGE_ROM_RANGE.contains(&addr) => {
-                // Cartridge ROM access
-                0
-            }
-            _ => {
-                // Unknown/unmapped address
-                0
-            }
+            _ => self.cartridge.read(address),
         }
     }
 
@@ -52,8 +44,7 @@ impl Bus {
             addr if WRAM_RANGE.contains(&addr) => self.wram.write(&address, value),
             addr if PPU_REGISTERS_RANGE.contains(&addr) => {}
             addr if APU_REGISTERS_RANGE.contains(&addr) => {}
-            addr if CARTRIDGE_ROM_RANGE.contains(&addr) => {}
-            _ => {}
+            _ => self.cartridge.write(address, value),
         }
     }
 

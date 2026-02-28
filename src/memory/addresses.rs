@@ -31,3 +31,17 @@ pub const APU_REGISTERS_RANGE: RangeInclusive<u32> = APU_REGISTERS_START..=APU_R
 pub const CARTRIDGE_ROM_START: u32 = 0x008000;
 pub const CARTRIDGE_ROM_END: u32 = 0x00FFFF;
 pub const CARTRIDGE_ROM_RANGE: RangeInclusive<u32> = CARTRIDGE_ROM_START..=CARTRIDGE_ROM_END;
+
+// Reset vectors
+pub const RESET_VECTOR_LO: u32 = 0x00FFFC;
+pub const RESET_VECTOR_HI: u32 = 0x00FFFD;
+
+// Cartridge SRAM - LoROM: $70:0000–$77:FFFF
+pub const LOROM_SRAM_START: u32 = 0x700000;
+pub const LOROM_SRAM_END: u32 = 0x77FFFF;
+pub const LOROM_SRAM_RANGE: RangeInclusive<u32> = LOROM_SRAM_START..=LOROM_SRAM_END;
+
+// Cartridge SRAM - HiROM: $20:6000–$3F:7FFF
+pub const HIROM_SRAM_START: u32 = 0x206000;
+pub const HIROM_SRAM_END: u32 = 0x3F7FFF;
+pub const HIROM_SRAM_RANGE: RangeInclusive<u32> = HIROM_SRAM_START..=HIROM_SRAM_END;
