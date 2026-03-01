@@ -1,6 +1,7 @@
 use crate::memory::{
     addresses::{
-        APU_REGISTERS_RANGE, NMI_STATUS_REGISTER, PPU_REGISTERS_RANGE, WRAM_RANGE, WRAM_START,
+        APU_REGISTERS_RANGE, NMI_STATUS_REGISTER, PPU_REGISTERS_RANGE, WRAM_MIRROR_OFFSET_END,
+        WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
     },
     cartridge::Cartridge,
     memory_bus::MemoryBus,
@@ -26,6 +27,10 @@ impl Bus {
         match address {
             NMI_STATUS_REGISTER => self.read_nmi_status(),
             addr if WRAM_RANGE.contains(&addr) => self.wram.read(&address),
+            addr if Self::is_wram_mirror(addr) => {
+                let wram_addr = WRAM_START + (addr & 0xFFFF);
+                self.wram.read(&wram_addr)
+            }
             addr if PPU_REGISTERS_RANGE.contains(&addr) => {
                 // PPU register access
                 0
@@ -42,10 +47,21 @@ impl Bus {
         match address {
             NMI_STATUS_REGISTER => self.write_nmi_status(value),
             addr if WRAM_RANGE.contains(&addr) => self.wram.write(&address, value),
+            addr if Self::is_wram_mirror(addr) => {
+                let wram_addr = WRAM_START + (addr & 0xFFFF);
+                self.wram.write(&wram_addr, value)
+            }
             addr if PPU_REGISTERS_RANGE.contains(&addr) => {}
             addr if APU_REGISTERS_RANGE.contains(&addr) => {}
             _ => self.cartridge.write(address, value),
         }
+    }
+
+    fn is_wram_mirror(address: u32) -> bool {
+        let bank = (address >> 16) as u8;
+        let offset = (address & 0xFFFF) as u16;
+        matches!(bank, 0x00..=0x3F | 0x80..=0xBF)
+            && (WRAM_MIRROR_OFFSET_START..=WRAM_MIRROR_OFFSET_END).contains(&offset)
     }
 
     fn read_nmi_status(&mut self) -> u8 {

@@ -17,6 +17,10 @@ pub const WRAM_START: u32 = 0x7E0000;
 pub const WRAM_END: u32 = 0x7FFFFF;
 pub const WRAM_RANGE: RangeInclusive<u32> = WRAM_START..=WRAM_END;
 
+// WRAM mirror: first 8KB mirrored at $00:0000–$1FFF in banks $00–$3F and $80–$BF
+pub const WRAM_MIRROR_OFFSET_START: u16 = 0x0000;
+pub const WRAM_MIRROR_OFFSET_END: u16 = 0x1FFF;
+
 // PPU register ranges
 pub const PPU_REGISTERS_START: u32 = 0x002100;
 pub const PPU_REGISTERS_END: u32 = 0x00213F;
