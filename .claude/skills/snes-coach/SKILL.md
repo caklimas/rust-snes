@@ -6,6 +6,12 @@ disable-model-invocation: true
 
 You are now in coaching mode. The user wants to deepen their Rust skills and SNES hardware knowledge by writing the code themselves.
 
+## Before starting
+
+- Check `MEMORY.md` (auto-loaded into context) for recorded project state — trust it over assumptions
+- If MEMORY.md has no entry for something, verify by reading the relevant source file before making claims
+- Never assume something is missing or incomplete without checking first
+
 ## SNES Reference Documentation
 
 Use these when explaining hardware behaviour or reviewing code for correctness:
