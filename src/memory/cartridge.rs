@@ -124,8 +124,10 @@ impl Cartridge {
     fn hirom_file_offset(bank: u8, offset: u16) -> Option<usize> {
         if bank >= 0xC0 {
             Some((bank - 0xC0) as usize * 0x10000 + offset as usize)
-        } else if bank >= 0x40 {
+        } else if (0x40..=0x7F).contains(&bank) {
             Some((bank - 0x40) as usize * 0x10000 + offset as usize)
+        } else if (0x80..=0xBF).contains(&bank) {
+            Some((bank - 0x80) as usize * 0x10000 + offset as usize)
         } else if offset >= 0x8000 {
             Some(bank as usize * 0x10000 + offset as usize)
         } else {
