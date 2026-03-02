@@ -11,9 +11,6 @@ fn test_json_file() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("external/SingleStepTests/v1");
     let entries = fs::read_dir(root).unwrap();
     let mut files: Vec<_> = entries.filter_map(|entry| entry.ok()).collect();
-
-    // 3. Sort the vector of entries by their path.
-    // The `sort_by_key` method is an efficient way to sort based on a specific field.
     files.sort_by_key(|entry| entry.file_name());
 
     // 44.e/n and 54.e/n (MVN/MVP) are skipped because the test fixtures are

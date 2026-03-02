@@ -6,12 +6,23 @@ pub use registers::Registers;
 
 use crate::{cpu::opcodes::execute_opcode, memory::MemoryBus};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Cpu {
     pub registers: Registers,
     pub emulation_mode: bool,
     pub waiting_for_interrupt: bool,
     pub stopped: bool,
+}
+
+impl Default for Cpu {
+    fn default() -> Self {
+        Self {
+            registers: Registers::default(),
+            emulation_mode: true,
+            waiting_for_interrupt: false,
+            stopped: false,
+        }
+    }
 }
 
 impl Cpu {
