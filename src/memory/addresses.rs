@@ -58,6 +58,12 @@ pub const CPU_IO_START: u32 = 0x004200;
 pub const CPU_IO_END: u32 = 0x005FFF;
 pub const CPU_IO_RANGE: RangeInclusive<u32> = CPU_IO_START..=CPU_IO_END;
 
+// DMA
+pub const MDMAEN: u32 = 0x00420B;
+pub const DMA_REGISTERS_START: u32 = 0x004300;
+pub const DMA_REGISTERS_END: u32 = 0x00437F;
+pub const DMA_REGISTERS_RANGE: RangeInclusive<u32> = DMA_REGISTERS_START..=DMA_REGISTERS_END;
+
 // Cartridge ROM (LoROM example)
 pub const CARTRIDGE_ROM_START: u32 = 0x008000;
 pub const CARTRIDGE_ROM_END: u32 = 0x00FFFF;
