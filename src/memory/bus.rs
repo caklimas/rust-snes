@@ -4,14 +4,16 @@ use crate::memory::{
     addresses::{
         APU_REGISTERS_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, MDMAEN, NMI_STATUS_REGISTER,
         PPU_REGISTERS_RANGE, PPU_REGISTERS_START, UNUSED_IO_GAP_RANGE, UNUSED_UPPER_GAP_RANGE,
-        WMADDH, WMADDL, WMADDM, WMDATA, WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START,
-        WRAM_RANGE, WRAM_START,
+        VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL, WMADDH, WMADDL, WMADDM, WMDATA,
+        WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
     },
     cartridge::Cartridge,
     dma_channel::DmaChannel,
     memory_bus::MemoryBus,
     memory_region::MemoryRegion,
     nmi_status::NmiStatus,
+    vmain::Vmain,
+    vram::Vram,
     wram_access_address::WramAccessAddress,
 };
 
@@ -23,6 +25,7 @@ pub struct Bus {
     cartridge: Cartridge,
     dma_channels: [DmaChannel; 8],
     nmi_status: NmiStatus,
+    vram: Vram,
     wram: MemoryRegion,
     wram_access_address: WramAccessAddress,
 }
@@ -33,6 +36,7 @@ impl Bus {
             cartridge: Cartridge::new(data),
             dma_channels: [Default::default(); 8],
             nmi_status: Default::default(),
+            vram: Default::default(),
             wram: MemoryRegion::new(vec![0; 131072], WRAM_START),
             wram_access_address: WramAccessAddress::default(),
         }
@@ -74,6 +78,11 @@ impl Bus {
         let normalized_address = Self::normalize_address(address);
         match normalized_address {
             addr if UNUSED_IO_GAP_RANGE.contains(&addr) => {}
+            VMAIN => self.vram.vmain = Vmain(value),
+            VMADDL => self.vram.set_address_lo(value),
+            VMADDH => self.vram.set_address_hi(value),
+            VMDATAL => self.vram.write_data_lo(value),
+            VMDATAH => self.vram.write_data_hi(value),
             WMDATA => {
                 self.wram.write(&self.get_wram_access_address(), value);
                 self.increment_wram_access_address();
