@@ -36,6 +36,24 @@ pub const APU_REGISTERS_START: u32 = 0x002140;
 pub const APU_REGISTERS_END: u32 = 0x00217F;
 pub const APU_REGISTERS_RANGE: RangeInclusive<u32> = APU_REGISTERS_START..=APU_REGISTERS_END;
 
+// OAM
+pub const OAMADD_LO: u32 = 0x002102;
+pub const OAMADD_HI: u32 = 0x002103;
+pub const OAMDATA: u32 = 0x002104;
+pub const OAMDATAREAD: u32 = 0x002138;
+
+// VRAM
+pub const VMAIN: u32 = 0x002115;
+pub const VMADDL: u32 = 0x002116;
+pub const VMADDH: u32 = 0x002117;
+pub const VMDATAL: u32 = 0x002118;
+pub const VMDATAH: u32 = 0x002119;
+
+// CGRAM
+pub const CGADD: u32 = 0x002121;
+pub const CGDATA: u32 = 0x002122;
+pub const CGDATAREAD: u32 = 0x00213B;
+
 // WRAM access ports
 pub const WMDATA: u32 = 0x002180;
 pub const WMADDL: u32 = 0x002181;
