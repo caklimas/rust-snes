@@ -31,10 +31,7 @@ pub const PPU_REGISTERS_START: u32 = 0x002100;
 pub const PPU_REGISTERS_END: u32 = 0x00213F;
 pub const PPU_REGISTERS_RANGE: RangeInclusive<u32> = PPU_REGISTERS_START..=PPU_REGISTERS_END;
 
-// APU register ranges
-pub const APU_REGISTERS_START: u32 = 0x002140;
-pub const APU_REGISTERS_END: u32 = 0x00217F;
-pub const APU_REGISTERS_RANGE: RangeInclusive<u32> = APU_REGISTERS_START..=APU_REGISTERS_END;
+pub const INIDISP: u32 = 0x002100;
 
 // OAM
 pub const OAMADD_LO: u32 = 0x002102;
@@ -53,6 +50,11 @@ pub const VMDATAH: u32 = 0x002119;
 pub const CGADD: u32 = 0x002121;
 pub const CGDATA: u32 = 0x002122;
 pub const CGDATAREAD: u32 = 0x00213B;
+
+// APU register ranges
+pub const APU_REGISTERS_START: u32 = 0x002140;
+pub const APU_REGISTERS_END: u32 = 0x00217F;
+pub const APU_REGISTERS_RANGE: RangeInclusive<u32> = APU_REGISTERS_START..=APU_REGISTERS_END;
 
 // WRAM access ports
 pub const WMDATA: u32 = 0x002180;

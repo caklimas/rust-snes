@@ -1,23 +1,21 @@
 use std::ops::RangeInclusive;
 
-use crate::memory::{
-    addresses::{
-        APU_REGISTERS_RANGE, CGADD, CGDATA, CGDATAREAD, DMA_REGISTERS_RANGE, DMA_REGISTERS_START,
-        MDMAEN, NMI_STATUS_REGISTER, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD,
-        PPU_REGISTERS_RANGE, PPU_REGISTERS_START, UNUSED_IO_GAP_RANGE, UNUSED_UPPER_GAP_RANGE,
-        VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL, WMADDH, WMADDL, WMADDM, WMDATA,
-        WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
+use crate::{
+    memory::{
+        addresses::{
+            APU_REGISTERS_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, MDMAEN,
+            NMI_STATUS_REGISTER, PPU_REGISTERS_RANGE, PPU_REGISTERS_START, UNUSED_IO_GAP_RANGE,
+            UNUSED_UPPER_GAP_RANGE, WMADDH, WMADDL, WMADDM, WMDATA, WRAM_MIRROR_OFFSET_END,
+            WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
+        },
+        cartridge::Cartridge,
+        dma_channel::DmaChannel,
+        memory_bus::MemoryBus,
+        memory_region::MemoryRegion,
+        nmi_status::NmiStatus,
+        wram_access_address::WramAccessAddress,
     },
-    cartridge::Cartridge,
-    cg_ram::Cgram,
-    dma_channel::DmaChannel,
-    memory_bus::MemoryBus,
-    memory_region::MemoryRegion,
-    nmi_status::NmiStatus,
-    oam::Oam,
-    vmain::Vmain,
-    vram::Vram,
-    wram_access_address::WramAccessAddress,
+    ppu::Ppu,
 };
 
 const SYSTEM_MIRROR_BANK_RANGE: RangeInclusive<u8> = 0x80..=0xBF;
@@ -26,11 +24,9 @@ const WRAM_ACCESS_MASK: u32 = 0x1FFFF;
 
 pub struct Bus {
     cartridge: Cartridge,
-    cgram: Cgram,
     dma_channels: [DmaChannel; 8],
     nmi_status: NmiStatus,
-    oam: Oam,
-    vram: Vram,
+    ppu: Ppu,
     wram: MemoryRegion,
     wram_access_address: WramAccessAddress,
 }
@@ -39,11 +35,9 @@ impl Bus {
     pub fn new(data: Vec<u8>) -> Self {
         Self {
             cartridge: Cartridge::new(data),
-            cgram: Default::default(),
             dma_channels: [Default::default(); 8],
             nmi_status: Default::default(),
-            oam: Default::default(),
-            vram: Default::default(),
+            ppu: Default::default(),
             wram: MemoryRegion::new(vec![0; 131072], WRAM_START),
             wram_access_address: WramAccessAddress::default(),
         }
@@ -53,13 +47,6 @@ impl Bus {
         let normalized_address = Self::normalize_address(address);
         match normalized_address {
             addr if UNUSED_IO_GAP_RANGE.contains(&addr) => 0,
-            OAMADD_LO => 0,
-            OAMADD_HI => 0,
-            OAMDATA => 0,
-            OAMDATAREAD => self.oam.read_oamdata(),
-            CGADD => 0,
-            CGDATA => 0,
-            CGDATAREAD => self.cgram.read_cgdata(),
             WMDATA => {
                 let value = self.wram.read(&self.get_wram_access_address());
                 self.increment_wram_access_address();
@@ -76,10 +63,7 @@ impl Bus {
                 let wram_addr = WRAM_START + (addr & 0xFFFF);
                 self.wram.read(&wram_addr)
             }
-            addr if PPU_REGISTERS_RANGE.contains(&addr) => {
-                // PPU register access
-                0
-            }
+            addr if PPU_REGISTERS_RANGE.contains(&addr) => self.ppu.read(addr),
             addr if APU_REGISTERS_RANGE.contains(&addr) => {
                 // APU register access
                 0
@@ -92,18 +76,6 @@ impl Bus {
         let normalized_address = Self::normalize_address(address);
         match normalized_address {
             addr if UNUSED_IO_GAP_RANGE.contains(&addr) => {}
-            OAMADD_LO => self.oam.set_oamadd(value, true),
-            OAMADD_HI => self.oam.set_oamadd(value, false),
-            OAMDATA => self.oam.write_oamdata(value),
-            OAMDATAREAD => {}
-            VMAIN => self.vram.vmain = Vmain(value),
-            VMADDL => self.vram.set_address_lo(value),
-            VMADDH => self.vram.set_address_hi(value),
-            VMDATAL => self.vram.write_data_lo(value),
-            VMDATAH => self.vram.write_data_hi(value),
-            CGADD => self.cgram.write_cgadd(value),
-            CGDATA => self.cgram.write_cgdata(value),
-            CGDATAREAD => {}
             WMDATA => {
                 self.wram.write(&self.get_wram_access_address(), value);
                 self.increment_wram_access_address();
@@ -158,7 +130,9 @@ impl Bus {
                 let wram_addr = WRAM_START + (addr & 0xFFFF);
                 self.wram.write(&wram_addr, value)
             }
-            addr if PPU_REGISTERS_RANGE.contains(&addr) => {}
+            addr if PPU_REGISTERS_RANGE.contains(&addr) => {
+                self.ppu.write(normalized_address, value)
+            }
             addr if APU_REGISTERS_RANGE.contains(&addr) => {}
             _ => self.cartridge.write(address, value),
         }

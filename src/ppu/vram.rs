@@ -1,4 +1,4 @@
-use crate::memory::vmain::Vmain;
+use crate::ppu::vmain::Vmain;
 
 pub struct Vram {
     pub vmain: Vmain,
