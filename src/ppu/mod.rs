@@ -2,12 +2,13 @@ use crate::{
     memory::addresses::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
         BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGDATA, CGDATAREAD, INIDISP, OAMADD_HI,
-        OAMADD_LO, OAMDATA, OAMDATAREAD, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL,
+        OAMADD_LO, OAMDATA, OAMDATAREAD, SETINI, TM, TS, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL,
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_tilemap::BgTilemap,
         bg_vertical_offset::BgVerticalOffset, cgram::Cgram, display::Display, oam::Oam,
-        tile_graphic_base_address::TileGraphicBaseAddress, vmain::Vmain, vram::Vram,
+        screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
+        tile_graphic_base_address::TileGraphicBaseAddress, vram::Vram,
     },
 };
 
@@ -18,6 +19,8 @@ pub mod bg_vertical_offset;
 pub mod cgram;
 pub mod display;
 pub mod oam;
+pub mod screen_designation;
+pub mod screen_setting;
 pub mod tile_graphic_base_address;
 pub mod vmain;
 pub mod vram;
@@ -34,7 +37,10 @@ pub struct Ppu {
     bg_old: u8,
     cgram: Cgram,
     display: Display,
+    main_screen_designation: ScreenDesignation,
     oam: Oam,
+    screen_setting: ScreenSetting,
+    sub_screen_designation: ScreenDesignation,
     tile_graphic12: TileGraphicBaseAddress,
     tile_graphic34: TileGraphicBaseAddress,
     vram: Vram,
@@ -56,17 +62,17 @@ impl Ppu {
 
     pub fn write(&mut self, address: u32, value: u8) {
         match address {
-            INIDISP => self.display = Display(value),
+            INIDISP => self.display.0 = value,
             OAMADD_LO => self.oam.set_oamadd(value, true),
             OAMADD_HI => self.oam.set_oamadd(value, false),
             OAMDATA => self.oam.write_oamdata(value),
-            BGMODE => self.bg_mode = BgMode(value),
-            BG1SC => self.bg1 = BgTilemap(value),
-            BG2SC => self.bg2 = BgTilemap(value),
-            BG3SC => self.bg3 = BgTilemap(value),
-            BG4SC => self.bg4 = BgTilemap(value),
-            BG12NBA => self.tile_graphic12 = TileGraphicBaseAddress(value),
-            BG34NBA => self.tile_graphic34 = TileGraphicBaseAddress(value),
+            BGMODE => self.bg_mode.0 = value,
+            BG1SC => self.bg1.0 = value,
+            BG2SC => self.bg2.0 = value,
+            BG3SC => self.bg3.0 = value,
+            BG4SC => self.bg4.0 = value,
+            BG12NBA => self.tile_graphic12.0 = value,
+            BG34NBA => self.tile_graphic34.0 = value,
             BG1HOFS => self.set_horizontal_offset(1, value),
             BG1VOFS => self.set_vertical_offset(1, value),
             BG2HOFS => self.set_horizontal_offset(2, value),
@@ -75,8 +81,11 @@ impl Ppu {
             BG3VOFS => self.set_vertical_offset(3, value),
             BG4HOFS => self.set_horizontal_offset(4, value),
             BG4VOFS => self.set_vertical_offset(4, value),
+            TM => self.main_screen_designation.0 = value,
+            TS => self.sub_screen_designation.0 = value,
+            SETINI => self.screen_setting.0 = value,
             OAMDATAREAD => {}
-            VMAIN => self.vram.vmain = Vmain(value),
+            VMAIN => self.vram.vmain.0 = value,
             VMADDL => self.vram.set_address_lo(value),
             VMADDH => self.vram.set_address_hi(value),
             VMDATAL => self.vram.write_data_lo(value),

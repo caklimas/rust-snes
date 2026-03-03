@@ -51,6 +51,11 @@ pub const BG3VOFS: u32 = 0x002112;
 pub const BG4HOFS: u32 = 0x002113;
 pub const BG4VOFS: u32 = 0x002114;
 
+pub const TM: u32 = 0x00212C;
+pub const TS: u32 = 0x00212D;
+
+pub const SETINI: u32 = 0x002133;
+
 // OAM
 pub const OAMADD_LO: u32 = 0x002102;
 pub const OAMADD_HI: u32 = 0x002103;
