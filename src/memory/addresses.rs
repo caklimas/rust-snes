@@ -32,6 +32,24 @@ pub const PPU_REGISTERS_END: u32 = 0x00213F;
 pub const PPU_REGISTERS_RANGE: RangeInclusive<u32> = PPU_REGISTERS_START..=PPU_REGISTERS_END;
 
 pub const INIDISP: u32 = 0x002100;
+pub const BGMODE: u32 = 0x002105;
+
+pub const BG1SC: u32 = 0x002107;
+pub const BG2SC: u32 = 0x002108;
+pub const BG3SC: u32 = 0x002109;
+pub const BG4SC: u32 = 0x00210A;
+
+pub const BG12NBA: u32 = 0x00210B;
+pub const BG34NBA: u32 = 0x00210C;
+
+pub const BG1HOFS: u32 = 0x00210D;
+pub const BG1VOFS: u32 = 0x00210E;
+pub const BG2HOFS: u32 = 0x00210F;
+pub const BG2VOFS: u32 = 0x002110;
+pub const BG3HOFS: u32 = 0x002111;
+pub const BG3VOFS: u32 = 0x002112;
+pub const BG4HOFS: u32 = 0x002113;
+pub const BG4VOFS: u32 = 0x002114;
 
 // OAM
 pub const OAMADD_LO: u32 = 0x002102;
