@@ -25,7 +25,6 @@ pub mod tile_graphic_base_address;
 pub mod vmain;
 pub mod vram;
 
-#[derive(Default)]
 pub struct Ppu {
     bg1: BgTilemap,
     bg2: BgTilemap,
@@ -37,6 +36,7 @@ pub struct Ppu {
     bg_old: u8,
     cgram: Cgram,
     display: Display,
+    frame_buffer: [u16; 57344],
     main_screen_designation: ScreenDesignation,
     oam: Oam,
     screen_setting: ScreenSetting,
@@ -133,5 +133,30 @@ impl Ppu {
         }
 
         self.bg_old = value;
+    }
+}
+
+impl Default for Ppu {
+    fn default() -> Self {
+        Self {
+            bg1: Default::default(),
+            bg2: Default::default(),
+            bg3: Default::default(),
+            bg4: Default::default(),
+            bg_horizontal_offset: Default::default(),
+            bg_vertical_offset: Default::default(),
+            bg_mode: Default::default(),
+            bg_old: Default::default(),
+            cgram: Default::default(),
+            display: Default::default(),
+            frame_buffer: [0; 57344],
+            main_screen_designation: Default::default(),
+            oam: Default::default(),
+            screen_setting: Default::default(),
+            sub_screen_designation: Default::default(),
+            tile_graphic12: Default::default(),
+            tile_graphic34: Default::default(),
+            vram: Default::default(),
+        }
     }
 }
