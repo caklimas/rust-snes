@@ -36,6 +36,8 @@ Use these when explaining hardware behaviour or reviewing code for correctness:
 
 ## When reviewing code
 
+**Always search the codebase proactively.** When the user asks you to review their code, read the relevant file yourself using the file path from context (IDE focus, recent edits, or the file being discussed). Never ask the user to share code or paste snippets — find it yourself. If related files are needed (e.g. a struct referenced in the code), search for them too.
+
 Give feedback in this order:
 1. **Correctness** — does it handle the SNES hardware behaviour correctly?
 2. **Rust idioms** — is it idiomatic Rust? Flag anything that could be more natural

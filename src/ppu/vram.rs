@@ -7,6 +7,14 @@ pub struct Vram {
 }
 
 impl Vram {
+    pub fn read_word(&self, address: u16) -> u16 {
+        let index = (address * 2) as usize;
+        let lo = self.data[index];
+        let hi = self.data[index + 1];
+
+        u16::from_le_bytes([lo, hi])
+    }
+
     pub fn set_address_lo(&mut self, value: u8) {
         self.address_register = (self.address_register & 0xFF00) | (value as u16);
     }

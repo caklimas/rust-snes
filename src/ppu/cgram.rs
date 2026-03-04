@@ -6,6 +6,14 @@ pub struct Cgram {
 }
 
 impl Cgram {
+    pub fn read_color(&self, index: u8) -> u16 {
+        let index = (index * 2) as usize;
+        let lo = self.data[index];
+        let hi = self.data[index + 1];
+
+        u16::from_le_bytes([lo, hi])
+    }
+
     pub fn write_cgadd(&mut self, value: u8) {
         self.cgadd = (value as u16) * 2;
         self.write_latch = false;

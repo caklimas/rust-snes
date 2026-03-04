@@ -8,7 +8,7 @@ use crate::{
         bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_tilemap::BgTilemap,
         bg_vertical_offset::BgVerticalOffset, cgram::Cgram, display::Display, oam::Oam,
         screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
-        tile_graphic_base_address::TileGraphicBaseAddress, vram::Vram,
+        tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
     },
 };
 
@@ -22,6 +22,7 @@ pub mod oam;
 pub mod screen_designation;
 pub mod screen_setting;
 pub mod tile_graphic_base_address;
+pub mod tilemap_entry;
 pub mod vmain;
 pub mod vram;
 
@@ -36,7 +37,7 @@ pub struct Ppu {
     bg_old: u8,
     cgram: Cgram,
     display: Display,
-    frame_buffer: [u16; 57344],
+    frame_buffer: [u16; 256 * 244],
     main_screen_designation: ScreenDesignation,
     oam: Oam,
     screen_setting: ScreenSetting,
@@ -47,6 +48,50 @@ pub struct Ppu {
 }
 
 impl Ppu {
+    pub fn render_scanline(&mut self, y: u16) {
+        for x in 0u16..256 {
+            let index = ((y * 256) + x) as usize;
+            if self.display.forced_blank() {
+                self.frame_buffer[index] = 0;
+                continue;
+            }
+
+            let x_offset = x + self.bg_horizontal_offset.bg1_offset;
+            let y_offset = y + self.bg_vertical_offset.bg1_offset;
+
+            let tile_x = x_offset / 8;
+            let tile_y = y_offset / 8;
+
+            let pixel_x_within_tile = x_offset % 8;
+            let pixel_y_within_tile = y_offset % 8;
+
+            let tilemap_width = self.bg1.get_tilemap_width();
+            let tilemap_height = self.bg1.get_tilemap_height();
+
+            let entry_address = self.bg1.get_vram_word_address()
+                + (tile_y % tilemap_height) * tilemap_width
+                + (tile_x % tilemap_width);
+
+            let tilemap_entry = TilemapEntry(self.vram.read_word(entry_address));
+            let char_base = self.tile_graphic12.first_vram_word_address();
+            let tile_base = char_base + tilemap_entry.tile_number() * 16;
+
+            let bitplane_01_address = tile_base + pixel_y_within_tile * 2;
+            let bitplane_23_address = tile_base + 8 + pixel_y_within_tile * 2;
+
+            let bitplane_01 = self.vram.read_word(bitplane_01_address);
+            let bitplane_23 = self.vram.read_word(bitplane_23_address);
+
+            let bit = 7 - pixel_x_within_tile;
+            let plane_0 = ((bitplane_01 & 0xFF) >> bit) & 0b1;
+            let plane_1 = (((bitplane_01 & 0xFF00) >> 8) >> bit) & 0b1;
+            let plane_2 = ((bitplane_23 & 0xFF) >> bit) & 0b1;
+            let plane_3 = (((bitplane_23 & 0xFF00) >> 8) >> bit) & 0b1;
+
+            let character_data = plane_0 | (plane_1 << 1) | (plane_2 << 2) | (plane_3 << 3);
+        }
+    }
+
     pub fn read(&mut self, address: u32) -> u8 {
         match address {
             OAMADD_LO => 0,
@@ -149,7 +194,7 @@ impl Default for Ppu {
             bg_old: Default::default(),
             cgram: Default::default(),
             display: Default::default(),
-            frame_buffer: [0; 57344],
+            frame_buffer: [0; 256 * 244],
             main_screen_designation: Default::default(),
             oam: Default::default(),
             screen_setting: Default::default(),
