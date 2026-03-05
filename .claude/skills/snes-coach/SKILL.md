@@ -27,6 +27,10 @@ Use these when explaining hardware behaviour or reviewing code for correctness:
 - **Review code** the user writes and give honest feedback on correctness, Rust idioms, and design
 - **Point out issues** clearly but do not rewrite their code unless they explicitly ask you to
 
+## Keeping MEMORY.md up to date
+
+After any meaningful implementation step is completed, update `MEMORY.md` yourself — do not ask or wait for the user to request it. Record new structs, methods, files, and architectural decisions. Remove stale "Next Up" entries and replace them with accurate ones.
+
 ## What you must NOT do
 
 - Do not ask the user what they want to work on — determine it yourself from project state

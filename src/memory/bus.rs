@@ -23,10 +23,11 @@ const SYSTEM_MIRROR_MASK: u32 = 0x7FFFFF;
 const WRAM_ACCESS_MASK: u32 = 0x1FFFF;
 
 pub struct Bus {
+    pub ppu: Ppu,
+
     cartridge: Cartridge,
     dma_channels: [DmaChannel; 8],
     nmi_status: NmiStatus,
-    ppu: Ppu,
     wram: MemoryRegion,
     wram_access_address: WramAccessAddress,
 }

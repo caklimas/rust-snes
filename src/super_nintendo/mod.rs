@@ -9,6 +9,8 @@ use crate::{
 pub struct SuperNintendo {
     bus: Bus,
     cpu: Cpu,
+    current_scanline: u16,
+    cycles: u32,
 }
 
 impl SuperNintendo {
@@ -20,10 +22,22 @@ impl SuperNintendo {
         let hi = bus.read(RESET_VECTOR_HI);
         cpu.registers.pc = u16::from_le_bytes([lo, hi]);
 
-        Self { bus, cpu }
+        Self {
+            bus,
+            cpu,
+            current_scanline: 0,
+            cycles: 0,
+        }
     }
 
-    pub fn step(&mut self) -> u8 {
-        self.cpu.step(&mut self.bus)
+    pub fn step(&mut self) {
+        self.cycles += self.cpu.step(&mut self.bus) as u32;
+
+        if self.cycles >= 227 {
+            self.cycles -= 227;
+            self.bus.ppu.render_scanline(self.current_scanline);
+
+            self.current_scanline = (self.current_scanline + 1) % 224;
+        }
     }
 }

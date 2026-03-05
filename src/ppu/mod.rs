@@ -89,6 +89,14 @@ impl Ppu {
             let plane_3 = (((bitplane_23 & 0xFF00) >> 8) >> bit) & 0b1;
 
             let character_data = plane_0 | (plane_1 << 1) | (plane_2 << 2) | (plane_3 << 3);
+            let cgram_index = if character_data == 0 {
+                0
+            } else {
+                (tilemap_entry.palette_number() * 16) + character_data
+            };
+
+            let color = self.cgram.read_color(cgram_index as u8);
+            self.frame_buffer[index] = color;
         }
     }
 
