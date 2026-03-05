@@ -44,6 +44,10 @@ impl Bus {
         }
     }
 
+    pub fn frame_buffer(&self) -> &[u16] {
+        self.ppu.frame_buffer()
+    }
+
     pub fn read(&mut self, address: u32) -> u8 {
         let normalized_address = Self::normalize_address(address);
         match normalized_address {

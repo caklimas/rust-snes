@@ -11,6 +11,7 @@ pub struct SuperNintendo {
     cpu: Cpu,
     current_scanline: u16,
     cycles: u32,
+    frame_complete: bool,
 }
 
 impl SuperNintendo {
@@ -27,6 +28,7 @@ impl SuperNintendo {
             cpu,
             current_scanline: 0,
             cycles: 0,
+            frame_complete: false,
         }
     }
 
@@ -38,6 +40,23 @@ impl SuperNintendo {
             self.bus.ppu.render_scanline(self.current_scanline);
 
             self.current_scanline = (self.current_scanline + 1) % 224;
+
+            if self.current_scanline == 0 {
+                self.frame_complete = true;
+            }
         }
+    }
+
+    pub fn frame_buffer(&self) -> &[u16] {
+        self.bus.frame_buffer()
+    }
+
+    pub fn frame_complete(&mut self) -> bool {
+        let frame_complete = self.frame_complete;
+        if frame_complete {
+            self.frame_complete = false;
+        }
+
+        frame_complete
     }
 }

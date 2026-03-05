@@ -19,12 +19,16 @@ pub mod bg_vertical_offset;
 pub mod cgram;
 pub mod display;
 pub mod oam;
+pub mod rgb;
 pub mod screen_designation;
 pub mod screen_setting;
 pub mod tile_graphic_base_address;
 pub mod tilemap_entry;
 pub mod vmain;
 pub mod vram;
+
+pub const SCREEN_WIDTH: u16 = 256;
+pub const SCREEN_HEIGHT: u16 = 224;
 
 pub struct Ppu {
     bg1: BgTilemap,
@@ -37,7 +41,7 @@ pub struct Ppu {
     bg_old: u8,
     cgram: Cgram,
     display: Display,
-    frame_buffer: [u16; 256 * 244],
+    frame_buffer: [u16; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
     main_screen_designation: ScreenDesignation,
     oam: Oam,
     screen_setting: ScreenSetting,
@@ -48,16 +52,20 @@ pub struct Ppu {
 }
 
 impl Ppu {
+    pub fn frame_buffer(&self) -> &[u16] {
+        &self.frame_buffer
+    }
+
     pub fn render_scanline(&mut self, y: u16) {
-        for x in 0u16..256 {
-            let index = ((y * 256) + x) as usize;
+        for x in 0u16..SCREEN_WIDTH {
+            let index = ((y * SCREEN_WIDTH) + x) as usize;
             if self.display.forced_blank() {
                 self.frame_buffer[index] = 0;
                 continue;
             }
 
-            let x_offset = x + self.bg_horizontal_offset.bg1_offset;
-            let y_offset = y + self.bg_vertical_offset.bg1_offset;
+            let x_offset = self.bg_horizontal_offset.bg1_offset.wrapping_add(x);
+            let y_offset = self.bg_vertical_offset.bg1_offset.wrapping_add(y);
 
             let tile_x = x_offset / 8;
             let tile_y = y_offset / 8;
@@ -109,7 +117,10 @@ impl Ppu {
             CGADD => 0,
             CGDATA => 0,
             CGDATAREAD => self.cgram.read_cgdata(),
-            _ => unimplemented!(),
+            _ => {
+                eprintln!("Unhandled PPU read: {:#06X}", address);
+                unimplemented!()
+            }
         }
     }
 
@@ -146,7 +157,7 @@ impl Ppu {
             CGADD => self.cgram.write_cgadd(value),
             CGDATA => self.cgram.write_cgdata(value),
             CGDATAREAD => {}
-            _ => unimplemented!(),
+            _ => eprintln!("Unhandled PPU write: {:#06X} = {:#04X}", address, value),
         }
     }
 
@@ -202,7 +213,7 @@ impl Default for Ppu {
             bg_old: Default::default(),
             cgram: Default::default(),
             display: Default::default(),
-            frame_buffer: [0; 256 * 244],
+            frame_buffer: [0; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
             main_screen_designation: Default::default(),
             oam: Default::default(),
             screen_setting: Default::default(),
