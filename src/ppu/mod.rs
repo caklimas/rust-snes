@@ -64,46 +64,60 @@ impl Ppu {
                 continue;
             }
 
-            let x_offset = self.bg_horizontal_offset.bg1_offset.wrapping_add(x);
-            let y_offset = self.bg_vertical_offset.bg1_offset.wrapping_add(y);
+            let bg1_sample = self.bg_sample(
+                self.main_screen_designation.bg1_enable(),
+                x,
+                y,
+                &self.bg1,
+                self.bg_horizontal_offset.bg1_offset,
+                self.bg_vertical_offset.bg1_offset,
+                self.tile_graphic12.first_vram_word_address(),
+                4,
+            );
 
-            let tile_x = x_offset / 8;
-            let tile_y = y_offset / 8;
+            let bg2_sample = self.bg_sample(
+                self.main_screen_designation.bg2_enable(),
+                x,
+                y,
+                &self.bg2,
+                self.bg_horizontal_offset.bg2_offset,
+                self.bg_vertical_offset.bg2_offset,
+                self.tile_graphic12.second_vram_word_address(),
+                4,
+            );
 
-            let pixel_x_within_tile = x_offset % 8;
-            let pixel_y_within_tile = y_offset % 8;
+            let bg3_sample = self.bg_sample(
+                self.main_screen_designation.bg3_enable(),
+                x,
+                y,
+                &self.bg3,
+                self.bg_horizontal_offset.bg3_offset,
+                self.bg_vertical_offset.bg3_offset,
+                self.tile_graphic34.first_vram_word_address(),
+                2,
+            );
 
-            let tilemap_width = self.bg1.get_tilemap_width();
-            let tilemap_height = self.bg1.get_tilemap_height();
-
-            let entry_address = self.bg1.get_vram_word_address()
-                + (tile_y % tilemap_height) * tilemap_width
-                + (tile_x % tilemap_width);
-
-            let tilemap_entry = TilemapEntry(self.vram.read_word(entry_address));
-            let char_base = self.tile_graphic12.first_vram_word_address();
-            let tile_base = char_base + tilemap_entry.tile_number() * 16;
-
-            let bitplane_01_address = tile_base + pixel_y_within_tile * 2;
-            let bitplane_23_address = tile_base + 8 + pixel_y_within_tile * 2;
-
-            let bitplane_01 = self.vram.read_word(bitplane_01_address);
-            let bitplane_23 = self.vram.read_word(bitplane_23_address);
-
-            let bit = 7 - pixel_x_within_tile;
-            let plane_0 = ((bitplane_01 & 0xFF) >> bit) & 0b1;
-            let plane_1 = (((bitplane_01 & 0xFF00) >> 8) >> bit) & 0b1;
-            let plane_2 = ((bitplane_23 & 0xFF) >> bit) & 0b1;
-            let plane_3 = (((bitplane_23 & 0xFF00) >> 8) >> bit) & 0b1;
-
-            let character_data = plane_0 | (plane_1 << 1) | (plane_2 << 2) | (plane_3 << 3);
-            let cgram_index = if character_data == 0 {
-                0
+            let bg_sample = if let Some((_, true)) = bg1_sample {
+                bg1_sample
+            } else if let Some((_, true)) = bg2_sample {
+                bg2_sample
+            } else if let Some((_, false)) = bg1_sample {
+                bg1_sample
+            } else if let Some((_, false)) = bg2_sample {
+                bg2_sample
+            } else if let Some((_, true)) = bg3_sample {
+                bg3_sample
+            } else if let Some((_, false)) = bg3_sample {
+                bg3_sample
             } else {
-                (tilemap_entry.palette_number() * 16) + character_data
+                None
             };
 
-            let color = self.cgram.read_color(cgram_index as u8);
+            let color = match bg_sample {
+                Some((cgram_index, _)) => self.cgram.read_color(cgram_index as u8),
+                None => self.cgram.read_color(0),
+            };
+
             self.frame_buffer[index] = color;
         }
     }
@@ -119,7 +133,7 @@ impl Ppu {
             CGDATAREAD => self.cgram.read_cgdata(),
             _ => {
                 eprintln!("Unhandled PPU read: {:#06X}", address);
-                unimplemented!()
+                0
             }
         }
     }
@@ -197,6 +211,78 @@ impl Ppu {
         }
 
         self.bg_old = value;
+    }
+
+    fn bg_sample(
+        &self,
+        enabled: bool,
+        x: u16,
+        y: u16,
+        bg_tilemap: &BgTilemap,
+        bg_horizontal_offset: u16,
+        bg_vertical_offset: u16,
+        char_base: u16,
+        bpp: u8,
+    ) -> Option<(u8, bool)> {
+        if !enabled {
+            return None;
+        }
+
+        let x_offset = bg_horizontal_offset.wrapping_add(x);
+        let y_offset = bg_vertical_offset.wrapping_add(y);
+
+        let tile_x = x_offset / 8;
+        let tile_y = y_offset / 8;
+
+        let tilemap_width = bg_tilemap.get_tilemap_width();
+        let tilemap_height = bg_tilemap.get_tilemap_height();
+
+        let entry_address = bg_tilemap.get_vram_word_address()
+            + (tile_y % tilemap_height) * tilemap_width
+            + (tile_x % tilemap_width);
+
+        let tilemap_entry = TilemapEntry(self.vram.read_word(entry_address));
+        let tile_base_multiplier = if bpp == 4 { 16 } else { 8 };
+        let tile_base = char_base + tilemap_entry.tile_number() * tile_base_multiplier;
+
+        let pixel_x_within_tile = x_offset % 8;
+        let mut pixel_y_within_tile = y_offset % 8;
+
+        if tilemap_entry.y_flip() {
+            pixel_y_within_tile = 7 - pixel_y_within_tile;
+        }
+
+        let bitplane_01_address = tile_base + pixel_y_within_tile * 2;
+        let bitplane_01 = self.vram.read_word(bitplane_01_address);
+
+        let bit = if tilemap_entry.x_flip() {
+            pixel_x_within_tile
+        } else {
+            7 - pixel_x_within_tile
+        };
+        let plane_0 = ((bitplane_01 & 0xFF) >> bit) & 0b1;
+        let plane_1 = (((bitplane_01 & 0xFF00) >> 8) >> bit) & 0b1;
+
+        let character_data = if bpp == 4 {
+            let bitplane_23_address = tile_base + 8 + pixel_y_within_tile * 2;
+            let bitplane_23 = self.vram.read_word(bitplane_23_address);
+            let plane_2 = ((bitplane_23 & 0xFF) >> bit) & 0b1;
+            let plane_3 = (((bitplane_23 & 0xFF00) >> 8) >> bit) & 0b1;
+
+            plane_0 | (plane_1 << 1) | (plane_2 << 2) | (plane_3 << 3)
+        } else {
+            plane_0 | (plane_1 << 1)
+        };
+
+        if character_data == 0 {
+            None
+        } else {
+            let palette_multiplier = if bpp == 4 { 16 } else { 4 };
+            Some((
+                ((tilemap_entry.palette_number() * palette_multiplier) + character_data) as u8,
+                tilemap_entry.tile_priority(),
+            ))
+        }
     }
 }
 

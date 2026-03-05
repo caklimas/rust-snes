@@ -37,9 +37,20 @@ impl SuperNintendo {
 
         if self.cycles >= 227 {
             self.cycles -= 227;
-            self.bus.ppu.render_scanline(self.current_scanline);
 
-            self.current_scanline = (self.current_scanline + 1) % 224;
+            if self.current_scanline < 224 {
+                self.bus.ppu.render_scanline(self.current_scanline);
+            }
+
+            self.current_scanline = (self.current_scanline + 1) % 262;
+
+            if self.current_scanline == 225 {
+                self.bus.nmi_status.set_nmi_flag(true);
+
+                if self.bus.interrupt_enable.nmi_enable() {
+                    self.cpu.nmi(&mut self.bus);
+                }
+            }
 
             if self.current_scanline == 0 {
                 self.frame_complete = true;

@@ -101,6 +101,8 @@ pub const CPU_IO_START: u32 = 0x004200;
 pub const CPU_IO_END: u32 = 0x005FFF;
 pub const CPU_IO_RANGE: RangeInclusive<u32> = CPU_IO_START..=CPU_IO_END;
 
+pub const NMITIMEN: u32 = 0x004200;
+
 // DMA
 pub const MDMAEN: u32 = 0x00420B;
 pub const DMA_REGISTERS_START: u32 = 0x004300;
@@ -111,6 +113,12 @@ pub const DMA_REGISTERS_RANGE: RangeInclusive<u32> = DMA_REGISTERS_START..=DMA_R
 pub const CARTRIDGE_ROM_START: u32 = 0x008000;
 pub const CARTRIDGE_ROM_END: u32 = 0x00FFFF;
 pub const CARTRIDGE_ROM_RANGE: RangeInclusive<u32> = CARTRIDGE_ROM_START..=CARTRIDGE_ROM_END;
+
+pub const NMI_VECTOR_NATIVE_LO: u32 = 0x00FFEA;
+pub const NMI_VECTOR_NATIVE_HI: u32 = 0x00FFEB;
+
+pub const NMI_VECTOR_EMULATOR_LO: u32 = 0x00FFFA;
+pub const NMI_VECTOR_EMULATOR_HI: u32 = 0x00FFFB;
 
 // Reset vectors
 pub const RESET_VECTOR_LO: u32 = 0x00FFFC;

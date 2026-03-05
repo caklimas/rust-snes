@@ -33,8 +33,8 @@ impl ApplicationHandler for App {
         );
 
         let surface_texture = SurfaceTexture::new(
-            SCREEN_WIDTH as u32,
-            SCREEN_HEIGHT as u32,
+            window.inner_size().width,
+            window.inner_size().height,
             Arc::clone(&window),
         );
         let pixels = PixelsBuilder::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, surface_texture)

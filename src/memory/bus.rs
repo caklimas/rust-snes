@@ -4,12 +4,13 @@ use crate::{
     memory::{
         addresses::{
             APU_REGISTERS_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, MDMAEN,
-            NMI_STATUS_REGISTER, PPU_REGISTERS_RANGE, PPU_REGISTERS_START, UNUSED_IO_GAP_RANGE,
-            UNUSED_UPPER_GAP_RANGE, WMADDH, WMADDL, WMADDM, WMDATA, WRAM_MIRROR_OFFSET_END,
-            WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
+            NMI_STATUS_REGISTER, NMITIMEN, PPU_REGISTERS_RANGE, PPU_REGISTERS_START,
+            UNUSED_IO_GAP_RANGE, UNUSED_UPPER_GAP_RANGE, WMADDH, WMADDL, WMADDM, WMDATA,
+            WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
         },
         cartridge::Cartridge,
         dma_channel::DmaChannel,
+        interrupt_enable::InterruptEnable,
         memory_bus::MemoryBus,
         memory_region::MemoryRegion,
         nmi_status::NmiStatus,
@@ -24,10 +25,11 @@ const WRAM_ACCESS_MASK: u32 = 0x1FFFF;
 
 pub struct Bus {
     pub ppu: Ppu,
+    pub interrupt_enable: InterruptEnable,
+    pub nmi_status: NmiStatus,
 
     cartridge: Cartridge,
     dma_channels: [DmaChannel; 8],
-    nmi_status: NmiStatus,
     wram: MemoryRegion,
     wram_access_address: WramAccessAddress,
 }
@@ -37,6 +39,7 @@ impl Bus {
         Self {
             cartridge: Cartridge::new(data),
             dma_channels: [Default::default(); 8],
+            interrupt_enable: Default::default(),
             nmi_status: Default::default(),
             ppu: Default::default(),
             wram: MemoryRegion::new(vec![0; 131072], WRAM_START),
@@ -73,6 +76,7 @@ impl Bus {
                 // APU register access
                 0
             }
+            NMITIMEN => 0,
             _ => self.cartridge.read(address),
         }
     }
@@ -139,6 +143,7 @@ impl Bus {
                 self.ppu.write(normalized_address, value)
             }
             addr if APU_REGISTERS_RANGE.contains(&addr) => {}
+            NMITIMEN => self.interrupt_enable.0 = value,
             _ => self.cartridge.write(address, value),
         }
     }
