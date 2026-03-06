@@ -3,7 +3,7 @@ use std::ops::RangeInclusive;
 use crate::{
     memory::{
         addresses::{
-            APU_REGISTERS_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, MDMAEN,
+            APU_REGISTERS_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, HDMAEN, MDMAEN,
             NMI_STATUS_REGISTER, NMITIMEN, PPU_REGISTERS_RANGE, PPU_REGISTERS_START,
             UNUSED_IO_GAP_RANGE, UNUSED_UPPER_GAP_RANGE, WMADDH, WMADDL, WMADDM, WMDATA,
             WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
@@ -30,6 +30,7 @@ pub struct Bus {
 
     cartridge: Cartridge,
     dma_channels: [DmaChannel; 8],
+    hdmaen: u8,
     wram: MemoryRegion,
     wram_access_address: WramAccessAddress,
 }
@@ -39,6 +40,7 @@ impl Bus {
         Self {
             cartridge: Cartridge::new(data),
             dma_channels: [Default::default(); 8],
+            hdmaen: 0,
             interrupt_enable: Default::default(),
             nmi_status: Default::default(),
             ppu: Default::default(),
@@ -101,8 +103,8 @@ impl Bus {
                         let channel = self.dma_channels[i as usize];
                         let source = (channel.a1b as u32) << 16 | (channel.a1t as u32);
                         let destination = PPU_REGISTERS_START | (channel.bbad as u32);
-                        let dmap_mode = channel.dmap & 0x07;
-                        let transfer_direction = channel.dmap >> 7;
+                        let dmap_mode = channel.dmap.0 & 0x07;
+                        let transfer_direction = channel.dmap.0 >> 7;
                         let das = if channel.das == 0 {
                             65536
                         } else {
@@ -129,6 +131,7 @@ impl Bus {
                     }
                 }
             }
+            HDMAEN => self.hdmaen = value,
             addr if DMA_REGISTERS_RANGE.contains(&addr) => {
                 let offset = addr - DMA_REGISTERS_START;
                 let upper_nibble = offset >> 4;
@@ -145,6 +148,43 @@ impl Bus {
             addr if APU_REGISTERS_RANGE.contains(&addr) => {}
             NMITIMEN => self.interrupt_enable.0 = value,
             _ => self.cartridge.write(address, value),
+        }
+    }
+
+    pub fn init_hdma(&mut self) {
+        for i in 0u8..8 {
+            let channel_enabled = (self.hdmaen >> i) & 1 == 1;
+            if channel_enabled {
+                let a1b = self.dma_channels[i as usize].a1b;
+                let a1t = self.dma_channels[i as usize].a1t;
+                let address = ((a1b as u32) << 16) | (a1t as u32);
+                let line_counter = self.read(address);
+                let channel = &mut self.dma_channels[i as usize];
+
+                channel.hdma_table_ptr = a1t + 1;
+                channel.hdma_line_counter = line_counter;
+                channel.hdma_do_transfer = true;
+            }
+        }
+    }
+
+    pub fn run_hdma_scanline(&mut self) {
+        for i in 0u8..8 {
+            let channel_enabled = (self.hdmaen >> i) & 1 == 1;
+            if channel_enabled {
+                let a1b = self.dma_channels[i as usize].a1b;
+                let hdma_table_ptr = self.dma_channels[i as usize].hdma_table_ptr;
+                let bbad = self.dma_channels[i as usize].bbad;
+                let dmap = self.dma_channels[i as usize].dmap;
+                let address = ((a1b as u32) << 16) | (hdma_table_ptr as u32);
+                let data = self.read(address);
+
+                self.write(PPU_REGISTERS_START | (bbad as u32), data);
+
+                let channel = &mut self.dma_channels[i as usize];
+
+                if channel.hdma_do_transfer {}
+            }
         }
     }
 
