@@ -6,7 +6,8 @@ use crate::{
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_tilemap::BgTilemap,
-        bg_vertical_offset::BgVerticalOffset, cgram::Cgram, display::Display, oam::Oam,
+        bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings, cgram::Cgram,
+        display::Display, oam::Oam, palette_base::PaletteBase,
         screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
         tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
     },
@@ -16,9 +17,11 @@ pub mod bg_horizontal_offset;
 pub mod bg_mode;
 pub mod bg_tilemap;
 pub mod bg_vertical_offset;
+pub mod bpp_settings;
 pub mod cgram;
 pub mod display;
 pub mod oam;
+pub mod palette_base;
 pub mod rgb;
 pub mod screen_designation;
 pub mod screen_setting;
@@ -48,7 +51,7 @@ pub struct Ppu {
     sub_screen_designation: ScreenDesignation,
     tile_graphic12: TileGraphicBaseAddress,
     tile_graphic34: TileGraphicBaseAddress,
-    vram: Vram,
+    pub vram: Vram,
 }
 
 impl Ppu {
@@ -57,6 +60,9 @@ impl Ppu {
     }
 
     pub fn render_scanline(&mut self, y: u16) {
+        let bpp_settings = BppSettings::new(&self.bg_mode);
+        let palette_base = PaletteBase::new(&self.bg_mode);
+
         for x in 0u16..SCREEN_WIDTH {
             let index = ((y * SCREEN_WIDTH) + x) as usize;
             if self.display.forced_blank() {
@@ -72,7 +78,8 @@ impl Ppu {
                 self.bg_horizontal_offset.bg1_offset,
                 self.bg_vertical_offset.bg1_offset,
                 self.tile_graphic12.first_vram_word_address(),
-                4,
+                bpp_settings.bg1,
+                palette_base.bg1,
             );
 
             let bg2_sample = self.bg_sample(
@@ -83,7 +90,8 @@ impl Ppu {
                 self.bg_horizontal_offset.bg2_offset,
                 self.bg_vertical_offset.bg2_offset,
                 self.tile_graphic12.second_vram_word_address(),
-                4,
+                bpp_settings.bg2,
+                palette_base.bg2,
             );
 
             let bg3_sample = self.bg_sample(
@@ -94,7 +102,8 @@ impl Ppu {
                 self.bg_horizontal_offset.bg3_offset,
                 self.bg_vertical_offset.bg3_offset,
                 self.tile_graphic34.first_vram_word_address(),
-                2,
+                bpp_settings.bg3,
+                palette_base.bg3,
             );
 
             let bg_sample = if let Some((_, true)) = bg1_sample {
@@ -127,6 +136,15 @@ impl Ppu {
             OAMADD_LO => 0,
             OAMADD_HI => 0,
             OAMDATA => 0,
+            BGMODE => self.bg_mode.0,
+            BG1SC => self.bg1.0,
+            BG2SC => self.bg2.0,
+            BG3SC => self.bg3.0,
+            BG4SC => self.bg4.0,
+            BG12NBA => self.tile_graphic12.0,
+            BG34NBA => self.tile_graphic34.0,
+            TM => self.main_screen_designation.0,
+            TS => self.sub_screen_designation.0,
             OAMDATAREAD => self.oam.read_oamdata(),
             CGADD => 0,
             CGDATA => 0,
@@ -222,12 +240,14 @@ impl Ppu {
         bg_horizontal_offset: u16,
         bg_vertical_offset: u16,
         char_base: u16,
-        bpp: u8,
+        bpp_opt: Option<u8>,
+        palette_base: u8,
     ) -> Option<(u8, bool)> {
         if !enabled {
             return None;
         }
 
+        let bpp = bpp_opt?;
         let x_offset = bg_horizontal_offset.wrapping_add(x);
         let y_offset = bg_vertical_offset.wrapping_add(y);
 
@@ -252,7 +272,7 @@ impl Ppu {
             pixel_y_within_tile = 7 - pixel_y_within_tile;
         }
 
-        let bitplane_01_address = tile_base + pixel_y_within_tile * 2;
+        let bitplane_01_address = tile_base + pixel_y_within_tile;
         let bitplane_01 = self.vram.read_word(bitplane_01_address);
 
         let bit = if tilemap_entry.x_flip() {
@@ -264,7 +284,7 @@ impl Ppu {
         let plane_1 = (((bitplane_01 & 0xFF00) >> 8) >> bit) & 0b1;
 
         let character_data = if bpp == 4 {
-            let bitplane_23_address = tile_base + 8 + pixel_y_within_tile * 2;
+            let bitplane_23_address = tile_base + 8 + pixel_y_within_tile;
             let bitplane_23 = self.vram.read_word(bitplane_23_address);
             let plane_2 = ((bitplane_23 & 0xFF) >> bit) & 0b1;
             let plane_3 = (((bitplane_23 & 0xFF00) >> 8) >> bit) & 0b1;
@@ -279,7 +299,9 @@ impl Ppu {
         } else {
             let palette_multiplier = if bpp == 4 { 16 } else { 4 };
             Some((
-                ((tilemap_entry.palette_number() * palette_multiplier) + character_data) as u8,
+                ((palette_base as u16)
+                    + tilemap_entry.palette_number() * palette_multiplier
+                    + character_data) as u8,
                 tilemap_entry.tile_priority(),
             ))
         }
