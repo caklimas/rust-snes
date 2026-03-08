@@ -112,24 +112,33 @@ impl Ppu {
                 palette_base.bg3,
             );
 
-            let bg_sample = if let Some((_, true)) = bg1_sample {
-                bg1_sample
-            } else if let Some((_, true)) = bg2_sample {
-                bg2_sample
-            } else if let Some((_, false)) = bg1_sample {
-                bg1_sample
-            } else if let Some((_, false)) = bg2_sample {
-                bg2_sample
-            } else if let Some((_, true)) = bg3_sample {
-                bg3_sample
-            } else if let Some((_, false)) = bg3_sample {
-                bg3_sample
+            let obj_sample = self.obj_sample(x, y);
+            let sample = if let Some((cgram, 3)) = obj_sample {
+                Some(cgram)
+            } else if let Some((cgram, true)) = bg1_sample {
+                Some(cgram)
+            } else if let Some((cgram, true)) = bg2_sample {
+                Some(cgram)
+            } else if let Some((cgram, 2)) = obj_sample {
+                Some(cgram)
+            } else if let Some((cgram, false)) = bg1_sample {
+                Some(cgram)
+            } else if let Some((cgram, false)) = bg2_sample {
+                Some(cgram)
+            } else if let Some((cgram, 1)) = obj_sample {
+                Some(cgram)
+            } else if let Some((cgram, true)) = bg3_sample {
+                Some(cgram)
+            } else if let Some((cgram, 0)) = obj_sample {
+                Some(cgram)
+            } else if let Some((cgram, false)) = bg3_sample {
+                Some(cgram)
             } else {
                 None
             };
 
-            let color = match bg_sample {
-                Some((cgram_index, _)) => self.cgram.read_color(cgram_index),
+            let color = match sample {
+                Some(cgram_index) => self.cgram.read_color(cgram_index),
                 None => self.cgram.read_color(0),
             };
 
@@ -312,6 +321,77 @@ impl Ppu {
                 tilemap_entry.tile_priority(),
             ))
         }
+    }
+
+    fn obj_sample(&self, x: u16, y: u16) -> Option<(u8, u8)> {
+        for i in 0..128 {
+            let (low, high) = self.oam.get_sprite(i);
+            let x_full = low.x as i16 | ((high.x_position_bit_8() as i16) << 8);
+            let x_signed = if x_full >= 256 { x_full - 512 } else { x_full };
+            let y_signed = low.y as i16;
+            let sprite_size = self.obsel.get_object_size(high.size());
+            let bounds_check = (x as i16) >= x_signed
+                && (x as i16) < x_signed + sprite_size as i16
+                && (y as i16) >= y_signed
+                && (y as i16) < y_signed + sprite_size as i16;
+
+            if !bounds_check {
+                continue;
+            }
+            let tile_col = (x as i16) - x_signed;
+            let tile_row = (y as i16) - y_signed;
+
+            let sub_tile_col = (tile_col / 8) as u8;
+            let sub_tile_row = (tile_row / 8) as u8;
+
+            let lower_nibble = ((low.tile_number & 0x0F) + sub_tile_col) & 0x0F;
+            let upper_nibble = (low.tile_number & 0xF0) + (sub_tile_row * 0x10);
+
+            let tile_number = upper_nibble | lower_nibble;
+            let base_word_address = if low.packed_attributes.name_table() {
+                ((self.obsel.name_base() as u16).wrapping_mul(0x2000))
+                    .wrapping_add((self.obsel.name_select() as u16 + 1).wrapping_mul(0x1000))
+            } else {
+                (self.obsel.name_base() as u16).wrapping_mul(0x2000)
+            };
+
+            let tile_word_address =
+                base_word_address.wrapping_add((tile_number as u16).wrapping_mul(16));
+            let pixel_x_within_tile = (tile_col % 8) as u16;
+            let mut pixel_y_within_tile = (tile_row % 8) as u16;
+            if low.packed_attributes.y_flip() {
+                pixel_y_within_tile = 7 - pixel_y_within_tile;
+            }
+
+            let bitplane_01_address = tile_word_address + pixel_y_within_tile;
+            let bitplane_01 = self.vram.read_word(bitplane_01_address);
+
+            let bit = if low.packed_attributes.x_flip() {
+                pixel_x_within_tile
+            } else {
+                7 - pixel_x_within_tile
+            };
+            let plane_0 = ((bitplane_01 & 0xFF) >> bit) & 0b1;
+            let plane_1 = (((bitplane_01 & 0xFF00) >> 8) >> bit) & 0b1;
+
+            let bitplane_23_address = tile_word_address + 8 + pixel_y_within_tile;
+            let bitplane_23 = self.vram.read_word(bitplane_23_address);
+            let plane_2 = ((bitplane_23 & 0xFF) >> bit) & 0b1;
+            let plane_3 = (((bitplane_23 & 0xFF00) >> 8) >> bit) & 0b1;
+
+            let character_data = plane_0 | (plane_1 << 1) | (plane_2 << 2) | (plane_3 << 3);
+
+            if character_data == 0 {
+                continue;
+            } else {
+                return Some((
+                    (128 + low.packed_attributes.palette() as u16 * 16 + character_data) as u8,
+                    low.packed_attributes.priority(),
+                ));
+            }
+        }
+
+        None
     }
 }
 
