@@ -16,7 +16,7 @@ impl PaletteBase {
                 bg3: 64,
                 bg4: 96,
             },
-            1 | 2 | 3 => Self {
+            1..=3 => Self {
                 bg1: 0,
                 bg2: 0,
                 bg3: 0,

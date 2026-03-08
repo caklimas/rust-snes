@@ -2,12 +2,13 @@ use crate::{
     memory::addresses::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
         BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGDATA, CGDATAREAD, INIDISP, OAMADD_HI,
-        OAMADD_LO, OAMDATA, OAMDATAREAD, SETINI, TM, TS, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL,
+        OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, SETINI, TM, TS, VMADDH, VMADDL, VMAIN, VMDATAH,
+        VMDATAL,
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_tilemap::BgTilemap,
         bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings, cgram::Cgram,
-        display::Display, oam::Oam, palette_base::PaletteBase,
+        display::Display, oam::Oam, obsel::Obsel, palette_base::PaletteBase,
         screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
         tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
     },
@@ -20,7 +21,11 @@ pub mod bg_vertical_offset;
 pub mod bpp_settings;
 pub mod cgram;
 pub mod display;
+pub mod high_table_sprite;
+pub mod low_table_sprite;
 pub mod oam;
+pub mod obsel;
+pub mod packed_attributes;
 pub mod palette_base;
 pub mod rgb;
 pub mod screen_designation;
@@ -47,6 +52,7 @@ pub struct Ppu {
     frame_buffer: [u16; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
     main_screen_designation: ScreenDesignation,
     oam: Oam,
+    obsel: Obsel,
     screen_setting: ScreenSetting,
     sub_screen_designation: ScreenDesignation,
     tile_graphic12: TileGraphicBaseAddress,
@@ -123,7 +129,7 @@ impl Ppu {
             };
 
             let color = match bg_sample {
-                Some((cgram_index, _)) => self.cgram.read_color(cgram_index as u8),
+                Some((cgram_index, _)) => self.cgram.read_color(cgram_index),
                 None => self.cgram.read_color(0),
             };
 
@@ -159,6 +165,7 @@ impl Ppu {
     pub fn write(&mut self, address: u32, value: u8) {
         match address {
             INIDISP => self.display.0 = value,
+            OBSEL => self.obsel.0 = value,
             OAMADD_LO => self.oam.set_oamadd(value, true),
             OAMADD_HI => self.oam.set_oamadd(value, false),
             OAMDATA => self.oam.write_oamdata(value),
@@ -324,6 +331,7 @@ impl Default for Ppu {
             frame_buffer: [0; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
             main_screen_designation: Default::default(),
             oam: Default::default(),
+            obsel: Default::default(),
             screen_setting: Default::default(),
             sub_screen_designation: Default::default(),
             tile_graphic12: Default::default(),

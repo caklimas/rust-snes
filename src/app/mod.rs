@@ -2,11 +2,7 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use softbuffer::{Context, Surface};
-use winit::{
-    application::ApplicationHandler,
-    event::WindowEvent,
-    window::Window,
-};
+use winit::{application::ApplicationHandler, event::WindowEvent, window::Window};
 
 use crate::{
     ppu::{SCREEN_HEIGHT, SCREEN_WIDTH, rgb::Rgb},

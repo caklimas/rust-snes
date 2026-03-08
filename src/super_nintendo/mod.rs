@@ -39,7 +39,7 @@ impl SuperNintendo {
             self.cycles -= 227;
 
             if self.current_scanline < 224 {
-                //self.bus.run_hdma_scanline();
+                self.bus.run_hdma_scanline();
                 self.bus.ppu.render_scanline(self.current_scanline);
             }
 

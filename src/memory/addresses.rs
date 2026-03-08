@@ -32,6 +32,7 @@ pub const PPU_REGISTERS_END: u32 = 0x00213F;
 pub const PPU_REGISTERS_RANGE: RangeInclusive<u32> = PPU_REGISTERS_START..=PPU_REGISTERS_END;
 
 pub const INIDISP: u32 = 0x002100;
+pub const OBSEL: u32 = 0x002101;
 pub const BGMODE: u32 = 0x002105;
 
 pub const BG1SC: u32 = 0x002107;
