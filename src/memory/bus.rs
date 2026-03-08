@@ -176,14 +176,52 @@ impl Bus {
                 let hdma_table_ptr = self.dma_channels[i as usize].hdma_table_ptr;
                 let bbad = self.dma_channels[i as usize].bbad;
                 let dmap = self.dma_channels[i as usize].dmap;
-                let address = ((a1b as u32) << 16) | (hdma_table_ptr as u32);
-                let data = self.read(address);
 
-                self.write(PPU_REGISTERS_START | (bbad as u32), data);
+                if self.dma_channels[i as usize].hdma_do_transfer {
+                    let mut bytes_consumed = 0;
+                    let address = ((a1b as u32) << 16) | (hdma_table_ptr as u32);
+                    let data = self.read(address);
 
-                let channel = &mut self.dma_channels[i as usize];
+                    match dmap.transfer_mode() {
+                        0 => {
+                            self.write(PPU_REGISTERS_START | (bbad as u32), data);
+                            bytes_consumed = 1;
+                        }
+                        1 => {
+                            self.write(PPU_REGISTERS_START | (bbad as u32), data);
 
-                if channel.hdma_do_transfer {}
+                            let data = self.read(address + 1);
+                            self.write(PPU_REGISTERS_START | ((bbad + 1) as u32), data);
+                            bytes_consumed = 2;
+                        }
+                        _ => {}
+                    }
+
+                    self.dma_channels[i as usize].hdma_table_ptr = self.dma_channels[i as usize]
+                        .hdma_table_ptr
+                        .wrapping_add(bytes_consumed);
+                }
+
+                self.dma_channels[i as usize].hdma_line_counter = self.dma_channels[i as usize]
+                    .hdma_line_counter
+                    .wrapping_sub(1);
+
+                if self.dma_channels[i as usize].hdma_line_counter & 0x7F == 0 {
+                    let value = self.read(
+                        ((a1b as u32) << 16)
+                            | (self.dma_channels[i as usize].hdma_table_ptr as u32),
+                    );
+
+                    self.dma_channels[i as usize].hdma_table_ptr =
+                        self.dma_channels[i as usize].hdma_table_ptr.wrapping_add(1);
+
+                    if value == 0 {
+                        self.hdmaen &= !(1 << i);
+                    } else {
+                        self.dma_channels[i as usize].hdma_line_counter = value;
+                        self.dma_channels[i as usize].hdma_do_transfer = true;
+                    }
+                }
             }
         }
     }

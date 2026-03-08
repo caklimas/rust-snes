@@ -39,6 +39,7 @@ impl SuperNintendo {
             self.cycles -= 227;
 
             if self.current_scanline < 224 {
+                //self.bus.run_hdma_scanline();
                 self.bus.ppu.render_scanline(self.current_scanline);
             }
 
@@ -53,6 +54,7 @@ impl SuperNintendo {
             }
 
             if self.current_scanline == 0 {
+                self.bus.init_hdma();
                 self.frame_complete = true;
             }
         }

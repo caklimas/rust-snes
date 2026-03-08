@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 bitfield = "0.19.4"
 bitflags = "2.11"
-pixels = "0.15"
+softbuffer = "0.4"
 winit = { version = "0.30", features = ["rwh_06"] }
 
 [dev-dependencies]
