@@ -3,13 +3,14 @@ use std::ops::RangeInclusive;
 use crate::{
     memory::{
         addresses::{
-            APU_REGISTERS_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, HDMAEN, MDMAEN,
+            APU_REGISTERS_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, HDMAEN, HVBJOY, MDMAEN,
             NMI_STATUS_REGISTER, NMITIMEN, PPU_REGISTERS_RANGE, PPU_REGISTERS_START,
             UNUSED_IO_GAP_RANGE, UNUSED_UPPER_GAP_RANGE, WMADDH, WMADDL, WMADDM, WMDATA,
             WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
         },
         cartridge::Cartridge,
         dma_channel::DmaChannel,
+        hvbjoy::Hvbjoy,
         interrupt_enable::InterruptEnable,
         memory_bus::MemoryBus,
         memory_region::MemoryRegion,
@@ -24,9 +25,10 @@ const SYSTEM_MIRROR_MASK: u32 = 0x7FFFFF;
 const WRAM_ACCESS_MASK: u32 = 0x1FFFF;
 
 pub struct Bus {
-    pub ppu: Ppu,
+    pub hvbjoy: Hvbjoy,
     pub interrupt_enable: InterruptEnable,
     pub nmi_status: NmiStatus,
+    pub ppu: Ppu,
 
     cartridge: Cartridge,
     dma_channels: [DmaChannel; 8],
@@ -41,6 +43,7 @@ impl Bus {
             cartridge: Cartridge::new(data),
             dma_channels: [Default::default(); 8],
             hdmaen: 0,
+            hvbjoy: Default::default(),
             interrupt_enable: Default::default(),
             nmi_status: Default::default(),
             ppu: Default::default(),
@@ -79,6 +82,7 @@ impl Bus {
                 0
             }
             NMITIMEN => 0,
+            HVBJOY => (self.hvbjoy.vblank() as u8) << 7,
             _ => self.cartridge.read(address),
         }
     }
@@ -103,6 +107,15 @@ impl Bus {
                         let channel = self.dma_channels[i as usize];
                         let source = (channel.a1b as u32) << 16 | (channel.a1t as u32);
                         let destination = PPU_REGISTERS_START | (channel.bbad as u32);
+                        eprintln!(
+                            "DMA ch{}: dmap={:#04X} bbad={:#04X} src={:#08X} das={} fixed={}",
+                            i,
+                            channel.dmap.0,
+                            channel.bbad,
+                            source,
+                            channel.das,
+                            channel.dmap.fixed_transfer()
+                        );
                         let dmap_mode = channel.dmap.0 & 0x07;
                         let transfer_direction = channel.dmap.0 >> 7;
                         let das = if channel.das == 0 {
@@ -121,7 +134,12 @@ impl Bus {
                             incremented = !incremented;
 
                             if transfer_direction == 0 {
-                                let value = self.read(source + i);
+                                let source_address = if channel.dmap.fixed_transfer() {
+                                    source
+                                } else {
+                                    source + i
+                                };
+                                let value = self.read(source_address);
                                 self.write(destination, value);
                             } else {
                                 let value = self.read(destination);
@@ -146,7 +164,10 @@ impl Bus {
                 self.ppu.write(normalized_address, value)
             }
             addr if APU_REGISTERS_RANGE.contains(&addr) => {}
-            NMITIMEN => self.interrupt_enable.0 = value,
+            NMITIMEN => {
+                eprintln!("WRITE $4200 (NMITIMEN) = {:#04X}", value);
+                self.interrupt_enable.0 = value;
+            }
             _ => self.cartridge.write(address, value),
         }
     }

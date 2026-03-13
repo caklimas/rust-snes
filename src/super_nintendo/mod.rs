@@ -47,6 +47,7 @@ impl SuperNintendo {
 
             if self.current_scanline == 225 {
                 self.bus.nmi_status.set_nmi_flag(true);
+                self.bus.hvbjoy.set_vblank(true);
 
                 if self.bus.interrupt_enable.nmi_enable() {
                     self.cpu.nmi(&mut self.bus);
@@ -55,6 +56,7 @@ impl SuperNintendo {
 
             if self.current_scanline == 0 {
                 self.bus.init_hdma();
+                self.bus.hvbjoy.set_vblank(false);
                 self.frame_complete = true;
             }
         }

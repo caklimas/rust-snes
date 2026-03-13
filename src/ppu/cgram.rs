@@ -21,6 +21,7 @@ impl Cgram {
     }
 
     pub fn write_cgdata(&mut self, value: u8) {
+        eprintln!("CGDATA write: {:#04X} at cgadd={}", value, self.cgadd);
         let index = self.get_index(self.write_latch);
         if !self.write_latch {
             self.data[index] = value;

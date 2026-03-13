@@ -111,6 +111,8 @@ pub const DMA_REGISTERS_START: u32 = 0x004300;
 pub const DMA_REGISTERS_END: u32 = 0x00437F;
 pub const DMA_REGISTERS_RANGE: RangeInclusive<u32> = DMA_REGISTERS_START..=DMA_REGISTERS_END;
 
+pub const HVBJOY: u32 = 0x004212;
+
 // Cartridge ROM (LoROM example)
 pub const CARTRIDGE_ROM_START: u32 = 0x008000;
 pub const CARTRIDGE_ROM_END: u32 = 0x00FFFF;

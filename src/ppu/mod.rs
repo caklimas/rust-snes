@@ -202,7 +202,10 @@ impl Ppu {
             VMADDH => self.vram.set_address_hi(value),
             VMDATAL => self.vram.write_data_lo(value),
             VMDATAH => self.vram.write_data_hi(value),
-            CGADD => self.cgram.write_cgadd(value),
+            CGADD => {
+                eprintln!("WRITE $2121 (CGADD) = {:#04X}", value);
+                self.cgram.write_cgadd(value);
+            }
             CGDATA => self.cgram.write_cgdata(value),
             CGDATAREAD => {}
             _ => eprintln!("Unhandled PPU write: {:#06X} = {:#04X}", address, value),
