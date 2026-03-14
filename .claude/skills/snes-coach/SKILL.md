@@ -42,6 +42,10 @@ After any meaningful implementation step is completed, update `MEMORY.md` yourse
 - Do not paste full working solutions
 - Do not fix their code for them — describe the issue and let them fix it
 
+## Exception: debug/diagnostic traces
+
+**Always add debug/diagnostic print statements yourself** using the Edit tool — never ask the user to add them. This is a hard rule. When debugging requires tracing CPU state, register values, memory writes, or execution flow, add the `eprintln!`/`println!` calls directly to the relevant source file and tell the user to run and share the output. Do not describe what to add; add it.
+
 ## When reviewing code
 
 **Always search the codebase proactively.** When the user asks you to review their code, read the relevant file yourself using the file path from context (IDE focus, recent edits, or the file being discussed). Never ask the user to share code or paste snippets — find it yourself. If related files are needed (e.g. a struct referenced in the code), search for them too.

@@ -1,0 +1,114 @@
+# SNES Emulator — Implementation Status
+
+This file tracks what has been implemented, what is stubbed, and what still needs work. Update it as features are completed.
+
+---
+
+## CPU (65C816)
+
+| Component | Status |
+|-----------|--------|
+| All 256 opcodes (0x00–0xFF) | ✅ Complete |
+| Emulation mode / native mode switching | ✅ Complete |
+| NMI handling | ✅ Complete |
+| IRQ handling | ✅ Complete |
+| WAI / STP | ✅ Complete |
+
+---
+
+## Memory Bus
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| WRAM ($7E0000–$7FFFFF) | ✅ Complete | |
+| WRAM mirror ($00–$3F, $80–$BF, offsets $0000–$1FFF) | ✅ Complete | |
+| WRAM access ports ($2180–$2183) | ✅ Complete | Auto-increment, 17-bit wrap |
+| Bank normalization ($80–$BF → $00–$3F) | ✅ Complete | |
+| LoROM mapping | ✅ Complete | |
+| HiROM mapping | ✅ Complete | $80–$BF mirror fixed |
+| ExHiROM mapping | ⚠️ Stubbed | |
+| Cartridge SRAM | ⚠️ Stubbed | |
+
+---
+
+## PPU
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| VRAM ($2115–$2119) | ✅ Complete | |
+| CGRAM ($2121–$2122) | ✅ Complete | |
+| OAM ($2102–$2104) | ✅ Complete | |
+| INIDISP ($2100) | ✅ Complete | forced_blank, master_brightness |
+| OBSEL ($2101) | ✅ Complete | name_base, name_select, object_size (3-bit) |
+| BGMODE ($2105) | ✅ Complete | |
+| BG1SC–BG4SC ($2107–$210A) | ✅ Complete | |
+| BG12NBA / BG34NBA ($210B–$210C) | ✅ Complete | |
+| BGxHOFS / BGxVOFS ($210D–$2114) | ✅ Complete | M7 latch formula |
+| TM / TS ($212C–$212D) | ✅ Complete | Main/sub screen designation |
+| SETINI ($2133) | ✅ Complete | |
+| BG rendering — Mode 0 | ✅ Complete | 2bpp, per-BG palette bands |
+| BG rendering — Mode 1 | ✅ Complete | BG1/BG2 4bpp, BG3 2bpp |
+| BG rendering — Modes 2–7 | ❌ Not implemented | |
+| Sprite (OAM) rendering | ✅ Complete | 4bpp, priority, x/y flip, multi-tile |
+| Priority compositing | ⚠️ Partial | Mode 1 hardcoded; Mode 0 and others not branched |
+| Windowing ($2123–$212B) | ❌ Not implemented | |
+| Color math / sub-screen blending ($2130–$2132) | ❌ Not implemented | |
+| Mode 7 | ❌ Not implemented | |
+
+---
+
+## DMA / HDMA
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| DMA ($420B, $4300–$437F) | ✅ Complete | Modes 0/1/2, both directions, fixed transfer |
+| HDMA ($420C) | ✅ Complete | Direct mode; repeat mode always-transfer (refine later) |
+
+---
+
+## APU
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| SPC700 I/O ports ($2140–$217F) | ⚠️ Stubbed | IPL handshake echo; no actual SPC700 execution |
+| SPC700 CPU | ❌ Not implemented | |
+| DSP / audio output | ❌ Not implemented | |
+
+---
+
+## I/O
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| NMITIMEN ($4200) | ✅ Complete | NMI enable, auto-joypad enable |
+| NMI status ($4210) | ✅ Complete | Clears on read |
+| HVBJOY ($4212) | ✅ Complete | vblank/hblank flags |
+| MDMAEN ($420B) | ✅ Complete | |
+| HDMAEN ($420C) | ✅ Complete | |
+| Joypad auto-read ($4218–$421F) | ❌ Not implemented | **Next up** |
+| Joypad serial ($4016–$4017) | ❌ Not implemented | |
+| IRQ timer ($4207–$420A) | ❌ Not implemented | |
+| CPU I/O range ($4200–$5FFF) remainder | ⚠️ Stubbed | Returns 0 |
+| Joypad I/O range ($4000–$41FF) | ⚠️ Stubbed | Returns 0 |
+
+---
+
+## Display / Windowing (Host)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Window creation (winit 0.30) | ✅ Complete | |
+| Framebuffer rendering (softbuffer 0.4) | ✅ Complete | BGR555 → u32, nearest-neighbour scale |
+| Frame pacing (vblank-driven) | ✅ Complete | `frame_complete()` gates redraws |
+
+---
+
+## Next Steps (Priority Order)
+
+1. **Joypad input** — wire winit keyboard events to $4218/$4219 auto-read registers so the 240p test suite menu is navigable
+2. **Priority compositing for Mode 0** — branch on `bg_mode` in `render_scanline`
+3. **Navigate 240p test suite** — run individual tests to surface next PPU bugs
+4. **Color math / blending** — $2130–$2132
+5. **Windowing** — $2123–$212B
+6. **Additional BG modes** — Modes 2, 3, 4, 5, 6, 7
+7. **SPC700** — full audio emulation

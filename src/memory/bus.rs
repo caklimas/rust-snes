@@ -1,6 +1,7 @@
 use std::ops::RangeInclusive;
 
 use crate::{
+    apu::Apu,
     memory::{
         addresses::{
             APU_REGISTERS_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, HDMAEN, HVBJOY, MDMAEN,
@@ -30,6 +31,7 @@ pub struct Bus {
     pub nmi_status: NmiStatus,
     pub ppu: Ppu,
 
+    apu: Apu,
     cartridge: Cartridge,
     dma_channels: [DmaChannel; 8],
     hdmaen: u8,
@@ -40,6 +42,7 @@ pub struct Bus {
 impl Bus {
     pub fn new(data: Vec<u8>) -> Self {
         Self {
+            apu: Default::default(),
             cartridge: Cartridge::new(data),
             dma_channels: [Default::default(); 8],
             hdmaen: 0,
@@ -77,10 +80,7 @@ impl Bus {
                 self.wram.read(&wram_addr)
             }
             addr if PPU_REGISTERS_RANGE.contains(&addr) => self.ppu.read(addr),
-            addr if APU_REGISTERS_RANGE.contains(&addr) => {
-                // APU register access
-                0
-            }
+            addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.read(addr),
             NMITIMEN => 0,
             HVBJOY => (self.hvbjoy.vblank() as u8) << 7,
             _ => self.cartridge.read(address),
@@ -107,15 +107,6 @@ impl Bus {
                         let channel = self.dma_channels[i as usize];
                         let source = (channel.a1b as u32) << 16 | (channel.a1t as u32);
                         let destination = PPU_REGISTERS_START | (channel.bbad as u32);
-                        eprintln!(
-                            "DMA ch{}: dmap={:#04X} bbad={:#04X} src={:#08X} das={} fixed={}",
-                            i,
-                            channel.dmap.0,
-                            channel.bbad,
-                            source,
-                            channel.das,
-                            channel.dmap.fixed_transfer()
-                        );
                         let dmap_mode = channel.dmap.0 & 0x07;
                         let transfer_direction = channel.dmap.0 >> 7;
                         let das = if channel.das == 0 {
@@ -163,9 +154,10 @@ impl Bus {
             addr if PPU_REGISTERS_RANGE.contains(&addr) => {
                 self.ppu.write(normalized_address, value)
             }
-            addr if APU_REGISTERS_RANGE.contains(&addr) => {}
+            addr if APU_REGISTERS_RANGE.contains(&addr) => {
+                self.apu.write(normalized_address, value);
+            }
             NMITIMEN => {
-                eprintln!("WRITE $4200 (NMITIMEN) = {:#04X}", value);
                 self.interrupt_enable.0 = value;
             }
             _ => self.cartridge.write(address, value),

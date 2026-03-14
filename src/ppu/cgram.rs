@@ -6,7 +6,7 @@ pub struct Cgram {
 }
 
 impl Cgram {
-    pub fn read_color(&self, index: u8) -> u16 {
+    pub fn read_color(&self, index: u16) -> u16 {
         let index = (index * 2) as usize;
         let lo = self.data[index];
         let hi = self.data[index + 1];
@@ -21,7 +21,6 @@ impl Cgram {
     }
 
     pub fn write_cgdata(&mut self, value: u8) {
-        eprintln!("CGDATA write: {:#04X} at cgadd={}", value, self.cgadd);
         let index = self.get_index(self.write_latch);
         if !self.write_latch {
             self.data[index] = value;
