@@ -6,7 +6,7 @@ use crate::{
     memory::{
         addresses::{
             APU_REGISTERS_RANGE, CPU_IO_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, HDMAEN,
-            HVBJOY, MDMAEN, NMI_STATUS_REGISTER, NMITIMEN, PPU_REGISTERS_RANGE,
+            HVBJOY, MDMAEN, MEMSEL, NMI_STATUS_REGISTER, NMITIMEN, PPU_REGISTERS_RANGE,
             PPU_REGISTERS_START, UNUSED_IO_GAP_RANGE, UNUSED_UPPER_GAP_RANGE, WMADDH, WMADDL,
             WMADDM, WMDATA, WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE,
             WRAM_START,
@@ -17,6 +17,7 @@ use crate::{
         interrupt_enable::InterruptEnable,
         memory_bus::MemoryBus,
         memory_region::MemoryRegion,
+        memory_select::MemorySelect,
         nmi_status::NmiStatus,
         wram_access_address::WramAccessAddress,
     },
@@ -31,6 +32,7 @@ pub struct Bus {
     pub hvbjoy: Hvbjoy,
     pub input_output: InputOutput,
     pub interrupt_enable: InterruptEnable,
+    pub memory_select: MemorySelect,
     pub nmi_status: NmiStatus,
     pub ppu: Ppu,
 
@@ -52,6 +54,7 @@ impl Bus {
             hvbjoy: Default::default(),
             input_output: Default::default(),
             interrupt_enable: Default::default(),
+            memory_select: Default::default(),
             nmi_status: Default::default(),
             ppu: Default::default(),
             wram: MemoryRegion::new(vec![0; 131072], WRAM_START),
@@ -159,6 +162,7 @@ impl Bus {
             addr if PPU_REGISTERS_RANGE.contains(&addr) => self.ppu.write(addr, value),
             addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.write(addr, value),
             NMITIMEN => self.interrupt_enable.0 = value,
+            MEMSEL => self.memory_select.0 = value,
             addr if CPU_IO_RANGE.contains(&addr) => self.input_output.write(addr, value),
             _ => self.cartridge.write(address, value),
         }
@@ -234,6 +238,44 @@ impl Bus {
                         self.dma_channels[i as usize].hdma_line_counter = value;
                         self.dma_channels[i as usize].hdma_do_transfer = true;
                     }
+                }
+            }
+        }
+    }
+
+    /// Returns the number of master clocks per CPU cycle for the given address.
+    /// 6 = fast (3.58 MHz), 8 = slow (2.68 MHz), 12 = extra slow (1.78 MHz)
+    pub fn master_clocks_for_address(&self, address: u32) -> u32 {
+        let bank = (address >> 16) as u8;
+        let offset = (address & 0xFFFF) as u16;
+
+        match bank {
+            // Banks $00-$3F and mirrors $80-$BF
+            0x00..=0x3F | 0x80..=0xBF => match offset {
+                0x0000..=0x1FFF => 8,  // WRAM mirror
+                0x2100..=0x21FF => 6,  // PPU/APU registers (B-Bus)
+                0x4000..=0x41FF => 12, // Joypad serial
+                0x4200..=0x5FFF => 6,  // CPU I/O registers
+                0x8000..=0xFFFF => {
+                    // ROM area: banks $80-$BF are WS2 (fast if MEMSEL set)
+                    if bank >= 0x80 && self.memory_select.access_speed() {
+                        6
+                    } else {
+                        8
+                    }
+                }
+                _ => 8, // Everything else (expansion, SRAM, etc.)
+            },
+            // Banks $40-$7D: HiROM / expansion — always slow
+            0x40..=0x7D => 8,
+            // Banks $7E-$7F: WRAM — always slow
+            0x7E..=0x7F => 8,
+            // Banks $C0-$FF: WS2 HiROM
+            0xC0..=0xFF => {
+                if self.memory_select.access_speed() {
+                    6
+                } else {
+                    8
                 }
             }
         }

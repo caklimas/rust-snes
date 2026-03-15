@@ -8,6 +8,7 @@ pub mod hvbjoy;
 pub mod interrupt_enable;
 pub mod memory_bus;
 pub mod memory_region;
+pub mod memory_select;
 pub mod nmi_status;
 pub mod wram_access_address;
 

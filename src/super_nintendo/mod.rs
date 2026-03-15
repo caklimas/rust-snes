@@ -6,11 +6,14 @@ use crate::{
     },
 };
 
+const MASTER_CLOCKS_PER_SCANLINE: u32 = 1364;
+const DRAM_REFRESH_MASTER_CLOCKS: u32 = 40;
+
 pub struct SuperNintendo {
     pub bus: Bus,
     cpu: Cpu,
     current_scanline: u16,
-    cycles: u32,
+    master_clocks: u32,
     frame_complete: bool,
 }
 
@@ -27,16 +30,22 @@ impl SuperNintendo {
             bus,
             cpu,
             current_scanline: 0,
-            cycles: 0,
+            master_clocks: 0,
             frame_complete: false,
         }
     }
 
     pub fn step(&mut self) {
-        self.cycles += self.cpu.step(&mut self.bus) as u32;
+        // Approximate master clock cost: cycles × speed of region CPU is executing from
+        let pc_address = ((self.cpu.registers.pb as u32) << 16) | (self.cpu.registers.pc as u32);
+        let clocks_per_cycle = self.bus.master_clocks_for_address(pc_address);
+        let cpu_cycles = self.cpu.step(&mut self.bus) as u32;
+        self.master_clocks += cpu_cycles * clocks_per_cycle;
 
-        if self.cycles >= 227 {
-            self.cycles -= 227;
+        if self.master_clocks >= MASTER_CLOCKS_PER_SCANLINE {
+            self.master_clocks -= MASTER_CLOCKS_PER_SCANLINE;
+            // Account for DRAM refresh: charge 40 master clocks per scanline
+            self.master_clocks += DRAM_REFRESH_MASTER_CLOCKS;
 
             if self.current_scanline < 224 {
                 self.bus.run_hdma_scanline();
