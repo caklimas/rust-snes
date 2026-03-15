@@ -108,9 +108,11 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Priority compositing for other modes** — branch on `bg_mode` in `render_scanline` (currently Mode 1 hardcoded)
-2. **Navigate 240p test suite** — run individual tests to surface next PPU bugs
-3. **Color math / blending** — $2130–$2132
-4. **Windowing** — $2123–$212B
-5. **Additional BG modes** — Modes 4, 5, 6, 7
-6. **SPC700** — full audio emulation
+1. **16x16 tile support** — `bg_sample` assumes 8x8; need to use BGMODE tile_size bits (4–7) for per-layer 16x16 tiles
+2. **Multi-screen tilemap layout** — 64-wide/tall tilemaps are two 32x32 screens at +0x400 offsets, not linear; fix entry_address calculation in `bg_sample`
+3. **Priority compositing for other modes** — branch on `bg_mode` in `render_scanline` (currently Mode 1 hardcoded)
+4. **Master brightness** — apply INIDISP bits 3–0 to rendered pixels (fade-in/fade-out)
+5. **Color math / blending** — $2130–$2132
+6. **Windowing** — $2123–$212B
+7. **Additional BG modes** — Modes 4, 5, 6, 7
+8. **SPC700** — full audio emulation
