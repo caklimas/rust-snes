@@ -294,33 +294,19 @@ impl Ppu {
             pixel_y_within_tile = 7 - pixel_y_within_tile;
         }
 
-        let bitplane_01_address = tile_base + pixel_y_within_tile;
-        let bitplane_01 = self.vram.read_word(bitplane_01_address);
-
         let bit = if tilemap_entry.x_flip() {
             pixel_x_within_tile
         } else {
             7 - pixel_x_within_tile
         };
-        let plane_0 = ((bitplane_01 & 0xFF) >> bit) & 0b1;
-        let plane_1 = (((bitplane_01 & 0xFF00) >> 8) >> bit) & 0b1;
-        let bitplane_23_address = tile_base + 8 + pixel_y_within_tile;
-        let bitplane_23 = self.vram.read_word(bitplane_23_address);
-        let plane_2 = ((bitplane_23 & 0xFF) >> bit) & 0b1;
-        let plane_3 = (((bitplane_23 & 0xFF00) >> 8) >> bit) & 0b1;
+        let (plane_0, plane_1) = self.get_planes(tile_base, pixel_y_within_tile, bit, 0);
+        let (plane_2, plane_3) = self.get_planes(tile_base, pixel_y_within_tile, bit, 8);
 
         let character_data = if bpp == 4 {
             plane_0 | (plane_1 << 1) | (plane_2 << 2) | (plane_3 << 3)
         } else if bpp == 8 {
-            let bitplane_45_address = tile_base + 16 + pixel_y_within_tile;
-            let bitplane_45 = self.vram.read_word(bitplane_45_address);
-            let plane_4 = ((bitplane_45 & 0xFF) >> bit) & 0b1;
-            let plane_5 = (((bitplane_45 & 0xFF00) >> 8) >> bit) & 0b1;
-
-            let bitplane_67_address = tile_base + 24 + pixel_y_within_tile;
-            let bitplane_67 = self.vram.read_word(bitplane_67_address);
-            let plane_6 = ((bitplane_67 & 0xFF) >> bit) & 0b1;
-            let plane_7 = (((bitplane_67 & 0xFF00) >> 8) >> bit) & 0b1;
+            let (plane_4, plane_5) = self.get_planes(tile_base, pixel_y_within_tile, bit, 16);
+            let (plane_6, plane_7) = self.get_planes(tile_base, pixel_y_within_tile, bit, 24);
 
             plane_0
                 | (plane_1 << 1)
@@ -418,6 +404,21 @@ impl Ppu {
         }
 
         None
+    }
+
+    fn get_planes(
+        &self,
+        tile_base: u16,
+        pixel_y_within_tile: u16,
+        bit: u16,
+        addend: u16,
+    ) -> (u16, u16) {
+        let bitplane_address = tile_base + addend + pixel_y_within_tile;
+        let bitplane = self.vram.read_word(bitplane_address);
+        let plane_lo = ((bitplane & 0xFF) >> bit) & 0b1;
+        let plane_hi = (((bitplane & 0xFF00) >> 8) >> bit) & 0b1;
+
+        (plane_lo, plane_hi)
     }
 }
 
