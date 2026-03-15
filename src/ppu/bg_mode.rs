@@ -2,7 +2,7 @@ use bitfield::bitfield;
 
 bitfield! {
 
-    #[derive(Default)]
+    #[derive(Clone, Copy, Default)]
     pub struct BgMode(u8);
 
     pub bg_mode, set_bg_mode: 2, 0;

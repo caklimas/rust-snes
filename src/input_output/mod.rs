@@ -17,9 +17,5 @@ impl InputOutput {
         }
     }
 
-    pub fn write(&mut self, address: u32, _: u8) {
-        match address {
-            _ => (),
-        }
-    }
+    pub fn write(&mut self, _address: u32, _value: u8) {}
 }

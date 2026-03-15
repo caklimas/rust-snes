@@ -6,9 +6,10 @@ use crate::{
         VMDATAL,
     },
     ppu::{
-        bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_tilemap::BgTilemap,
-        bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings, cgram::Cgram,
-        display::Display, oam::Oam, obsel::Obsel, palette_base::PaletteBase,
+        bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_sample::BgSample,
+        bg_tilemap::BgTilemap, bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings,
+        cgram::Cgram, display::Display, oam::Oam, obj_sample::ObjSample, obsel::Obsel,
+        palette_base::PaletteBase, priority_resolver::PriorityResolver,
         screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
         tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
     },
@@ -16,6 +17,7 @@ use crate::{
 
 pub mod bg_horizontal_offset;
 pub mod bg_mode;
+pub mod bg_sample;
 pub mod bg_tilemap;
 pub mod bg_vertical_offset;
 pub mod bpp_settings;
@@ -24,9 +26,11 @@ pub mod display;
 pub mod high_table_sprite;
 pub mod low_table_sprite;
 pub mod oam;
+pub mod obj_sample;
 pub mod obsel;
 pub mod packed_attributes;
 pub mod palette_base;
+pub mod priority_resolver;
 pub mod rgb;
 pub mod screen_designation;
 pub mod screen_setting;
@@ -112,30 +116,22 @@ impl Ppu {
                 palette_base.bg3,
             );
 
+            let bg4_sample = self.bg_sample(
+                self.main_screen_designation.bg4_enable(),
+                x,
+                y,
+                &self.bg4,
+                self.bg_horizontal_offset.bg4_offset,
+                self.bg_vertical_offset.bg4_offset,
+                self.tile_graphic34.second_vram_word_address(),
+                bpp_settings.bg4,
+                palette_base.bg4,
+            );
+
             let obj_sample = self.obj_sample(x, y);
-            let sample = if let Some((cgram, 3)) = obj_sample {
-                Some(cgram)
-            } else if let Some((cgram, true)) = bg1_sample {
-                Some(cgram)
-            } else if let Some((cgram, true)) = bg2_sample {
-                Some(cgram)
-            } else if let Some((cgram, 2)) = obj_sample {
-                Some(cgram)
-            } else if let Some((cgram, false)) = bg1_sample {
-                Some(cgram)
-            } else if let Some((cgram, false)) = bg2_sample {
-                Some(cgram)
-            } else if let Some((cgram, 1)) = obj_sample {
-                Some(cgram)
-            } else if let Some((cgram, true)) = bg3_sample {
-                Some(cgram)
-            } else if let Some((cgram, 0)) = obj_sample {
-                Some(cgram)
-            } else if let Some((cgram, false)) = bg3_sample {
-                Some(cgram)
-            } else {
-                None
-            };
+            let priority_resolver =
+                PriorityResolver::new(bg1_sample, bg2_sample, bg3_sample, bg4_sample, obj_sample);
+            let sample = priority_resolver.get_sample(self.bg_mode);
 
             let color = match sample {
                 Some(cgram_index) => self.cgram.read_color(cgram_index as u16),
@@ -258,7 +254,7 @@ impl Ppu {
         char_base: u16,
         bpp_opt: Option<u8>,
         palette_base: u8,
-    ) -> Option<(u8, bool)> {
+    ) -> Option<BgSample> {
         if !enabled {
             return None;
         }
@@ -331,11 +327,14 @@ impl Ppu {
                 ((palette_base as u16) + tilemap_entry.palette_number() * 4 + character_data) as u8
             };
 
-            Some((cg_ram_index, tilemap_entry.tile_priority()))
+            Some(BgSample {
+                cg_ram_index,
+                priority: tilemap_entry.tile_priority(),
+            })
         }
     }
 
-    fn obj_sample(&self, x: u16, y: u16) -> Option<(u8, u8)> {
+    fn obj_sample(&self, x: u16, y: u16) -> Option<ObjSample> {
         for i in 0..128 {
             let (low, high) = self.oam.get_sprite(i);
             let x_full = low.x as i16 | ((high.x_position_bit_8() as i16) << 8);
@@ -396,10 +395,12 @@ impl Ppu {
             if character_data == 0 {
                 continue;
             } else {
-                return Some((
-                    (128 + low.packed_attributes.palette() as u16 * 16 + character_data) as u8,
-                    low.packed_attributes.priority(),
-                ));
+                return Some(ObjSample {
+                    cg_ram_index: (128
+                        + low.packed_attributes.palette() as u16 * 16
+                        + character_data) as u8,
+                    priority: low.packed_attributes.priority(),
+                });
             }
         }
 

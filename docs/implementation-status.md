@@ -52,7 +52,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | BG rendering — Mode 3 | ✅ Complete | 8bpp BG1, 4bpp BG2 |
 | BG rendering — Modes 4–7 | ❌ Not implemented | |
 | Sprite (OAM) rendering | ✅ Complete | 4bpp, priority, x/y flip, multi-tile |
-| Priority compositing | ⚠️ Partial | Mode 1 hardcoded; Mode 0 and others not branched |
+| Priority compositing | ⚠️ Partial | Modes 0, 1 (with BG3 boost), 2, 3 via `PriorityResolver`; Modes 4–7 not yet |
 | Windowing ($2123–$212B) | ❌ Not implemented | |
 | Color math / sub-screen blending ($2130–$2132) | ❌ Not implemented | |
 | Mode 7 | ❌ Not implemented | |
@@ -91,6 +91,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Keyboard input (winit) | ✅ Complete | Arrows=d-pad, Z=B, X=A, A=Y, S=X, Q=L, W=R, Enter=Start, RShift=Select |
 | Joypad serial ($4016–$4017) | ❌ Not implemented | |
 | IRQ timer ($4207–$420A) | ❌ Not implemented | |
+| MEMSEL ($420D) | ✅ Complete | FastROM enable for WS2 banks via `MemorySelect` bitfield |
 | CPU I/O range ($4200–$5FFF) remainder | ⚠️ Stubbed | Returns 0 |
 | Joypad I/O range ($4000–$41FF) | ⚠️ Stubbed | Returns 0 |
 
@@ -110,9 +111,8 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 1. **16x16 tile support** — `bg_sample` assumes 8x8; need to use BGMODE tile_size bits (4–7) for per-layer 16x16 tiles
 2. **Multi-screen tilemap layout** — 64-wide/tall tilemaps are two 32x32 screens at +0x400 offsets, not linear; fix entry_address calculation in `bg_sample`
-3. **Priority compositing for other modes** — branch on `bg_mode` in `render_scanline` (currently Mode 1 hardcoded)
-4. **Master brightness** — apply INIDISP bits 3–0 to rendered pixels (fade-in/fade-out)
-5. **Color math / blending** — $2130–$2132
-6. **Windowing** — $2123–$212B
-7. **Additional BG modes** — Modes 4, 5, 6, 7
-8. **SPC700** — full audio emulation
+3. **Master brightness** — apply INIDISP bits 3–0 to rendered pixels (fade-in/fade-out)
+4. **Color math / blending** — $2130–$2132
+5. **Windowing** — $2123–$212B
+6. **Additional BG modes** — Modes 4, 5, 6, 7 (including priority compositing)
+7. **SPC700** — full audio emulation
