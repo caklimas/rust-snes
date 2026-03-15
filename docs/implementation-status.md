@@ -48,7 +48,9 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | SETINI ($2133) | ✅ Complete | |
 | BG rendering — Mode 0 | ✅ Complete | 2bpp, per-BG palette bands |
 | BG rendering — Mode 1 | ✅ Complete | BG1/BG2 4bpp, BG3 2bpp |
-| BG rendering — Modes 2–7 | ❌ Not implemented | |
+| BG rendering — Mode 2 | ✅ Complete | 4bpp BG1/BG2 (via BppSettings) |
+| BG rendering — Mode 3 | ✅ Complete | 8bpp BG1, 4bpp BG2 |
+| BG rendering — Modes 4–7 | ❌ Not implemented | |
 | Sprite (OAM) rendering | ✅ Complete | 4bpp, priority, x/y flip, multi-tile |
 | Priority compositing | ⚠️ Partial | Mode 1 hardcoded; Mode 0 and others not branched |
 | Windowing ($2123–$212B) | ❌ Not implemented | |
@@ -85,7 +87,8 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | HVBJOY ($4212) | ✅ Complete | vblank/hblank flags |
 | MDMAEN ($420B) | ✅ Complete | |
 | HDMAEN ($420C) | ✅ Complete | |
-| Joypad auto-read ($4218–$421F) | ❌ Not implemented | **Next up** |
+| Joypad auto-read ($4218–$421F) | ✅ Complete | Controller 1 via InputOutput struct |
+| Keyboard input (winit) | ✅ Complete | Arrows=d-pad, Z=B, X=A, A=Y, S=X, Q=L, W=R, Enter=Start, RShift=Select |
 | Joypad serial ($4016–$4017) | ❌ Not implemented | |
 | IRQ timer ($4207–$420A) | ❌ Not implemented | |
 | CPU I/O range ($4200–$5FFF) remainder | ⚠️ Stubbed | Returns 0 |
@@ -105,10 +108,9 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Joypad input** — wire winit keyboard events to $4218/$4219 auto-read registers so the 240p test suite menu is navigable
-2. **Priority compositing for Mode 0** — branch on `bg_mode` in `render_scanline`
-3. **Navigate 240p test suite** — run individual tests to surface next PPU bugs
-4. **Color math / blending** — $2130–$2132
-5. **Windowing** — $2123–$212B
-6. **Additional BG modes** — Modes 2, 3, 4, 5, 6, 7
-7. **SPC700** — full audio emulation
+1. **Priority compositing for other modes** — branch on `bg_mode` in `render_scanline` (currently Mode 1 hardcoded)
+2. **Navigate 240p test suite** — run individual tests to surface next PPU bugs
+3. **Color math / blending** — $2130–$2132
+4. **Windowing** — $2123–$212B
+5. **Additional BG modes** — Modes 4, 5, 6, 7
+6. **SPC700** — full audio emulation

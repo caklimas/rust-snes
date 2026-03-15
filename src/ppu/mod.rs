@@ -278,7 +278,13 @@ impl Ppu {
             + (tile_x % tilemap_width);
 
         let tilemap_entry = TilemapEntry(self.vram.read_word(entry_address));
-        let tile_base_multiplier = if bpp == 4 { 16 } else { 8 };
+        let tile_base_multiplier = if bpp == 4 {
+            16
+        } else if bpp == 8 {
+            32
+        } else {
+            8
+        };
         let tile_base = char_base + tilemap_entry.tile_number() * tile_base_multiplier;
 
         let pixel_x_within_tile = x_offset % 8;
@@ -298,14 +304,32 @@ impl Ppu {
         };
         let plane_0 = ((bitplane_01 & 0xFF) >> bit) & 0b1;
         let plane_1 = (((bitplane_01 & 0xFF00) >> 8) >> bit) & 0b1;
+        let bitplane_23_address = tile_base + 8 + pixel_y_within_tile;
+        let bitplane_23 = self.vram.read_word(bitplane_23_address);
+        let plane_2 = ((bitplane_23 & 0xFF) >> bit) & 0b1;
+        let plane_3 = (((bitplane_23 & 0xFF00) >> 8) >> bit) & 0b1;
 
         let character_data = if bpp == 4 {
-            let bitplane_23_address = tile_base + 8 + pixel_y_within_tile;
-            let bitplane_23 = self.vram.read_word(bitplane_23_address);
-            let plane_2 = ((bitplane_23 & 0xFF) >> bit) & 0b1;
-            let plane_3 = (((bitplane_23 & 0xFF00) >> 8) >> bit) & 0b1;
-
             plane_0 | (plane_1 << 1) | (plane_2 << 2) | (plane_3 << 3)
+        } else if bpp == 8 {
+            let bitplane_45_address = tile_base + 16 + pixel_y_within_tile;
+            let bitplane_45 = self.vram.read_word(bitplane_45_address);
+            let plane_4 = ((bitplane_45 & 0xFF) >> bit) & 0b1;
+            let plane_5 = (((bitplane_45 & 0xFF00) >> 8) >> bit) & 0b1;
+
+            let bitplane_67_address = tile_base + 24 + pixel_y_within_tile;
+            let bitplane_67 = self.vram.read_word(bitplane_67_address);
+            let plane_6 = ((bitplane_67 & 0xFF) >> bit) & 0b1;
+            let plane_7 = (((bitplane_67 & 0xFF00) >> 8) >> bit) & 0b1;
+
+            plane_0
+                | (plane_1 << 1)
+                | (plane_2 << 2)
+                | (plane_3 << 3)
+                | (plane_4 << 4)
+                | (plane_5 << 5)
+                | (plane_6 << 6)
+                | (plane_7 << 7)
         } else {
             plane_0 | (plane_1 << 1)
         };
@@ -313,13 +337,15 @@ impl Ppu {
         if character_data == 0 {
             None
         } else {
-            let palette_multiplier = if bpp == 4 { 16 } else { 4 };
-            Some((
-                ((palette_base as u16)
-                    + tilemap_entry.palette_number() * palette_multiplier
-                    + character_data) as u8,
-                tilemap_entry.tile_priority(),
-            ))
+            let cg_ram_index = if bpp == 4 {
+                ((palette_base as u16) + tilemap_entry.palette_number() * 16 + character_data) as u8
+            } else if bpp == 8 {
+                character_data as u8
+            } else {
+                ((palette_base as u16) + tilemap_entry.palette_number() * 4 + character_data) as u8
+            };
+
+            Some((cg_ram_index, tilemap_entry.tile_priority()))
         }
     }
 

@@ -31,9 +31,12 @@ This is non-negotiable. Confident-sounding but wrong hardware information wastes
 - **Review code** the user writes and give honest feedback on correctness, Rust idioms, and design
 - **Point out issues** clearly but do not rewrite their code unless they explicitly ask you to
 
-## Keeping MEMORY.md up to date
+## Keeping MEMORY.md and implementation-status.md up to date
 
-After any meaningful implementation step is completed, update `MEMORY.md` yourself — do not ask or wait for the user to request it. Record new structs, methods, files, and architectural decisions. Remove stale "Next Up" entries and replace them with accurate ones.
+After any meaningful implementation step is completed, update both files yourself — do not ask or wait for the user to request it:
+
+- **`MEMORY.md`** (auto-memory): Record new structs, methods, files, and architectural decisions. Remove stale "Next Up" entries and replace them with accurate ones.
+- **`docs/implementation-status.md`**: Update the relevant status table row (e.g. ❌ → ✅) and adjust the "Next Steps" section. This file is the user-facing progress tracker.
 
 ## What you must NOT do
 
