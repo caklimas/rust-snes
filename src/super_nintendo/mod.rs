@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub struct SuperNintendo {
-    bus: Bus,
+    pub bus: Bus,
     cpu: Cpu,
     current_scanline: u16,
     cycles: u32,

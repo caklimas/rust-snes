@@ -98,11 +98,14 @@ pub const JOYPAD_IO_END: u32 = 0x0041FF;
 pub const JOYPAD_IO_RANGE: RangeInclusive<u32> = JOYPAD_IO_START..=JOYPAD_IO_END;
 
 // CPU IO
-pub const CPU_IO_START: u32 = 0x004200;
+pub const CPU_IO_START: u32 = 0x004201;
 pub const CPU_IO_END: u32 = 0x005FFF;
 pub const CPU_IO_RANGE: RangeInclusive<u32> = CPU_IO_START..=CPU_IO_END;
 
 pub const NMITIMEN: u32 = 0x004200;
+
+pub const JOY1L: u32 = 0x004218;
+pub const JOY1H: u32 = 0x004219;
 
 // DMA
 pub const MDMAEN: u32 = 0x00420B;

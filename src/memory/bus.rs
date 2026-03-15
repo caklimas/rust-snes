@@ -2,12 +2,14 @@ use std::ops::RangeInclusive;
 
 use crate::{
     apu::Apu,
+    input_output::InputOutput,
     memory::{
         addresses::{
-            APU_REGISTERS_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, HDMAEN, HVBJOY, MDMAEN,
-            NMI_STATUS_REGISTER, NMITIMEN, PPU_REGISTERS_RANGE, PPU_REGISTERS_START,
-            UNUSED_IO_GAP_RANGE, UNUSED_UPPER_GAP_RANGE, WMADDH, WMADDL, WMADDM, WMDATA,
-            WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
+            APU_REGISTERS_RANGE, CPU_IO_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, HDMAEN,
+            HVBJOY, MDMAEN, NMI_STATUS_REGISTER, NMITIMEN, PPU_REGISTERS_RANGE,
+            PPU_REGISTERS_START, UNUSED_IO_GAP_RANGE, UNUSED_UPPER_GAP_RANGE, WMADDH, WMADDL,
+            WMADDM, WMDATA, WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE,
+            WRAM_START,
         },
         cartridge::Cartridge,
         dma_channel::DmaChannel,
@@ -27,6 +29,7 @@ const WRAM_ACCESS_MASK: u32 = 0x1FFFF;
 
 pub struct Bus {
     pub hvbjoy: Hvbjoy,
+    pub input_output: InputOutput,
     pub interrupt_enable: InterruptEnable,
     pub nmi_status: NmiStatus,
     pub ppu: Ppu,
@@ -47,6 +50,7 @@ impl Bus {
             dma_channels: [Default::default(); 8],
             hdmaen: 0,
             hvbjoy: Default::default(),
+            input_output: Default::default(),
             interrupt_enable: Default::default(),
             nmi_status: Default::default(),
             ppu: Default::default(),
@@ -83,6 +87,7 @@ impl Bus {
             addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.read(addr),
             NMITIMEN => 0,
             HVBJOY => (self.hvbjoy.vblank() as u8) << 7,
+            addr if CPU_IO_RANGE.contains(&addr) => self.input_output.read(addr),
             _ => self.cartridge.read(address),
         }
     }
@@ -151,15 +156,10 @@ impl Bus {
                 let wram_addr = WRAM_START + (addr & 0xFFFF);
                 self.wram.write(&wram_addr, value)
             }
-            addr if PPU_REGISTERS_RANGE.contains(&addr) => {
-                self.ppu.write(normalized_address, value)
-            }
-            addr if APU_REGISTERS_RANGE.contains(&addr) => {
-                self.apu.write(normalized_address, value);
-            }
-            NMITIMEN => {
-                self.interrupt_enable.0 = value;
-            }
+            addr if PPU_REGISTERS_RANGE.contains(&addr) => self.ppu.write(addr, value),
+            addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.write(addr, value),
+            NMITIMEN => self.interrupt_enable.0 = value,
+            addr if CPU_IO_RANGE.contains(&addr) => self.input_output.write(addr, value),
             _ => self.cartridge.write(address, value),
         }
     }

@@ -2,7 +2,12 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use softbuffer::{Context, Surface};
-use winit::{application::ApplicationHandler, event::WindowEvent, window::Window};
+use winit::{
+    application::ApplicationHandler,
+    event::{KeyEvent, WindowEvent},
+    keyboard::{KeyCode, PhysicalKey},
+    window::Window,
+};
 
 use crate::{
     ppu::{SCREEN_HEIGHT, SCREEN_WIDTH, rgb::Rgb},
@@ -97,6 +102,89 @@ impl ApplicationHandler for App {
 
                 buffer.present().unwrap();
             }
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(key_code),
+                        state,
+                        ..
+                    },
+                ..
+            } => match key_code {
+                KeyCode::ArrowUp => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_up(state.is_pressed()),
+                KeyCode::ArrowDown => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_down(state.is_pressed()),
+                KeyCode::ArrowLeft => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_left(state.is_pressed()),
+                KeyCode::ArrowRight => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_right(state.is_pressed()),
+                KeyCode::KeyZ => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_b(state.is_pressed()),
+                KeyCode::KeyX => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_a(state.is_pressed()),
+                KeyCode::KeyA => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_y(state.is_pressed()),
+                KeyCode::KeyS => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_x(state.is_pressed()),
+                KeyCode::KeyQ => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_l(state.is_pressed()),
+                KeyCode::KeyW => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_r(state.is_pressed()),
+                KeyCode::Enter => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_start(state.is_pressed()),
+                KeyCode::ShiftRight => self
+                    .super_nintendo
+                    .bus
+                    .input_output
+                    .controller_1
+                    .set_select(state.is_pressed()),
+                _ => {}
+            },
             _ => (),
         }
     }
