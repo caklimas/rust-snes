@@ -1,3 +1,8 @@
+use crate::ppu::{
+    high_table_sprite::HighTableSprite, low_table_sprite::LowTableSprite,
+    packed_attributes::PackedAttributes,
+};
+
 pub struct Oam {
     high_table: [u8; 32],
     low_table: [u8; 512],
@@ -47,6 +52,19 @@ impl Oam {
         self.read_address = (self.read_address + 1) % 544;
 
         data
+    }
+
+    pub fn get_sprite(&self, i: usize) -> (LowTableSprite, HighTableSprite) {
+        let low_table_sprite = LowTableSprite {
+            x: self.low_table[i * 4],
+            y: self.low_table[i * 4 + 1],
+            tile_number: self.low_table[i * 4 + 2],
+            packed_attributes: PackedAttributes(self.low_table[i * 4 + 3]),
+        };
+
+        let high_table_sprite = HighTableSprite((self.high_table[i / 4] >> ((i % 4) * 2)) & 0x3);
+
+        (low_table_sprite, high_table_sprite)
     }
 
     fn get_index(&self, is_low_table: bool) -> usize {
