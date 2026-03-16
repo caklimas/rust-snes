@@ -7,17 +7,19 @@ use crate::{
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_sample::BgSample,
-        bg_tilemap::BgTilemap, bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings,
-        cgram::Cgram, display::Display, oam::Oam, obj_sample::ObjSample, obsel::Obsel,
-        palette_base::PaletteBase, priority_resolver::PriorityResolver,
-        screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
-        tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
+        bg_sample_params::BgSampleParams, bg_tilemap::BgTilemap,
+        bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings, cgram::Cgram,
+        display::Display, oam::Oam, obj_sample::ObjSample, obsel::Obsel, palette_base::PaletteBase,
+        priority_resolver::PriorityResolver, screen_designation::ScreenDesignation,
+        screen_setting::ScreenSetting, tile_graphic_base_address::TileGraphicBaseAddress,
+        tilemap_entry::TilemapEntry, vram::Vram,
     },
 };
 
 pub mod bg_horizontal_offset;
 pub mod bg_mode;
 pub mod bg_sample;
+pub mod bg_sample_params;
 pub mod bg_tilemap;
 pub mod bg_vertical_offset;
 pub mod bpp_settings;
@@ -80,53 +82,57 @@ impl Ppu {
                 continue;
             }
 
-            let bg1_sample = self.bg_sample(
-                self.main_screen_designation.bg1_enable(),
+            let bg1_sample = self.bg_sample(&BgSampleParams {
+                enabled: self.main_screen_designation.bg1_enable(),
                 x,
                 y,
-                &self.bg1,
-                self.bg_horizontal_offset.bg1_offset,
-                self.bg_vertical_offset.bg1_offset,
-                self.tile_graphic12.first_vram_word_address(),
-                bpp_settings.bg1,
-                palette_base.bg1,
-            );
+                bg_tilemap: &self.bg1,
+                bg_horizontal_offset: self.bg_horizontal_offset.bg1_offset,
+                bg_vertical_offset: self.bg_vertical_offset.bg1_offset,
+                char_base: self.tile_graphic12.first_vram_word_address(),
+                bpp_opt: bpp_settings.bg1,
+                palette_base: palette_base.bg1,
+                tile_size_16: self.bg_mode.tile_size_1(),
+            });
 
-            let bg2_sample = self.bg_sample(
-                self.main_screen_designation.bg2_enable(),
+            let bg2_sample = self.bg_sample(&BgSampleParams {
+                enabled: self.main_screen_designation.bg2_enable(),
                 x,
                 y,
-                &self.bg2,
-                self.bg_horizontal_offset.bg2_offset,
-                self.bg_vertical_offset.bg2_offset,
-                self.tile_graphic12.second_vram_word_address(),
-                bpp_settings.bg2,
-                palette_base.bg2,
-            );
+                bg_tilemap: &self.bg2,
+                bg_horizontal_offset: self.bg_horizontal_offset.bg2_offset,
+                bg_vertical_offset: self.bg_vertical_offset.bg2_offset,
+                char_base: self.tile_graphic12.second_vram_word_address(),
+                bpp_opt: bpp_settings.bg2,
+                palette_base: palette_base.bg2,
+                tile_size_16: self.bg_mode.tile_size_2(),
+            });
 
-            let bg3_sample = self.bg_sample(
-                self.main_screen_designation.bg3_enable(),
+            let bg3_sample = self.bg_sample(&BgSampleParams {
+                enabled: self.main_screen_designation.bg3_enable(),
                 x,
                 y,
-                &self.bg3,
-                self.bg_horizontal_offset.bg3_offset,
-                self.bg_vertical_offset.bg3_offset,
-                self.tile_graphic34.first_vram_word_address(),
-                bpp_settings.bg3,
-                palette_base.bg3,
-            );
+                bg_tilemap: &self.bg3,
+                bg_horizontal_offset: self.bg_horizontal_offset.bg3_offset,
+                bg_vertical_offset: self.bg_vertical_offset.bg3_offset,
+                char_base: self.tile_graphic34.first_vram_word_address(),
+                bpp_opt: bpp_settings.bg3,
+                palette_base: palette_base.bg3,
+                tile_size_16: self.bg_mode.tile_size_3(),
+            });
 
-            let bg4_sample = self.bg_sample(
-                self.main_screen_designation.bg4_enable(),
+            let bg4_sample = self.bg_sample(&BgSampleParams {
+                enabled: self.main_screen_designation.bg4_enable(),
                 x,
                 y,
-                &self.bg4,
-                self.bg_horizontal_offset.bg4_offset,
-                self.bg_vertical_offset.bg4_offset,
-                self.tile_graphic34.second_vram_word_address(),
-                bpp_settings.bg4,
-                palette_base.bg4,
-            );
+                bg_tilemap: &self.bg4,
+                bg_horizontal_offset: self.bg_horizontal_offset.bg4_offset,
+                bg_vertical_offset: self.bg_vertical_offset.bg4_offset,
+                char_base: self.tile_graphic34.second_vram_word_address(),
+                bpp_opt: bpp_settings.bg4,
+                palette_base: palette_base.bg4,
+                tile_size_16: self.bg_mode.tile_size_4(),
+            });
 
             let obj_sample = self.obj_sample(x, y);
             let priority_resolver =
@@ -243,37 +249,47 @@ impl Ppu {
         self.bg_old = value;
     }
 
-    fn bg_sample(
-        &self,
-        enabled: bool,
-        x: u16,
-        y: u16,
-        bg_tilemap: &BgTilemap,
-        bg_horizontal_offset: u16,
-        bg_vertical_offset: u16,
-        char_base: u16,
-        bpp_opt: Option<u8>,
-        palette_base: u8,
-    ) -> Option<BgSample> {
-        if !enabled {
+    fn bg_sample(&self, params: &BgSampleParams) -> Option<BgSample> {
+        if !params.enabled {
             return None;
         }
 
-        let bpp = bpp_opt?;
-        let x_offset = bg_horizontal_offset.wrapping_add(x);
-        let y_offset = bg_vertical_offset.wrapping_add(y);
+        let bpp = params.bpp_opt?;
+        let x_offset = params.bg_horizontal_offset.wrapping_add(params.x);
+        let y_offset = params.bg_vertical_offset.wrapping_add(params.y);
 
-        let tile_x = x_offset / 8;
-        let tile_y = y_offset / 8;
+        let denominator = if params.tile_size_16 { 16 } else { 8 };
+        let tile_x = x_offset / denominator;
+        let tile_y = y_offset / denominator;
 
-        let tilemap_width = bg_tilemap.get_tilemap_width();
-        let tilemap_height = bg_tilemap.get_tilemap_height();
+        let tilemap_width = params.bg_tilemap.get_tilemap_width();
+        let tilemap_height = params.bg_tilemap.get_tilemap_height();
 
-        let entry_address = bg_tilemap.get_vram_word_address()
+        let entry_address = params.bg_tilemap.get_vram_word_address()
             + (tile_y % tilemap_height) * tilemap_width
             + (tile_x % tilemap_width);
 
         let tilemap_entry = TilemapEntry(self.vram.read_word(entry_address));
+        let tile_number = if params.tile_size_16 {
+            let pixel_in_tile_x = x_offset % 16;
+            let pixel_in_tile_y = y_offset % 16;
+
+            let mut sub_tile_col = pixel_in_tile_x / 8;
+            let mut sub_tile_row = pixel_in_tile_y / 8;
+
+            if tilemap_entry.x_flip() {
+                sub_tile_col = 1 - sub_tile_col
+            }
+
+            if tilemap_entry.y_flip() {
+                sub_tile_row = 1 - sub_tile_row
+            }
+
+            (tilemap_entry.tile_number() + sub_tile_col + (sub_tile_row * 16)) & 0x3FF
+        } else {
+            tilemap_entry.tile_number()
+        };
+
         let tile_base_multiplier = if bpp == 4 {
             16
         } else if bpp == 8 {
@@ -281,7 +297,7 @@ impl Ppu {
         } else {
             8
         };
-        let tile_base = char_base + tilemap_entry.tile_number() * tile_base_multiplier;
+        let tile_base = params.char_base + tile_number * tile_base_multiplier;
 
         let pixel_x_within_tile = x_offset % 8;
         let mut pixel_y_within_tile = y_offset % 8;
@@ -320,11 +336,14 @@ impl Ppu {
             None
         } else {
             let cg_ram_index = if bpp == 4 {
-                ((palette_base as u16) + tilemap_entry.palette_number() * 16 + character_data) as u8
+                ((params.palette_base as u16)
+                    + tilemap_entry.palette_number() * 16
+                    + character_data) as u8
             } else if bpp == 8 {
                 character_data as u8
             } else {
-                ((palette_base as u16) + tilemap_entry.palette_number() * 4 + character_data) as u8
+                ((params.palette_base as u16) + tilemap_entry.palette_number() * 4 + character_data)
+                    as u8
             };
 
             Some(BgSample {

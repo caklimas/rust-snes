@@ -46,6 +46,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | BGxHOFS / BGxVOFS ($210D–$2114) | ✅ Complete | M7 latch formula |
 | TM / TS ($212C–$212D) | ✅ Complete | Main/sub screen designation |
 | SETINI ($2133) | ✅ Complete | |
+| 16x16 tile support | ✅ Complete | Per-layer via BGMODE bits 4–7, quadrant flip handling |
 | BG rendering — Mode 0 | ✅ Complete | 2bpp, per-BG palette bands |
 | BG rendering — Mode 1 | ✅ Complete | BG1/BG2 4bpp, BG3 2bpp |
 | BG rendering — Mode 2 | ✅ Complete | 4bpp BG1/BG2 (via BppSettings) |
@@ -109,8 +110,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **16x16 tile support** — `bg_sample` assumes 8x8; need to use BGMODE tile_size bits (4–7) for per-layer 16x16 tiles
-2. **Multi-screen tilemap layout** — 64-wide/tall tilemaps are two 32x32 screens at +0x400 offsets, not linear; fix entry_address calculation in `bg_sample`
+1. **Multi-screen tilemap layout** — 64-wide/tall tilemaps are two 32x32 screens at +0x400 offsets, not linear; fix entry_address calculation in `bg_sample`
 3. **Master brightness** — apply INIDISP bits 3–0 to rendered pixels (fade-in/fade-out)
 4. **Color math / blending** — $2130–$2132
 5. **Windowing** — $2123–$212B
