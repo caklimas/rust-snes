@@ -259,15 +259,16 @@ impl Ppu {
         let y_offset = params.bg_vertical_offset.wrapping_add(params.y);
 
         let denominator = if params.tile_size_16 { 16 } else { 8 };
-        let tile_x = x_offset / denominator;
-        let tile_y = y_offset / denominator;
-
         let tilemap_width = params.bg_tilemap.get_tilemap_width();
         let tilemap_height = params.bg_tilemap.get_tilemap_height();
+        let tile_x = (x_offset / denominator) % tilemap_width;
+        let tile_y = (y_offset / denominator) % tilemap_height;
 
-        let entry_address = params.bg_tilemap.get_vram_word_address()
-            + (tile_y % tilemap_height) * tilemap_width
-            + (tile_x % tilemap_width);
+        let screen_offset = self.get_screen_offset(params.bg_tilemap, tile_x, tile_y);
+        let local_x = tile_x % 32;
+        let local_y = tile_y % 32;
+        let entry_address =
+            params.bg_tilemap.get_vram_word_address() + screen_offset + (local_y * 32) + local_x;
 
         let tilemap_entry = TilemapEntry(self.vram.read_word(entry_address));
         let tile_number = if params.tile_size_16 {
@@ -439,6 +440,16 @@ impl Ppu {
         let plane_hi = (((bitplane & 0xFF00) >> 8) >> bit) & 0b1;
 
         (plane_lo, plane_hi)
+    }
+
+    fn get_screen_offset(&self, bg_tilemap: &BgTilemap, tile_x: u16, tile_y: u16) -> u16 {
+        match bg_tilemap.mirror_size() {
+            0 => 0,
+            1 => (tile_x / 32) * 0x400,
+            2 => (tile_y / 32) * 0x400,
+            3 => (tile_x / 32) * 0x400 + (tile_y / 32) * 0x800,
+            _ => unimplemented!(),
+        }
     }
 }
 

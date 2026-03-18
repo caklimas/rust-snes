@@ -110,8 +110,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Multi-screen tilemap layout** — 64-wide/tall tilemaps are two 32x32 screens at +0x400 offsets, not linear; fix entry_address calculation in `bg_sample`
-3. **Master brightness** — apply INIDISP bits 3–0 to rendered pixels (fade-in/fade-out)
+1. **Master brightness** — apply INIDISP bits 3–0 to rendered pixels (fade-in/fade-out)
 4. **Color math / blending** — $2130–$2132
 5. **Windowing** — $2123–$212B
 6. **Additional BG modes** — Modes 4, 5, 6, 7 (including priority compositing)
