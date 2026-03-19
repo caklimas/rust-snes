@@ -14,6 +14,7 @@ use crate::{
         palette_base::PaletteBase, priority_resolver::PriorityResolver, rgb::Rgb,
         screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
         tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
+        window_condition::WindowCondition, winning_layer::Layer,
     },
 };
 
@@ -156,6 +157,43 @@ impl Ppu {
                 Some(winning_layer) => self.cgram.read_color(winning_layer.cgram_index as u16),
                 None => self.cgram.read_color(0),
             });
+
+            let math_enabled = match &sample {
+                Some(wl) => match wl.layer {
+                    Layer::Bg1 => self.cgadsub.bg1(),
+                    Layer::Bg2 => self.cgadsub.bg2(),
+                    Layer::Bg3 => self.cgadsub.bg3(),
+                    Layer::Bg4 => self.cgadsub.bg4(),
+                    Layer::Obj => self.cgadsub.obj(),
+                },
+                None => self.cgadsub.backdrop(),
+            };
+
+            if self.cgwsel.get_color_math_enable() == WindowCondition::Always && math_enabled {
+                let mut r;
+                let mut g;
+                let mut b;
+
+                if self.cgadsub.add_or_subtract() {
+                    r = (color.red() as i16) - (self.fixed_color.red() as i16);
+                    g = (color.green() as i16) - (self.fixed_color.green() as i16);
+                    b = (color.blue() as i16) - (self.fixed_color.blue() as i16);
+                } else {
+                    r = (color.red() as i16) + (self.fixed_color.red() as i16);
+                    g = (color.green() as i16) + (self.fixed_color.green() as i16);
+                    b = (color.blue() as i16) + (self.fixed_color.blue() as i16);
+                }
+
+                if self.cgadsub.half_math() {
+                    r /= 2;
+                    g /= 2;
+                    b /= 2;
+                }
+
+                color.set_red(r.clamp(0, 31) as u16);
+                color.set_green(g.clamp(0, 31) as u16);
+                color.set_blue(b.clamp(0, 31) as u16);
+            }
 
             color.set_red((color.red() * brightness_factor) / 16);
             color.set_green((color.green() * brightness_factor) / 16);
