@@ -55,7 +55,10 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Sprite (OAM) rendering | ✅ Complete | 4bpp, priority, x/y flip, multi-tile |
 | Priority compositing | ⚠️ Partial | Modes 0, 1 (with BG3 boost), 2, 3 via `PriorityResolver`; Modes 4–7 not yet |
 | Windowing ($2123–$212B) | ❌ Not implemented | |
-| Color math / sub-screen blending ($2130–$2132) | ❌ Not implemented | |
+| Multi-screen tilemap layout | ✅ Complete | 64-wide/tall via SC register bits, +0x400 screen offsets |
+| Master brightness | ✅ Complete | `channel * (brightness + 1) / 16` applied per-pixel |
+| Color math — fixed color ($2130–$2132) | ✅ Complete | CGWSEL, CGADSUB, COLDATA; add/subtract, half-math, per-layer enable |
+| Color math — sub-screen blending | ❌ Not implemented | CGWSEL bit 1 = 1 path |
 | Mode 7 | ❌ Not implemented | |
 
 ---
@@ -110,8 +113,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Color math / blending** — $2130–$2132
-4. **Color math / blending** — $2130–$2132
-5. **Windowing** — $2123–$212B
+1. **Color math — sub-screen blending** — CGWSEL bit 1 = 1, render BG/OBJ to sub screen
+2. **Windowing** — $2123–$212B
 6. **Additional BG modes** — Modes 4, 5, 6, 7 (including priority compositing)
 7. **SPC700** — full audio emulation
