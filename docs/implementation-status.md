@@ -38,7 +38,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | VRAM ($2115–$2119) | ✅ Complete | |
 | CGRAM ($2121–$2122) | ✅ Complete | |
 | OAM ($2102–$2104) | ✅ Complete | |
-| INIDISP ($2100) | ✅ Complete | forced_blank, master_brightness |
+| INIDISP ($2100) | ✅ Complete | forced_blank, master_brightness scaling applied to output |
 | OBSEL ($2101) | ✅ Complete | name_base, name_select, object_size (3-bit) |
 | BGMODE ($2105) | ✅ Complete | |
 | BG1SC–BG4SC ($2107–$210A) | ✅ Complete | |
@@ -110,7 +110,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Master brightness** — apply INIDISP bits 3–0 to rendered pixels (fade-in/fade-out)
+1. **Color math / blending** — $2130–$2132
 4. **Color math / blending** — $2130–$2132
 5. **Windowing** — $2123–$212B
 6. **Additional BG modes** — Modes 4, 5, 6, 7 (including priority compositing)

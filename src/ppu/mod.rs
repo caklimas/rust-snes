@@ -10,7 +10,7 @@ use crate::{
         bg_sample_params::BgSampleParams, bg_tilemap::BgTilemap,
         bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings, cgram::Cgram,
         display::Display, oam::Oam, obj_sample::ObjSample, obsel::Obsel, palette_base::PaletteBase,
-        priority_resolver::PriorityResolver, screen_designation::ScreenDesignation,
+        priority_resolver::PriorityResolver, rgb::Rgb, screen_designation::ScreenDesignation,
         screen_setting::ScreenSetting, tile_graphic_base_address::TileGraphicBaseAddress,
         tilemap_entry::TilemapEntry, vram::Vram,
     },
@@ -74,6 +74,7 @@ impl Ppu {
     pub fn render_scanline(&mut self, y: u16) {
         let bpp_settings = BppSettings::new(&self.bg_mode);
         let palette_base = PaletteBase::new(&self.bg_mode);
+        let brightness_factor = self.display.master_brightness() as u16 + 1;
 
         for x in 0u16..SCREEN_WIDTH {
             let index = ((y * SCREEN_WIDTH) + x) as usize;
@@ -139,12 +140,16 @@ impl Ppu {
                 PriorityResolver::new(bg1_sample, bg2_sample, bg3_sample, bg4_sample, obj_sample);
             let sample = priority_resolver.get_sample(self.bg_mode);
 
-            let color = match sample {
+            let mut color = Rgb(match sample {
                 Some(cgram_index) => self.cgram.read_color(cgram_index as u16),
                 None => self.cgram.read_color(0),
-            };
+            });
 
-            self.frame_buffer[index] = color;
+            color.set_red((color.red() * brightness_factor) / 16);
+            color.set_green((color.green() * brightness_factor) / 16);
+            color.set_blue((color.blue() * brightness_factor) / 16);
+
+            self.frame_buffer[index] = color.0;
         }
     }
 
