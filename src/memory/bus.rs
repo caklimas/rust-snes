@@ -63,7 +63,7 @@ impl Bus {
     }
 
     pub fn frame_buffer(&self) -> &[u16] {
-        self.ppu.frame_buffer()
+        &self.ppu.frame_buffer().0
     }
 
     pub fn read(&mut self, address: u32) -> u8 {

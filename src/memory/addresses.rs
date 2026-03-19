@@ -55,6 +55,10 @@ pub const BG4VOFS: u32 = 0x002114;
 pub const TM: u32 = 0x00212C;
 pub const TS: u32 = 0x00212D;
 
+pub const CGWSEL: u32 = 0x002130;
+pub const CGADSUB: u32 = 0x002131;
+pub const COLDATA: u32 = 0x002132;
+
 pub const SETINI: u32 = 0x002133;
 
 // OAM

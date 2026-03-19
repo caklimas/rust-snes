@@ -1,18 +1,19 @@
 use crate::{
     memory::addresses::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
-        BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGDATA, CGDATAREAD, INIDISP, OAMADD_HI,
-        OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, SETINI, TM, TS, VMADDH, VMADDL, VMAIN, VMDATAH,
-        VMDATAL,
+        BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGADSUB, CGDATA, CGDATAREAD, CGWSEL, COLDATA,
+        INIDISP, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, SETINI, TM, TS, VMADDH, VMADDL,
+        VMAIN, VMDATAH, VMDATAL,
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_sample::BgSample,
         bg_sample_params::BgSampleParams, bg_tilemap::BgTilemap,
-        bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings, cgram::Cgram,
-        display::Display, oam::Oam, obj_sample::ObjSample, obsel::Obsel, palette_base::PaletteBase,
-        priority_resolver::PriorityResolver, rgb::Rgb, screen_designation::ScreenDesignation,
-        screen_setting::ScreenSetting, tile_graphic_base_address::TileGraphicBaseAddress,
-        tilemap_entry::TilemapEntry, vram::Vram,
+        bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings, cgadsub::Cgadsub,
+        cgram::Cgram, cgwsel::Cgwsel, coldata::Coldata, display::Display,
+        frame_buffer::FrameBuffer, oam::Oam, obj_sample::ObjSample, obsel::Obsel,
+        palette_base::PaletteBase, priority_resolver::PriorityResolver, rgb::Rgb,
+        screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
+        tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
     },
 };
 
@@ -23,8 +24,12 @@ pub mod bg_sample_params;
 pub mod bg_tilemap;
 pub mod bg_vertical_offset;
 pub mod bpp_settings;
+pub mod cgadsub;
 pub mod cgram;
+pub mod cgwsel;
+pub mod coldata;
 pub mod display;
+pub mod frame_buffer;
 pub mod high_table_sprite;
 pub mod low_table_sprite;
 pub mod oam;
@@ -40,10 +45,13 @@ pub mod tile_graphic_base_address;
 pub mod tilemap_entry;
 pub mod vmain;
 pub mod vram;
+pub mod window_condition;
+pub mod winning_layer;
 
 pub const SCREEN_WIDTH: u16 = 256;
 pub const SCREEN_HEIGHT: u16 = 224;
 
+#[derive(Default)]
 pub struct Ppu {
     bg1: BgTilemap,
     bg2: BgTilemap,
@@ -53,9 +61,13 @@ pub struct Ppu {
     bg_vertical_offset: BgVerticalOffset,
     bg_mode: BgMode,
     bg_old: u8,
+    cgadsub: Cgadsub,
     cgram: Cgram,
+    cgwsel: Cgwsel,
+    coldata: Coldata,
     display: Display,
-    frame_buffer: [u16; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
+    fixed_color: Rgb,
+    frame_buffer: FrameBuffer,
     main_screen_designation: ScreenDesignation,
     oam: Oam,
     obsel: Obsel,
@@ -67,7 +79,7 @@ pub struct Ppu {
 }
 
 impl Ppu {
-    pub fn frame_buffer(&self) -> &[u16] {
+    pub fn frame_buffer(&self) -> &FrameBuffer {
         &self.frame_buffer
     }
 
@@ -79,7 +91,7 @@ impl Ppu {
         for x in 0u16..SCREEN_WIDTH {
             let index = ((y * SCREEN_WIDTH) + x) as usize;
             if self.display.forced_blank() {
-                self.frame_buffer[index] = 0;
+                self.frame_buffer.0[index] = 0;
                 continue;
             }
 
@@ -141,7 +153,7 @@ impl Ppu {
             let sample = priority_resolver.get_sample(self.bg_mode);
 
             let mut color = Rgb(match sample {
-                Some(cgram_index) => self.cgram.read_color(cgram_index as u16),
+                Some(winning_layer) => self.cgram.read_color(winning_layer.cgram_index as u16),
                 None => self.cgram.read_color(0),
             });
 
@@ -149,7 +161,7 @@ impl Ppu {
             color.set_green((color.green() * brightness_factor) / 16);
             color.set_blue((color.blue() * brightness_factor) / 16);
 
-            self.frame_buffer[index] = color.0;
+            self.frame_buffer.0[index] = color.0;
         }
     }
 
@@ -202,6 +214,24 @@ impl Ppu {
             BG4VOFS => self.set_vertical_offset(4, value),
             TM => self.main_screen_designation.0 = value,
             TS => self.sub_screen_designation.0 = value,
+            CGWSEL => self.cgwsel.0 = value,
+            CGADSUB => self.cgadsub.0 = value,
+            COLDATA => {
+                self.coldata.0 = value;
+
+                let intensity = self.coldata.intensity() as u16;
+                if self.coldata.apply_to_red() {
+                    self.fixed_color.set_red(intensity);
+                }
+
+                if self.coldata.apply_to_green() {
+                    self.fixed_color.set_green(intensity);
+                }
+
+                if self.coldata.apply_to_blue() {
+                    self.fixed_color.set_blue(intensity);
+                }
+            }
             SETINI => self.screen_setting.0 = value,
             OAMDATAREAD => {}
             VMAIN => self.vram.vmain.0 = value,
@@ -454,32 +484,6 @@ impl Ppu {
             2 => (tile_y / 32) * 0x400,
             3 => (tile_x / 32) * 0x400 + (tile_y / 32) * 0x800,
             _ => unimplemented!(),
-        }
-    }
-}
-
-impl Default for Ppu {
-    fn default() -> Self {
-        Self {
-            bg1: Default::default(),
-            bg2: Default::default(),
-            bg3: Default::default(),
-            bg4: Default::default(),
-            bg_horizontal_offset: Default::default(),
-            bg_vertical_offset: Default::default(),
-            bg_mode: Default::default(),
-            bg_old: Default::default(),
-            cgram: Default::default(),
-            display: Default::default(),
-            frame_buffer: [0; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
-            main_screen_designation: Default::default(),
-            oam: Default::default(),
-            obsel: Default::default(),
-            screen_setting: Default::default(),
-            sub_screen_designation: Default::default(),
-            tile_graphic12: Default::default(),
-            tile_graphic34: Default::default(),
-            vram: Default::default(),
         }
     }
 }
