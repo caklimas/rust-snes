@@ -96,8 +96,9 @@ impl Ppu {
                 continue;
             }
 
-            let bg1_sample = self.bg_sample(&BgSampleParams {
-                enabled: self.main_screen_designation.bg1_enable(),
+            let bg_1_params = BgSampleParams {
+                main_enabled: self.main_screen_designation.bg1_enable(),
+                sub_enabled: self.sub_screen_designation.bg1_enable(),
                 x,
                 y,
                 bg_tilemap: &self.bg1,
@@ -107,10 +108,11 @@ impl Ppu {
                 bpp_opt: bpp_settings.bg1,
                 palette_base: palette_base.bg1,
                 tile_size_16: self.bg_mode.tile_size_1(),
-            });
+            };
 
-            let bg2_sample = self.bg_sample(&BgSampleParams {
-                enabled: self.main_screen_designation.bg2_enable(),
+            let bg_2_params = BgSampleParams {
+                main_enabled: self.main_screen_designation.bg2_enable(),
+                sub_enabled: self.sub_screen_designation.bg2_enable(),
                 x,
                 y,
                 bg_tilemap: &self.bg2,
@@ -120,10 +122,11 @@ impl Ppu {
                 bpp_opt: bpp_settings.bg2,
                 palette_base: palette_base.bg2,
                 tile_size_16: self.bg_mode.tile_size_2(),
-            });
+            };
 
-            let bg3_sample = self.bg_sample(&BgSampleParams {
-                enabled: self.main_screen_designation.bg3_enable(),
+            let bg_3_params = BgSampleParams {
+                main_enabled: self.main_screen_designation.bg3_enable(),
+                sub_enabled: self.sub_screen_designation.bg3_enable(),
                 x,
                 y,
                 bg_tilemap: &self.bg3,
@@ -133,10 +136,11 @@ impl Ppu {
                 bpp_opt: bpp_settings.bg3,
                 palette_base: palette_base.bg3,
                 tile_size_16: self.bg_mode.tile_size_3(),
-            });
+            };
 
-            let bg4_sample = self.bg_sample(&BgSampleParams {
-                enabled: self.main_screen_designation.bg4_enable(),
+            let bg_4_params = BgSampleParams {
+                main_enabled: self.main_screen_designation.bg4_enable(),
+                sub_enabled: self.sub_screen_designation.bg4_enable(),
                 x,
                 y,
                 bg_tilemap: &self.bg4,
@@ -146,19 +150,52 @@ impl Ppu {
                 bpp_opt: bpp_settings.bg4,
                 palette_base: palette_base.bg4,
                 tile_size_16: self.bg_mode.tile_size_4(),
-            });
+            };
 
-            let obj_sample = self.obj_sample(x, y);
-            let priority_resolver =
-                PriorityResolver::new(bg1_sample, bg2_sample, bg3_sample, bg4_sample, obj_sample);
-            let sample = priority_resolver.get_sample(self.bg_mode);
+            let bg1_sample_main = self.bg_sample(&bg_1_params, true);
+            let bg2_sample_main = self.bg_sample(&bg_2_params, true);
+            let bg3_sample_main = self.bg_sample(&bg_3_params, true);
+            let bg4_sample_main = self.bg_sample(&bg_4_params, true);
+            let obj_sample_main = self.obj_sample(x, y, self.main_screen_designation.obj_enable());
 
-            let mut color = Rgb(match sample {
-                Some(winning_layer) => self.cgram.read_color(winning_layer.cgram_index as u16),
+            let priority_resolver_main = PriorityResolver::new(
+                bg1_sample_main,
+                bg2_sample_main,
+                bg3_sample_main,
+                bg4_sample_main,
+                obj_sample_main,
+            );
+            let sample_main = priority_resolver_main.get_sample(self.bg_mode);
+
+            let bg1_sample_sub = self.bg_sample(&bg_1_params, false);
+            let bg2_sample_sub = self.bg_sample(&bg_2_params, false);
+            let bg3_sample_sub = self.bg_sample(&bg_3_params, false);
+            let bg4_sample_sub = self.bg_sample(&bg_4_params, false);
+            let obj_sample_sub = self.obj_sample(x, y, self.sub_screen_designation.obj_enable());
+
+            let priority_resolver_sub = PriorityResolver::new(
+                bg1_sample_sub,
+                bg2_sample_sub,
+                bg3_sample_sub,
+                bg4_sample_sub,
+                obj_sample_sub,
+            );
+            let sample_sub = priority_resolver_sub.get_sample(self.bg_mode);
+
+            let mut color = Rgb(match sample_main {
+                Some(wl) => self.cgram.read_color(wl.cgram_index as u16),
                 None => self.cgram.read_color(0),
             });
 
-            let math_enabled = match &sample {
+            let sub_color = match (self.cgwsel.sub_screen_enable(), sample_sub) {
+                (false, _) => self.fixed_color,
+                (true, Some(wl)) => Rgb(self.cgram.read_color(wl.cgram_index as u16)),
+                (true, None) => self.fixed_color,
+            };
+
+            let suppress_div2 = self.cgwsel.sub_screen_enable() && sample_sub.is_none();
+
+            let math_enabled = match &sample_main {
                 Some(wl) => match wl.layer {
                     Layer::Bg1 => self.cgadsub.bg1(),
                     Layer::Bg2 => self.cgadsub.bg2(),
@@ -175,16 +212,16 @@ impl Ppu {
                 let mut b;
 
                 if self.cgadsub.add_or_subtract() {
-                    r = (color.red() as i16) - (self.fixed_color.red() as i16);
-                    g = (color.green() as i16) - (self.fixed_color.green() as i16);
-                    b = (color.blue() as i16) - (self.fixed_color.blue() as i16);
+                    r = (color.red() as i16) - (sub_color.red() as i16);
+                    g = (color.green() as i16) - (sub_color.green() as i16);
+                    b = (color.blue() as i16) - (sub_color.blue() as i16);
                 } else {
-                    r = (color.red() as i16) + (self.fixed_color.red() as i16);
-                    g = (color.green() as i16) + (self.fixed_color.green() as i16);
-                    b = (color.blue() as i16) + (self.fixed_color.blue() as i16);
+                    r = (color.red() as i16) + (sub_color.red() as i16);
+                    g = (color.green() as i16) + (sub_color.green() as i16);
+                    b = (color.blue() as i16) + (sub_color.blue() as i16);
                 }
 
-                if self.cgadsub.half_math() {
+                if self.cgadsub.half_math() && !suppress_div2 {
                     r /= 2;
                     g /= 2;
                     b /= 2;
@@ -322,8 +359,13 @@ impl Ppu {
         self.bg_old = value;
     }
 
-    fn bg_sample(&self, params: &BgSampleParams) -> Option<BgSample> {
-        if !params.enabled {
+    fn bg_sample(&self, params: &BgSampleParams, main_screen: bool) -> Option<BgSample> {
+        let enabled = if main_screen {
+            params.main_enabled
+        } else {
+            params.sub_enabled
+        };
+        if !enabled {
             return None;
         }
 
@@ -427,7 +469,11 @@ impl Ppu {
         }
     }
 
-    fn obj_sample(&self, x: u16, y: u16) -> Option<ObjSample> {
+    fn obj_sample(&self, x: u16, y: u16, enabled: bool) -> Option<ObjSample> {
+        if !enabled {
+            return None;
+        }
+
         for i in 0..128 {
             let (low, high) = self.oam.get_sprite(i);
             let x_full = low.x as i16 | ((high.x_position_bit_8() as i16) << 8);

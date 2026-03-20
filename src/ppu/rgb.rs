@@ -2,7 +2,7 @@ use bitfield::bitfield;
 
 bitfield! {
 
-    #[derive(Default)]
+    #[derive(Clone, Copy, Default)]
     pub struct Rgb(u16);
 
     pub red, set_red: 4, 0;

@@ -1,7 +1,8 @@
 use crate::ppu::bg_tilemap::BgTilemap;
 
 pub struct BgSampleParams<'a> {
-    pub enabled: bool,
+    pub main_enabled: bool,
+    pub sub_enabled: bool,
     pub x: u16,
     pub y: u16,
     pub bg_tilemap: &'a BgTilemap,
