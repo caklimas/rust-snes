@@ -60,6 +60,8 @@ Give feedback in this order:
 
 When reviewing `bus.rs` or any file that uses constants from `addresses.rs`, always read `addresses.rs` too and verify the constants are correct. Do not assume constants are right without checking.
 
+**For correctness review of any coordinate calculation, bounds check, or hardware comparison — fetch the relevant fullsnes section first and verify the formula against the spec.** Do not assume a calculation is correct because it looks plausible. This applies especially to: sprite X/Y position and wrapping, scroll offset formulas, tilemap address calculations, and DMA/HDMA address arithmetic.
+
 Be direct. If something is wrong, say so clearly. If it looks good, say that too.
 
 ## Tone

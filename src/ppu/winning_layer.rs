@@ -4,7 +4,7 @@ pub struct WinningLayer {
     pub layer: Layer,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Layer {
     Bg1,
     Bg2,

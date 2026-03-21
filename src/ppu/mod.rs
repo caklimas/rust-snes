@@ -2,8 +2,9 @@ use crate::{
     memory::addresses::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
         BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGADSUB, CGDATA, CGDATAREAD, CGWSEL, COLDATA,
-        INIDISP, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, SETINI, TM, TS, VMADDH, VMADDL,
-        VMAIN, VMDATAH, VMDATAL,
+        INIDISP, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, SETINI, TM, TMW, TS, TSW,
+        VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL, W12SEL, W34SEL, WBGLOG, WH0, WH1, WH2, WH3,
+        WOBJLOG, WOBJSEL,
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_sample::BgSample,
@@ -14,7 +15,9 @@ use crate::{
         palette_base::PaletteBase, priority_resolver::PriorityResolver, rgb::Rgb,
         screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
         tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
-        window_condition::WindowCondition, winning_layer::Layer,
+        wbglog::Wbglog, window_bounds::WindowBounds, window_condition::WindowCondition,
+        window_layer_disable::WindowLayerDisable, window_mask_settings::WindowMaskSettings,
+        winning_layer::Layer, wobjlog::Wobjlog,
     },
 };
 
@@ -46,14 +49,20 @@ pub mod tile_graphic_base_address;
 pub mod tilemap_entry;
 pub mod vmain;
 pub mod vram;
+pub mod wbglog;
+pub mod window_bounds;
 pub mod window_condition;
+pub mod window_layer_disable;
+pub mod window_mask_settings;
 pub mod winning_layer;
+pub mod wobjlog;
 
 pub const SCREEN_WIDTH: u16 = 256;
 pub const SCREEN_HEIGHT: u16 = 224;
 
 #[derive(Default)]
 pub struct Ppu {
+    pub vram: Vram,
     bg1: BgTilemap,
     bg2: BgTilemap,
     bg3: BgTilemap,
@@ -76,7 +85,15 @@ pub struct Ppu {
     sub_screen_designation: ScreenDesignation,
     tile_graphic12: TileGraphicBaseAddress,
     tile_graphic34: TileGraphicBaseAddress,
-    pub vram: Vram,
+    tmw: WindowLayerDisable,
+    tsw: WindowLayerDisable,
+    w12sel: WindowMaskSettings,
+    w34sel: WindowMaskSettings,
+    wbglog: Wbglog,
+    window_bounds_1: WindowBounds,
+    window_bounds_2: WindowBounds,
+    wobjlog: Wobjlog,
+    wobjsel: WindowMaskSettings,
 }
 
 impl Ppu {
@@ -97,8 +114,22 @@ impl Ppu {
             }
 
             let bg_1_params = BgSampleParams {
-                main_enabled: self.main_screen_designation.bg1_enable(),
-                sub_enabled: self.sub_screen_designation.bg1_enable(),
+                main_enabled: self.is_enabled(
+                    self.main_screen_designation.bg1_enable(),
+                    x as u8,
+                    self.w12sel.instance_1_window_1(),
+                    self.w12sel.instance_1_window_2(),
+                    self.wbglog.bg1_combine_logic(),
+                    self.tmw.bg1_disable(),
+                ),
+                sub_enabled: self.is_enabled(
+                    self.sub_screen_designation.bg1_enable(),
+                    x as u8,
+                    self.w12sel.instance_1_window_1(),
+                    self.w12sel.instance_1_window_2(),
+                    self.wbglog.bg1_combine_logic(),
+                    self.tsw.bg1_disable(),
+                ),
                 x,
                 y,
                 bg_tilemap: &self.bg1,
@@ -111,8 +142,22 @@ impl Ppu {
             };
 
             let bg_2_params = BgSampleParams {
-                main_enabled: self.main_screen_designation.bg2_enable(),
-                sub_enabled: self.sub_screen_designation.bg2_enable(),
+                main_enabled: self.is_enabled(
+                    self.main_screen_designation.bg2_enable(),
+                    x as u8,
+                    self.w12sel.instance_2_window_1(),
+                    self.w12sel.instance_2_window_2(),
+                    self.wbglog.bg2_combine_logic(),
+                    self.tmw.bg2_disable(),
+                ),
+                sub_enabled: self.is_enabled(
+                    self.sub_screen_designation.bg2_enable(),
+                    x as u8,
+                    self.w12sel.instance_2_window_1(),
+                    self.w12sel.instance_2_window_2(),
+                    self.wbglog.bg2_combine_logic(),
+                    self.tsw.bg2_disable(),
+                ),
                 x,
                 y,
                 bg_tilemap: &self.bg2,
@@ -125,8 +170,22 @@ impl Ppu {
             };
 
             let bg_3_params = BgSampleParams {
-                main_enabled: self.main_screen_designation.bg3_enable(),
-                sub_enabled: self.sub_screen_designation.bg3_enable(),
+                main_enabled: self.is_enabled(
+                    self.main_screen_designation.bg3_enable(),
+                    x as u8,
+                    self.w34sel.instance_1_window_1(),
+                    self.w34sel.instance_1_window_2(),
+                    self.wbglog.bg3_combine_logic(),
+                    self.tmw.bg3_disable(),
+                ),
+                sub_enabled: self.is_enabled(
+                    self.sub_screen_designation.bg3_enable(),
+                    x as u8,
+                    self.w34sel.instance_1_window_1(),
+                    self.w34sel.instance_1_window_2(),
+                    self.wbglog.bg3_combine_logic(),
+                    self.tsw.bg3_disable(),
+                ),
                 x,
                 y,
                 bg_tilemap: &self.bg3,
@@ -139,8 +198,22 @@ impl Ppu {
             };
 
             let bg_4_params = BgSampleParams {
-                main_enabled: self.main_screen_designation.bg4_enable(),
-                sub_enabled: self.sub_screen_designation.bg4_enable(),
+                main_enabled: self.is_enabled(
+                    self.main_screen_designation.bg4_enable(),
+                    x as u8,
+                    self.w34sel.instance_2_window_1(),
+                    self.w34sel.instance_2_window_2(),
+                    self.wbglog.bg4_combine_logic(),
+                    self.tmw.bg4_disable(),
+                ),
+                sub_enabled: self.is_enabled(
+                    self.sub_screen_designation.bg4_enable(),
+                    x as u8,
+                    self.w34sel.instance_2_window_1(),
+                    self.w34sel.instance_2_window_2(),
+                    self.wbglog.bg4_combine_logic(),
+                    self.tsw.bg4_disable(),
+                ),
                 x,
                 y,
                 bg_tilemap: &self.bg4,
@@ -156,7 +229,18 @@ impl Ppu {
             let bg2_sample_main = self.bg_sample(&bg_2_params, true);
             let bg3_sample_main = self.bg_sample(&bg_3_params, true);
             let bg4_sample_main = self.bg_sample(&bg_4_params, true);
-            let obj_sample_main = self.obj_sample(x, y, self.main_screen_designation.obj_enable());
+            let obj_sample_main = self.obj_sample(
+                x,
+                y,
+                self.is_enabled(
+                    self.main_screen_designation.obj_enable(),
+                    x as u8,
+                    self.wobjsel.instance_1_window_1(),
+                    self.wobjsel.instance_1_window_2(),
+                    self.wobjlog.obj_combine_logic(),
+                    self.tmw.obj_disable(),
+                ),
+            );
 
             let priority_resolver_main = PriorityResolver::new(
                 bg1_sample_main,
@@ -171,7 +255,18 @@ impl Ppu {
             let bg2_sample_sub = self.bg_sample(&bg_2_params, false);
             let bg3_sample_sub = self.bg_sample(&bg_3_params, false);
             let bg4_sample_sub = self.bg_sample(&bg_4_params, false);
-            let obj_sample_sub = self.obj_sample(x, y, self.sub_screen_designation.obj_enable());
+            let obj_sample_sub = self.obj_sample(
+                x,
+                y,
+                self.is_enabled(
+                    self.sub_screen_designation.obj_enable(),
+                    x as u8,
+                    self.wobjsel.instance_1_window_1(),
+                    self.wobjsel.instance_1_window_2(),
+                    self.wobjlog.obj_combine_logic(),
+                    self.tsw.obj_disable(),
+                ),
+            );
 
             let priority_resolver_sub = PriorityResolver::new(
                 bg1_sample_sub,
@@ -206,30 +301,28 @@ impl Ppu {
                 None => self.cgadsub.backdrop(),
             };
 
-            if self.cgwsel.get_color_math_enable() == WindowCondition::Always && math_enabled {
-                let mut r;
-                let mut g;
-                let mut b;
+            let math_window_active = self.is_layer_active(
+                x as u8,
+                self.wobjsel.instance_2_window_1(),
+                self.wobjsel.instance_2_window_2(),
+                self.wobjlog.math_combine_logic(),
+            );
 
-                if self.cgadsub.add_or_subtract() {
-                    r = (color.red() as i16) - (sub_color.red() as i16);
-                    g = (color.green() as i16) - (sub_color.green() as i16);
-                    b = (color.blue() as i16) - (sub_color.blue() as i16);
-                } else {
-                    r = (color.red() as i16) + (sub_color.red() as i16);
-                    g = (color.green() as i16) + (sub_color.green() as i16);
-                    b = (color.blue() as i16) + (sub_color.blue() as i16);
+            match (
+                self.cgwsel.get_color_math_enable(),
+                math_window_active,
+                math_enabled,
+            ) {
+                (WindowCondition::Always, _, true) => {
+                    self.apply_color_math(&mut color, sub_color, suppress_div2)
                 }
-
-                if self.cgadsub.half_math() && !suppress_div2 {
-                    r /= 2;
-                    g /= 2;
-                    b /= 2;
+                (WindowCondition::MathWindow, true, true) => {
+                    self.apply_color_math(&mut color, sub_color, suppress_div2)
                 }
-
-                color.set_red(r.clamp(0, 31) as u16);
-                color.set_green(g.clamp(0, 31) as u16);
-                color.set_blue(b.clamp(0, 31) as u16);
+                (WindowCondition::NotMathWin, false, true) => {
+                    self.apply_color_math(&mut color, sub_color, suppress_div2)
+                }
+                _ => {}
             }
 
             color.set_red((color.red() * brightness_factor) / 16);
@@ -287,8 +380,19 @@ impl Ppu {
             BG3VOFS => self.set_vertical_offset(3, value),
             BG4HOFS => self.set_horizontal_offset(4, value),
             BG4VOFS => self.set_vertical_offset(4, value),
+            W12SEL => self.w12sel.0 = value,
+            W34SEL => self.w34sel.0 = value,
+            WOBJSEL => self.wobjsel.0 = value,
+            WBGLOG => self.wbglog.0 = value,
+            WOBJLOG => self.wobjlog.0 = value,
+            WH0 => self.window_bounds_1.left = value,
+            WH1 => self.window_bounds_1.right = value,
+            WH2 => self.window_bounds_2.left = value,
+            WH3 => self.window_bounds_2.right = value,
             TM => self.main_screen_designation.0 = value,
             TS => self.sub_screen_designation.0 = value,
+            TMW => self.tmw.0 = value,
+            TSW => self.tsw.0 = value,
             CGWSEL => self.cgwsel.0 = value,
             CGADSUB => self.cgadsub.0 = value,
             COLDATA => {
@@ -348,6 +452,9 @@ impl Ppu {
 
     fn set_vertical_offset(&mut self, number: u8, value: u8) {
         let offset = ((value as u16) << 8) | (self.bg_old as u16);
+        if number == 2 {
+            eprintln!("BG2VOFS write: value={:#04X} bg_old={:#04X} => offset={}", value, self.bg_old, offset);
+        }
         match number {
             1 => self.bg_vertical_offset.bg1_offset = offset,
             2 => self.bg_vertical_offset.bg2_offset = offset,
@@ -478,21 +585,19 @@ impl Ppu {
             let (low, high) = self.oam.get_sprite(i);
             let x_full = low.x as i16 | ((high.x_position_bit_8() as i16) << 8);
             let x_signed = if x_full >= 256 { x_full - 512 } else { x_full };
-            let y_signed = low.y as i16;
             let sprite_size = self.obsel.get_object_size(high.size());
+            let tile_row = (y as u8).wrapping_sub(low.y);
             let bounds_check = (x as i16) >= x_signed
                 && (x as i16) < x_signed + sprite_size as i16
-                && (y as i16) >= y_signed
-                && (y as i16) < y_signed + sprite_size as i16;
+                && (tile_row as i16) < sprite_size as i16;
 
             if !bounds_check {
                 continue;
             }
             let tile_col = (x as i16) - x_signed;
-            let tile_row = (y as i16) - y_signed;
 
             let sub_tile_col = (tile_col / 8) as u8;
-            let sub_tile_row = (tile_row / 8) as u8;
+            let sub_tile_row = tile_row / 8;
 
             let lower_nibble = ((low.tile_number & 0x0F) + sub_tile_col) & 0x0F;
             let upper_nibble = (low.tile_number & 0xF0) + (sub_tile_row * 0x10);
@@ -569,5 +674,70 @@ impl Ppu {
             3 => (tile_x / 32) * 0x400 + (tile_y / 32) * 0x800,
             _ => unimplemented!(),
         }
+    }
+
+    fn is_enabled(
+        &self,
+        enabled: bool,
+        x: u8,
+        mode_1: u8,
+        mode_2: u8,
+        logic: u8,
+        disabled: bool,
+    ) -> bool {
+        enabled && !(self.is_layer_active(x, mode_1, mode_2, logic) && disabled)
+    }
+
+    fn is_layer_active(&self, x: u8, mode_1: u8, mode_2: u8, logic: u8) -> bool {
+        let window1_active = self.window_bounds_1.is_active(x, mode_1);
+        let window2_active = self.window_bounds_2.is_active(x, mode_2);
+
+        self.combine_windows(window1_active, window2_active, logic)
+    }
+
+    fn combine_windows(
+        &self,
+        window1_active: Option<bool>,
+        window2_active: Option<bool>,
+        logic: u8,
+    ) -> bool {
+        match (window1_active, window2_active) {
+            (None, None) => false,
+            (Some(w1), None) => w1,
+            (None, Some(w2)) => w2,
+            (Some(w1), Some(w2)) => match logic {
+                0 => w1 || w2,
+                1 => w1 && w2,
+                2 => w1 ^ w2,
+                3 => !(w1 ^ w2),
+                _ => unimplemented!(),
+            },
+        }
+    }
+
+    fn apply_color_math(&self, color: &mut Rgb, sub_color: Rgb, suppress_div2: bool) {
+        let mut r;
+        let mut g;
+        let mut b;
+
+        if self.cgadsub.add_or_subtract() {
+            r = (color.red() as i16) - (sub_color.red() as i16);
+            g = (color.green() as i16) - (sub_color.green() as i16);
+            b = (color.blue() as i16) - (sub_color.blue() as i16);
+        } else {
+            r = (color.red() as i16) + (sub_color.red() as i16);
+            g = (color.green() as i16) + (sub_color.green() as i16);
+            b = (color.blue() as i16) + (sub_color.blue() as i16);
+        }
+
+        if self.cgadsub.half_math() && !suppress_div2 {
+            r /= 2;
+            g /= 2;
+            b /= 2;
+        }
+
+        color.set_red(r.clamp(0, 31) as u16);
+        color.set_green(g.clamp(0, 31) as u16);
+        color.set_blue(b.clamp(0, 31) as u16);
     }
 }
