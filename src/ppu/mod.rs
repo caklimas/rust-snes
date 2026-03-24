@@ -612,7 +612,7 @@ impl Ppu {
             let x_full = low.x as i16 | ((high.x_position_bit_8() as i16) << 8);
             let x_signed = if x_full >= 256 { x_full - 512 } else { x_full };
             let sprite_size = self.obsel.get_object_size(high.size());
-            let tile_row = (y as u8).wrapping_sub(low.y);
+            let tile_row = ((y - 1) as u8).wrapping_sub(low.y);
             let bounds_check = (x as i16) >= x_signed
                 && (x as i16) < x_signed + sprite_size as i16
                 && (tile_row as i16) < sprite_size as i16;
@@ -622,8 +622,17 @@ impl Ppu {
             }
             let tile_col = (x as i16) - x_signed;
 
-            let sub_tile_col = (tile_col / 8) as u8;
-            let sub_tile_row = tile_row / 8;
+            let tiles_per_axis = (sprite_size / 8) as u8;
+            let mut sub_tile_col = (tile_col / 8) as u8;
+            let mut sub_tile_row = tile_row / 8;
+
+            if low.packed_attributes.x_flip() {
+                sub_tile_col = (tiles_per_axis - 1) - sub_tile_col;
+            }
+
+            if low.packed_attributes.y_flip() {
+                sub_tile_row = (tiles_per_axis - 1) - sub_tile_row;
+            }
 
             let lower_nibble = ((low.tile_number & 0x0F) + sub_tile_col) & 0x0F;
             let upper_nibble = (low.tile_number & 0xF0) + (sub_tile_row * 0x10);
