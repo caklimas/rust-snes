@@ -33,33 +33,61 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## PPU
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| VRAM ($2115–$2119) | ✅ Complete | |
-| CGRAM ($2121–$2122) | ✅ Complete | |
-| OAM ($2102–$2104) | ✅ Complete | |
-| INIDISP ($2100) | ✅ Complete | forced_blank, master_brightness scaling applied to output |
+### Registers
+
+| Register | Status | Notes |
+|----------|--------|-------|
+| INIDISP ($2100) | ✅ Complete | forced_blank, master_brightness; defaults to 0x80 (forced blank on) |
 | OBSEL ($2101) | ✅ Complete | name_base, name_select, object_size (3-bit) |
-| BGMODE ($2105) | ✅ Complete | |
+| BGMODE ($2105) | ✅ Complete | bg_mode, bg_priority_boost, per-BG tile_size |
+| MOSAIC ($2106) | ✅ Complete | Per-BG enable bits 0–3, mosaic_size bits 7–4; snaps x/y in BgSampleParams |
 | BG1SC–BG4SC ($2107–$210A) | ✅ Complete | |
 | BG12NBA / BG34NBA ($210B–$210C) | ✅ Complete | |
-| BGxHOFS / BGxVOFS ($210D–$2114) | ✅ Complete | M7 latch formula |
+| BGxHOFS / BGxVOFS ($210D–$2114) | ✅ Complete | Shared bg_old latch |
+| VMAIN ($2115) | ✅ Complete | Increment mode and amount |
+| VMADDL/VMADDH ($2116–$2117) | ✅ Complete | |
+| VMDATAL/VMDATAH ($2118–$2119) | ✅ Complete | Write guard checks rendering_active + forced_blank |
+| CGADD/CGDATA ($2121–$2122) | ✅ Complete | |
+| W12SEL/W34SEL/WOBJSEL ($2123–$2125) | ✅ Complete | |
+| WH0–WH3 ($2126–$2129) | ✅ Complete | |
+| WBGLOG/WOBJLOG ($212A–$212B) | ✅ Complete | |
 | TM / TS ($212C–$212D) | ✅ Complete | Main/sub screen designation |
+| TMW / TSW ($212E–$212F) | ✅ Complete | |
+| CGWSEL ($2130) | ✅ Complete | |
+| CGADSUB ($2131) | ✅ Complete | |
+| COLDATA ($2132) | ✅ Complete | |
 | SETINI ($2133) | ✅ Complete | |
-| 16x16 tile support | ✅ Complete | Per-layer via BGMODE bits 4–7, quadrant flip handling |
-| BG rendering — Mode 0 | ✅ Complete | 2bpp, per-BG palette bands |
+| Mode 7 registers ($211A–$2120) | ❌ Not implemented | Writes logged but ignored |
+
+### Rendering
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Scanline timing | ✅ Complete | V counter 1–224 visible; V used for scroll math, V-1 for frame buffer index |
+| BG rendering — Mode 0 | ✅ Complete | 2bpp all 4 layers, per-BG palette bands |
 | BG rendering — Mode 1 | ✅ Complete | BG1/BG2 4bpp, BG3 2bpp |
-| BG rendering — Mode 2 | ✅ Complete | 4bpp BG1/BG2 (via BppSettings) |
-| BG rendering — Mode 3 | ✅ Complete | 8bpp BG1, 4bpp BG2 |
-| BG rendering — Modes 4–7 | ❌ Not implemented | |
-| Sprite (OAM) rendering | ✅ Complete | 4bpp, priority, x/y flip, multi-tile |
-| Priority compositing | ⚠️ Partial | Modes 0, 1 (with BG3 boost), 2, 3 via `PriorityResolver`; Modes 4–7 not yet |
-| Windowing ($2123–$212F) | ✅ Complete | W12SEL/W34SEL/WOBJSEL, WH0–WH3, WBGLOG/WOBJLOG, TMW/TSW; applied to all BG/OBJ layers on main+sub screens |
-| Multi-screen tilemap layout | ✅ Complete | 64-wide/tall via SC register bits, +0x400 screen offsets |
-| Master brightness | ✅ Complete | `channel * (brightness + 1) / 16` applied per-pixel |
-| Color math — fixed color ($2130–$2132) | ✅ Complete | CGWSEL, CGADSUB, COLDATA; add/subtract, half-math, per-layer enable |
-| Color math — sub-screen blending | ✅ Complete | CGWSEL bit 1 = 1; sub screen rendered independently; suppress_div2 when sub pixel is transparent |
-| Mode 7 | ❌ Not implemented | |
+| BG rendering — Mode 2 | ✅ Complete | BG1/BG2 4bpp |
+| BG rendering — Mode 3 | ✅ Complete | BG1 8bpp, BG2 4bpp |
+| BG rendering — Mode 4 | ✅ Complete | BG1 8bpp, BG2 2bpp |
+| BG rendering — Mode 5 | ✅ Complete | BG1 4bpp, BG2 2bpp |
+| BG rendering — Mode 6 | ✅ Complete | BG1 4bpp only |
+| BG rendering — Mode 7 | ❌ Not implemented | Rotation/scaling matrix pipeline needed |
+| Offset-per-tile (Modes 2, 4, 6) | ❌ Not implemented | BG3 used as per-tile offset source |
+| 16x16 tile support | ✅ Complete | Per-layer via BGMODE bits 4–7, quadrant flip |
+| Multi-screen tilemap layout | ✅ Complete | 64-wide/tall via SC register bits |
+| Sprite (OAM) rendering | ✅ Complete | 4bpp, priority, x/y flip (tile + sub-tile), multi-tile, Y screen-relative |
+| Mosaic | ✅ Complete | Per-BG enable, grid-aligned snap in BgSampleParams |
+| Priority compositing — Mode 0 | ✅ Complete | All 4 BG layers + OBJ |
+| Priority compositing — Mode 1 | ✅ Complete | BG3 priority boost |
+| Priority compositing — Modes 2–5 | ✅ Complete | BG1/BG2 + OBJ |
+| Priority compositing — Mode 6 | ✅ Complete | BG1 only + OBJ |
+| Priority compositing — Mode 7 | ❌ Not implemented | Per-pixel priority for EXTBG |
+| Windowing | ✅ Complete | W12SEL/W34SEL/WOBJSEL, WH0–WH3, WBGLOG/WOBJLOG, TMW/TSW |
+| Color math — fixed color | ✅ Complete | CGWSEL, CGADSUB, COLDATA; add/subtract, half-math |
+| Color math — sub-screen blending | ✅ Complete | Sub screen rendered independently; suppress_div2 |
+| Color math — window gating | ✅ Complete | WOBJSEL instance 2 + WOBJLOG math_combine_logic |
+| Master brightness | ✅ Complete | `channel * (brightness + 1) / 16` |
+| VRAM write guard | ✅ Complete | Blocks writes during active rendering unless forced_blank |
 
 ---
 
@@ -95,13 +123,13 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Keyboard input (winit) | ✅ Complete | Arrows=d-pad, Z=B, X=A, A=Y, S=X, Q=L, W=R, Enter=Start, RShift=Select |
 | Joypad serial ($4016–$4017) | ❌ Not implemented | |
 | IRQ timer ($4207–$420A) | ❌ Not implemented | |
-| MEMSEL ($420D) | ✅ Complete | FastROM enable for WS2 banks via `MemorySelect` bitfield |
+| MEMSEL ($420D) | ✅ Complete | FastROM enable for WS2 banks |
 | CPU I/O range ($4200–$5FFF) remainder | ⚠️ Stubbed | Returns 0 |
 | Joypad I/O range ($4000–$41FF) | ⚠️ Stubbed | Returns 0 |
 
 ---
 
-## Display / Windowing (Host)
+## Display (Host)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -113,5 +141,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Additional BG modes** — Modes 4, 5, 6, 7 (including priority compositing in `PriorityResolver`)
-2. **SPC700** — full audio emulation
+1. **Mode 7 rendering** — rotation/scaling matrix pipeline, EXTBG
+2. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
+3. **SPC700 CPU** — full audio emulation
+4. **IRQ timer** — H/V count IRQ ($4207–$420A)
