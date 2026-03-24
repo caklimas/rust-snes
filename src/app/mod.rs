@@ -183,6 +183,10 @@ impl ApplicationHandler for App {
                     .input_output
                     .controller_1
                     .set_select(state.is_pressed()),
+                KeyCode::KeyD if state.is_pressed() => {
+                    self.super_nintendo.bus.ppu.debug_frames_remaining = 2;
+                    eprintln!("Capturing scanline 0 for next 2 frames...");
+                }
                 _ => {}
             },
             _ => (),

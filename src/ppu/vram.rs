@@ -2,11 +2,16 @@ use crate::ppu::vmain::Vmain;
 
 pub struct Vram {
     pub vmain: Vmain,
+    pub rendering_active: bool,
     data: [u8; 65536],
     address_register: u16,
 }
 
 impl Vram {
+    pub fn address_register(&self) -> u16 {
+        self.address_register
+    }
+
     pub fn read_word(&self, address: u16) -> u16 {
         let index = (address * 2) as usize;
         let lo = self.data[index];
@@ -23,16 +28,20 @@ impl Vram {
         self.address_register = (self.address_register & 0x00FF) | (((value & 0x7F) as u16) << 8);
     }
 
-    pub fn write_data_lo(&mut self, value: u8) {
-        let address = self.address_register * 2;
-        self.data[address as usize] = value;
+    pub fn write_data_lo(&mut self, value: u8, write_data: bool) {
+        if write_data {
+            let address = self.address_register * 2;
+            self.data[address as usize] = value;
+        }
 
         self.increment_address_register(!self.vmain.increment_timing());
     }
 
-    pub fn write_data_hi(&mut self, value: u8) {
-        let address = (self.address_register * 2) + 1;
-        self.data[address as usize] = value;
+    pub fn write_data_hi(&mut self, value: u8, write_data: bool) {
+        if write_data {
+            let address = (self.address_register * 2) + 1;
+            self.data[address as usize] = value;
+        }
 
         self.increment_address_register(self.vmain.increment_timing());
     }
@@ -61,6 +70,7 @@ impl Default for Vram {
             data: [0; 65536],
             address_register: Default::default(),
             vmain: Default::default(),
+            rendering_active: true,
         }
     }
 }

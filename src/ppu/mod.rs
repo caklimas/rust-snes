@@ -75,7 +75,7 @@ pub struct Ppu {
     cgram: Cgram,
     cgwsel: Cgwsel,
     coldata: Coldata,
-    display: Display,
+    pub display: Display,
     fixed_color: Rgb,
     frame_buffer: FrameBuffer,
     main_screen_designation: ScreenDesignation,
@@ -94,6 +94,8 @@ pub struct Ppu {
     window_bounds_2: WindowBounds,
     wobjlog: Wobjlog,
     wobjsel: WindowMaskSettings,
+    pub debug_frames_remaining: u32,
+    pub current_scanline: u16,
 }
 
 impl Ppu {
@@ -101,13 +103,34 @@ impl Ppu {
         &self.frame_buffer
     }
 
+    pub fn bg_vertical_offset(&self) -> &BgVerticalOffset {
+        &self.bg_vertical_offset
+    }
+
+    pub fn bg_horizontal_offset(&self) -> &BgHorizontalOffset {
+        &self.bg_horizontal_offset
+    }
+
+    pub fn bg_old(&self) -> u8 {
+        self.bg_old
+    }
+
+    pub fn main_screen_designation(&self) -> &ScreenDesignation {
+        &self.main_screen_designation
+    }
+
+    pub fn bg_mode_value(&self) -> u8 {
+        self.bg_mode.bg_mode()
+    }
+
     pub fn render_scanline(&mut self, y: u16) {
+        self.current_scanline = y;
         let bpp_settings = BppSettings::new(&self.bg_mode);
         let palette_base = PaletteBase::new(&self.bg_mode);
         let brightness_factor = self.display.master_brightness() as u16 + 1;
 
         for x in 0u16..SCREEN_WIDTH {
-            let index = ((y * SCREEN_WIDTH) + x) as usize;
+            let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
             if self.display.forced_blank() {
                 self.frame_buffer.0[index] = 0;
                 continue;
@@ -416,8 +439,14 @@ impl Ppu {
             VMAIN => self.vram.vmain.0 = value,
             VMADDL => self.vram.set_address_lo(value),
             VMADDH => self.vram.set_address_hi(value),
-            VMDATAL => self.vram.write_data_lo(value),
-            VMDATAH => self.vram.write_data_hi(value),
+            VMDATAL => self.vram.write_data_lo(
+                value,
+                !self.vram.rendering_active || self.display.forced_blank(),
+            ),
+            VMDATAH => self.vram.write_data_hi(
+                value,
+                !self.vram.rendering_active || self.display.forced_blank(),
+            ),
             CGADD => self.cgram.write_cgadd(value),
             CGDATA => self.cgram.write_cgdata(value),
             CGDATAREAD => {}
@@ -452,9 +481,6 @@ impl Ppu {
 
     fn set_vertical_offset(&mut self, number: u8, value: u8) {
         let offset = ((value as u16) << 8) | (self.bg_old as u16);
-        if number == 2 {
-            eprintln!("BG2VOFS write: value={:#04X} bg_old={:#04X} => offset={}", value, self.bg_old, offset);
-        }
         match number {
             1 => self.bg_vertical_offset.bg1_offset = offset,
             2 => self.bg_vertical_offset.bg2_offset = offset,
