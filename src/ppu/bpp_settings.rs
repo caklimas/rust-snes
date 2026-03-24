@@ -34,6 +34,24 @@ impl BppSettings {
                 bg3: None,
                 bg4: None,
             },
+            4 => Self {
+                bg1: Some(8),
+                bg2: Some(2),
+                bg3: None,
+                bg4: None,
+            },
+            5 => Self {
+                bg1: Some(4),
+                bg2: Some(2),
+                bg3: None,
+                bg4: None,
+            },
+            6 => Self {
+                bg1: Some(4),
+                bg2: None,
+                bg3: None,
+                bg4: None,
+            },
             _ => unimplemented!(),
         }
     }

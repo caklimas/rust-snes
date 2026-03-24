@@ -34,7 +34,8 @@ impl PriorityResolver {
         match bg_mode.bg_mode() {
             0 => self.mode_0_sample(),
             1 => self.mode_1_sample(bg_mode.bg_priority_boost()),
-            2 | 3 => self.mode_23_sample(),
+            2..=5 => self.mode_2345_sample(),
+            6 => self.mode_6_sample(),
             _ => None,
         }
     }
@@ -261,7 +262,7 @@ impl PriorityResolver {
         }
     }
 
-    fn mode_23_sample(&self) -> Option<WinningLayer> {
+    fn mode_2345_sample(&self) -> Option<WinningLayer> {
         if let Some(ObjSample {
             cg_ram_index,
             priority: 3,
@@ -333,6 +334,66 @@ impl PriorityResolver {
             Some(WinningLayer {
                 cgram_index: cg_ram_index,
                 layer: Layer::Bg2,
+            })
+        } else {
+            None
+        }
+    }
+
+    fn mode_6_sample(&self) -> Option<WinningLayer> {
+        if let Some(ObjSample {
+            cg_ram_index,
+            priority: 3,
+        }) = self.obj_sample
+        {
+            Some(WinningLayer {
+                cgram_index: cg_ram_index,
+                layer: Layer::Obj,
+            })
+        } else if let Some(BgSample {
+            cg_ram_index,
+            priority: true,
+        }) = self.bg1_sample
+        {
+            Some(WinningLayer {
+                cgram_index: cg_ram_index,
+                layer: Layer::Bg1,
+            })
+        } else if let Some(ObjSample {
+            cg_ram_index,
+            priority: 2,
+        }) = self.obj_sample
+        {
+            Some(WinningLayer {
+                cgram_index: cg_ram_index,
+                layer: Layer::Obj,
+            })
+        } else if let Some(ObjSample {
+            cg_ram_index,
+            priority: 1,
+        }) = self.obj_sample
+        {
+            Some(WinningLayer {
+                cgram_index: cg_ram_index,
+                layer: Layer::Obj,
+            })
+        } else if let Some(BgSample {
+            cg_ram_index,
+            priority: false,
+        }) = self.bg1_sample
+        {
+            Some(WinningLayer {
+                cgram_index: cg_ram_index,
+                layer: Layer::Bg1,
+            })
+        } else if let Some(ObjSample {
+            cg_ram_index,
+            priority: 0,
+        }) = self.obj_sample
+        {
+            Some(WinningLayer {
+                cgram_index: cg_ram_index,
+                layer: Layer::Obj,
             })
         } else {
             None
