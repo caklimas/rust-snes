@@ -35,6 +35,8 @@ pub const INIDISP: u32 = 0x002100;
 pub const OBSEL: u32 = 0x002101;
 pub const BGMODE: u32 = 0x002105;
 
+pub const MOSAIC: u32 = 0x002106;
+
 pub const BG1SC: u32 = 0x002107;
 pub const BG2SC: u32 = 0x002108;
 pub const BG3SC: u32 = 0x002109;

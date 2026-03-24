@@ -1,7 +1,5 @@
-   Compiling rust-snes v0.1.0 (/Users/christopherk/Desktop/Files/Repos/rust-snes)
-    Finished `release` profile [optimized] target(s) in 1.22s
+    Finished `release` profile [optimized] target(s) in 0.06s
      Running `target/release/rust-snes /Users/christopherk/Desktop/Files/240pTestSuite-SNES-1.09/240pSuite.sfc`
-Unhandled PPU write: 0x2106 = 0x00
 Unhandled PPU write: 0x211A = 0x00
 Unhandled PPU write: 0x211B = 0x00
 Unhandled PPU write: 0x211B = 0x01
@@ -16,34 +14,3 @@ Unhandled PPU write: 0x211F = 0x00
 Unhandled PPU write: 0x2120 = 0x00
 Unhandled PPU write: 0x2120 = 0x00
 Unhandled PPU read: 0x213F
-Unhandled PPU write: 0x2106 = 0x03
-Unhandled PPU write: 0x2106 = 0x13
-Unhandled PPU write: 0x2106 = 0x23
-Unhandled PPU write: 0x2106 = 0x33
-Unhandled PPU write: 0x2106 = 0x43
-Unhandled PPU write: 0x2106 = 0x53
-Unhandled PPU write: 0x2106 = 0x63
-Unhandled PPU write: 0x2106 = 0x73
-Unhandled PPU write: 0x2106 = 0x83
-Unhandled PPU write: 0x2106 = 0x93
-Unhandled PPU write: 0x2106 = 0xA3
-Unhandled PPU write: 0x2106 = 0xB3
-Unhandled PPU write: 0x2106 = 0xC3
-Unhandled PPU write: 0x2106 = 0xD3
-Unhandled PPU write: 0x2106 = 0xE3
-Unhandled PPU write: 0x2106 = 0xF3
-Unhandled PPU write: 0x2106 = 0xE1
-Unhandled PPU write: 0x2106 = 0xD1
-Unhandled PPU write: 0x2106 = 0xC1
-Unhandled PPU write: 0x2106 = 0xB1
-Unhandled PPU write: 0x2106 = 0xA1
-Unhandled PPU write: 0x2106 = 0x91
-Unhandled PPU write: 0x2106 = 0x81
-Unhandled PPU write: 0x2106 = 0x71
-Unhandled PPU write: 0x2106 = 0x61
-Unhandled PPU write: 0x2106 = 0x51
-Unhandled PPU write: 0x2106 = 0x41
-Unhandled PPU write: 0x2106 = 0x31
-Unhandled PPU write: 0x2106 = 0x21
-Unhandled PPU write: 0x2106 = 0x11
-Unhandled PPU write: 0x2106 = 0x01
