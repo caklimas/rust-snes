@@ -1,5 +1,9 @@
 use crate::memory::addresses::{APU_REGISTERS_RANGE, APU_REGISTERS_START};
 
+pub mod processor_status_word;
+pub mod registers;
+pub mod spc700;
+
 pub struct Apu {
     cpu_to_spc: [u8; 4],
     spc_to_cpu: [u8; 4],

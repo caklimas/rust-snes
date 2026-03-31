@@ -105,7 +105,12 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Component | Status | Notes |
 |-----------|--------|-------|
 | SPC700 I/O ports ($2140–$217F) | ⚠️ Stubbed | IPL handshake echo; no actual SPC700 execution |
-| SPC700 CPU | ❌ Not implemented | |
+| SPC700 CPU struct | 🟡 In progress | `Spc700` struct with registers (A/X/Y/SP/PC/PSW), 64KB RAM, IPL ROM slot; no instruction decoding yet |
+| SPC700 registers | ✅ Complete | `Registers` struct (A, X, Y, SP, PC, PSW); `ProcessorStatusWord` bitfield (N/V/P/B/H/I/Z/C) |
+| SPC700 memory map | ❌ Not implemented | RAM, I/O ports ($00F0–$00FF), IPL ROM ($FFC0–$FFFF) |
+| SPC700 instruction decoder | ❌ Not implemented | |
+| SPC700 IPL ROM | ❌ Not implemented | 64-byte boot ROM needs to be embedded |
+| SPC700 timers (T0–T2) | ❌ Not implemented | |
 | DSP / audio output | ❌ Not implemented | |
 
 ---
@@ -141,7 +146,8 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Mode 7 rendering** — rotation/scaling matrix pipeline, EXTBG
-2. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
-3. **SPC700 CPU** — full audio emulation
-4. **IRQ timer** — H/V count IRQ ($4207–$420A)
+1. **SPC700 CPU** — next: memory map (I/O ports $00F0–$00FF, IPL ROM $FFC0–$FFFF), embed IPL ROM, instruction decoder
+2. **SPC700 timers** — T0–T2 needed by most sound drivers
+3. **Mode 7 rendering** — rotation/scaling matrix pipeline, EXTBG
+4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
+5. **IRQ timer** — H/V count IRQ ($4207–$420A)
