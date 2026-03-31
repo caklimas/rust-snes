@@ -35,6 +35,8 @@ pub const INIDISP: u32 = 0x002100;
 pub const OBSEL: u32 = 0x002101;
 pub const BGMODE: u32 = 0x002105;
 
+pub const MOSAIC: u32 = 0x002106;
+
 pub const BG1SC: u32 = 0x002107;
 pub const BG2SC: u32 = 0x002108;
 pub const BG3SC: u32 = 0x002109;
@@ -52,8 +54,27 @@ pub const BG3VOFS: u32 = 0x002112;
 pub const BG4HOFS: u32 = 0x002113;
 pub const BG4VOFS: u32 = 0x002114;
 
+pub const W12SEL: u32 = 0x002123;
+pub const W34SEL: u32 = 0x002124;
+pub const WOBJSEL: u32 = 0x002125;
+
+pub const WH0: u32 = 0x002126;
+pub const WH1: u32 = 0x002127;
+pub const WH2: u32 = 0x002128;
+pub const WH3: u32 = 0x002129;
+
+pub const WBGLOG: u32 = 0x00212A;
+pub const WOBJLOG: u32 = 0x00212B;
+
 pub const TM: u32 = 0x00212C;
 pub const TS: u32 = 0x00212D;
+
+pub const TMW: u32 = 0x00212E;
+pub const TSW: u32 = 0x00212F;
+
+pub const CGWSEL: u32 = 0x002130;
+pub const CGADSUB: u32 = 0x002131;
+pub const COLDATA: u32 = 0x002132;
 
 pub const SETINI: u32 = 0x002133;
 

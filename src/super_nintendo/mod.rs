@@ -47,14 +47,16 @@ impl SuperNintendo {
             // Account for DRAM refresh: charge 40 master clocks per scanline
             self.master_clocks += DRAM_REFRESH_MASTER_CLOCKS;
 
-            if self.current_scanline < 224 {
+            if self.current_scanline >= 1 && self.current_scanline <= 224 {
                 self.bus.run_hdma_scanline();
                 self.bus.ppu.render_scanline(self.current_scanline);
             }
 
             self.current_scanline = (self.current_scanline + 1) % 262;
+            self.bus.ppu.current_scanline = self.current_scanline;
 
             if self.current_scanline == 225 {
+                self.bus.ppu.vram.rendering_active = false;
                 self.bus.nmi_status.set_nmi_flag(true);
                 self.bus.hvbjoy.set_vblank(true);
 
@@ -64,6 +66,7 @@ impl SuperNintendo {
             }
 
             if self.current_scanline == 0 {
+                self.bus.ppu.vram.rendering_active = !self.bus.ppu.display.forced_blank();
                 self.bus.init_hdma();
                 self.bus.hvbjoy.set_vblank(false);
                 self.frame_complete = true;
