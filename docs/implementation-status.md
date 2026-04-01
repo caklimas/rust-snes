@@ -107,7 +107,9 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | SPC700 I/O ports ($2140–$217F) | ⚠️ Stubbed | IPL handshake echo; no actual SPC700 execution |
 | SPC700 CPU struct | 🟡 In progress | `Spc700` struct with registers (A/X/Y/SP/PC/PSW), 64KB RAM, IPL ROM slot; no instruction decoding yet |
 | SPC700 registers | ✅ Complete | `Registers` struct (A, X, Y, SP, PC, PSW); `ProcessorStatusWord` bitfield (N/V/P/B/H/I/Z/C) |
-| SPC700 memory map | ❌ Not implemented | RAM, I/O ports ($00F0–$00FF), IPL ROM ($FFC0–$FFFF) |
+| SPC700 memory map | 🟡 In progress | Read/write routing for RAM, IPL ROM overlay ($FFC0–$FFFF via CONTROL bit 7), I/O port dispatch ($F0–$FF); CPUIO ($F4–$F7) wired in `Apu`; remaining I/O ports ($F0–$F3, $F8–$FF) still `unimplemented!()` |
+| SPC700 CONTROL ($F1) | ✅ Complete | `Control` bitfield: `ipl_rom_overlay` bit 7, `timer_enables` bits 0–2, `clear_cpuio_input_latch` bits 4–5 |
+| SPC700 CPUIO ($F4–$F7) | ✅ Complete | Bidirectional ports wired in `Apu`: main CPU side via $2140–$2143, SPC700 side via $00F4–$00F7; `cpu_to_spc`/`spc_to_cpu` arrays |
 | SPC700 instruction decoder | ❌ Not implemented | |
 | SPC700 IPL ROM | ❌ Not implemented | 64-byte boot ROM needs to be embedded |
 | SPC700 timers (T0–T2) | ❌ Not implemented | |
@@ -146,7 +148,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **SPC700 CPU** — next: memory map (I/O ports $00F0–$00FF, IPL ROM $FFC0–$FFFF), embed IPL ROM, instruction decoder
+1. **SPC700 CPU** — next: finish I/O port stubs ($F0 TEST, $F2/$F3 DSP addr/data, $F8/$F9 AUX, $FA–$FC timer dividers, $FD–$FF timer outputs), embed IPL ROM, instruction decoder
 2. **SPC700 timers** — T0–T2 needed by most sound drivers
 3. **Mode 7 rendering** — rotation/scaling matrix pipeline, EXTBG
 4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets

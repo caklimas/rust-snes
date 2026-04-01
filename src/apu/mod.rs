@@ -1,5 +1,11 @@
-use crate::memory::addresses::{APU_REGISTERS_RANGE, APU_REGISTERS_START};
+use crate::{
+    apu::addresses::{CPU_IO_RANGE, CPU_IO_START},
+    memory::addresses::{APU_REGISTERS_RANGE, APU_REGISTERS_START},
+};
 
+pub mod addresses;
+pub mod control;
+pub mod io_ports;
 pub mod processor_status_word;
 pub mod registers;
 pub mod spc700;
@@ -16,6 +22,7 @@ impl Apu {
                 let index = self.get_index(address);
                 self.spc_to_cpu[index]
             }
+            addr if CPU_IO_RANGE.contains(&addr) => self.cpu_to_spc[(addr - CPU_IO_START) as usize],
             _ => {
                 eprintln!("Unhandled APU read: {:#06X}", address);
                 0
@@ -29,6 +36,9 @@ impl Apu {
                 let index = self.get_index(address);
                 self.spc_to_cpu[index] = value;
                 self.cpu_to_spc[index] = value;
+            }
+            addr if CPU_IO_RANGE.contains(&addr) => {
+                self.spc_to_cpu[(addr - CPU_IO_START) as usize] = value
             }
             _ => {
                 eprintln!("Unhandled APU write: {:#06X}", address);
