@@ -9,6 +9,7 @@ pub mod io_ports;
 pub mod processor_status_word;
 pub mod registers;
 pub mod spc700;
+pub mod timer;
 
 pub struct Apu {
     cpu_to_spc: [u8; 4],
