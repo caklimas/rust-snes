@@ -4,8 +4,10 @@ use crate::{
 };
 
 pub mod addresses;
+pub mod constants;
 pub mod control;
 pub mod io_ports;
+pub mod opcodes;
 pub mod processor_status_word;
 pub mod registers;
 pub mod spc700;

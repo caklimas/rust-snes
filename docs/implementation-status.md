@@ -105,14 +105,15 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Component | Status | Notes |
 |-----------|--------|-------|
 | SPC700 I/O ports ($2140–$217F) | ⚠️ Stubbed | IPL handshake echo; no actual SPC700 execution |
-| SPC700 CPU struct | 🟡 In progress | `Spc700` struct with registers (A/X/Y/SP/PC/PSW), 64KB RAM, IPL ROM slot; no instruction decoding yet |
+| SPC700 CPU struct | 🟡 In progress | `Spc700` struct with registers, 64KB RAM, IPL ROM, `step()` method; PC defaults to $FFC0 (reset vector) |
 | SPC700 registers | ✅ Complete | `Registers` struct (A, X, Y, SP, PC, PSW); `ProcessorStatusWord` bitfield (N/V/P/B/H/I/Z/C) |
-| SPC700 memory map | 🟡 In progress | Read/write routing for RAM, IPL ROM overlay ($FFC0–$FFFF via CONTROL bit 7), I/O port dispatch ($F0–$FF); CPUIO ($F4–$F7) wired in `Apu`; remaining I/O ports ($F0–$F3, $F8–$FF) still `unimplemented!()` |
+| SPC700 memory map | ✅ Complete | Read/write routing for RAM, IPL ROM overlay, I/O ports ($F0–$FF); CPUIO ($F4–$F7) stubbed (returns 0) pending Apu integration |
+| SPC700 I/O ports ($F0–$FF) | ✅ Complete | `IoPorts` struct: TEST ($F0) no-op, CONTROL ($F1), DSPADDR/DSPDATA ($F2/$F3) with 128-byte stub DSP, AUX ($F8/$F9), timer dividers ($FA–$FC write-only), timer counters ($FD–$FF read-clear, 4-bit masked) |
 | SPC700 CONTROL ($F1) | ✅ Complete | `Control` bitfield: `ipl_rom_overlay` bit 7, `timer_enables` bits 0–2, `clear_cpuio_input_latch` bits 4–5 |
 | SPC700 CPUIO ($F4–$F7) | ✅ Complete | Bidirectional ports wired in `Apu`: main CPU side via $2140–$2143, SPC700 side via $00F4–$00F7; `cpu_to_spc`/`spc_to_cpu` arrays |
-| SPC700 instruction decoder | ❌ Not implemented | |
-| SPC700 IPL ROM | ❌ Not implemented | 64-byte boot ROM needs to be embedded |
-| SPC700 timers (T0–T2) | ❌ Not implemented | |
+| SPC700 IPL ROM | ✅ Complete | 64-byte boot ROM embedded as `IPL_ROM` constant in `src/apu/constants.rs` |
+| SPC700 instruction decoder | 🟡 In progress | `step()` + `read_byte()` (auto-advancing PC); 6 opcodes implemented: $5D MOV X,A / $BD MOV SP,X / $C6 MOV (X),A / $CD MOV X,#imm / $DD MOV A,Y / $E8 MOV A,#imm |
+| SPC700 timers (T0–T2) | ❌ Not implemented | Divider/counter storage in place, no tick logic yet |
 | DSP / audio output | ❌ Not implemented | |
 
 ---
@@ -148,8 +149,8 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **SPC700 CPU** — next: finish I/O port stubs ($F0 TEST, $F2/$F3 DSP addr/data, $F8/$F9 AUX, $FA–$FC timer dividers, $FD–$FF timer outputs), embed IPL ROM, instruction decoder
-2. **SPC700 timers** — T0–T2 needed by most sound drivers
+1. **SPC700 instruction decoder** — next: implement branch opcodes ($D0 BNE, $2F BRA, $10 BPL), compare opcodes ($78 CMP dp,#imm, $7E CMP Y,dp), then remaining IPL ROM opcodes ($8F MOV dp,#imm, $EB MOV Y,dp, $E4 MOV A,dp, $CB MOV dp,Y, $C4 MOV dp,A, $D7 MOV [dp]+Y,A, $FC INC Y, $AB INC dp, $1D DEC X, $BA MOVW YA,dp, $DA MOVW dp,YA, $1F JMP [abs+X]); wire SPC700 CPUIO ($F4–$F7) reads/writes through Apu port arrays; integrate step() into main emulation loop
+2. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
 3. **Mode 7 rendering** — rotation/scaling matrix pipeline, EXTBG
 4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
 5. **IRQ timer** — H/V count IRQ ($4207–$420A)

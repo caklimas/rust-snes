@@ -1,6 +1,8 @@
 use crate::apu::{
     addresses::{CPU_IO_RANGE, IO_PORTS_RANGE, IPL_BOOT_RANGE, IPL_BOOT_START},
+    constants::IPL_ROM,
     io_ports::IoPorts,
+    opcodes::execute_opcode,
     registers::Registers,
 };
 
@@ -12,6 +14,18 @@ pub struct Spc700 {
 }
 
 impl Spc700 {
+    pub fn step(&mut self) {
+        let opcode = self.read_byte();
+
+        execute_opcode(self, opcode);
+    }
+    pub fn read_byte(&mut self) -> u8 {
+        let value = self.read(self.registers.pc as u32);
+        self.registers.pc = self.registers.pc.wrapping_add(1);
+
+        value
+    }
+
     pub fn read(&mut self, address: u32) -> u8 {
         match (address, self.io_ports.control.ipl_rom_overlay()) {
             (addr, _) if CPU_IO_RANGE.contains(&addr) => 0,
@@ -30,13 +44,21 @@ impl Spc700 {
             _ => self.ram[address as usize] = value,
         }
     }
+
+    pub fn set_z(&mut self, value: u8) {
+        self.registers.psw.set_zero(value == 0);
+    }
+
+    pub fn set_n(&mut self, value: u8) {
+        self.registers.psw.set_negative(value & 0x80 != 0);
+    }
 }
 
 impl Default for Spc700 {
     fn default() -> Self {
         Self {
             io_ports: Default::default(),
-            ipl_rom: [0; 64],
+            ipl_rom: IPL_ROM,
             ram: [0; 65536],
             registers: Default::default(),
         }
