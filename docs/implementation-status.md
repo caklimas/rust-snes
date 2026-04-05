@@ -112,7 +112,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | SPC700 CONTROL ($F1) | ✅ Complete | `Control` bitfield: `ipl_rom_overlay` bit 7, `timer_enables` bits 0–2, `clear_cpuio_input_latch` bits 4–5 |
 | SPC700 CPUIO ($F4–$F7) | ✅ Complete | Bidirectional ports wired in `Apu`: main CPU side via $2140–$2143, SPC700 side via $00F4–$00F7; `cpu_to_spc`/`spc_to_cpu` arrays |
 | SPC700 IPL ROM | ✅ Complete | 64-byte boot ROM embedded as `IPL_ROM` constant in `src/apu/constants.rs` |
-| SPC700 instruction decoder | 🟡 In progress | `step()` + `read_byte()` (auto-advancing PC); 6 opcodes implemented: $5D MOV X,A / $BD MOV SP,X / $C6 MOV (X),A / $CD MOV X,#imm / $DD MOV A,Y / $E8 MOV A,#imm |
+| SPC700 instruction decoder | 🟡 In progress | `step()` + `read_byte()` (auto-advancing PC); 11 opcodes implemented: MOV ($5D,$BD,$C6,$CD,$DD,$E8), branch ($10 BPL,$2F BRA,$D0 BNE), compare ($78 CMP dp#imm,$7E CMP Y,dp); helpers: `set_n`, `set_z`, `set_c`, `get_direct_page_address` |
 | SPC700 timers (T0–T2) | ❌ Not implemented | Divider/counter storage in place, no tick logic yet |
 | DSP / audio output | ❌ Not implemented | |
 
@@ -149,7 +149,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **SPC700 instruction decoder** — next: implement branch opcodes ($D0 BNE, $2F BRA, $10 BPL), compare opcodes ($78 CMP dp,#imm, $7E CMP Y,dp), then remaining IPL ROM opcodes ($8F MOV dp,#imm, $EB MOV Y,dp, $E4 MOV A,dp, $CB MOV dp,Y, $C4 MOV dp,A, $D7 MOV [dp]+Y,A, $FC INC Y, $AB INC dp, $1D DEC X, $BA MOVW YA,dp, $DA MOVW dp,YA, $1F JMP [abs+X]); wire SPC700 CPUIO ($F4–$F7) reads/writes through Apu port arrays; integrate step() into main emulation loop
+1. **SPC700 instruction decoder** — next: remaining IPL ROM opcodes ($8F MOV dp,#imm, $EB MOV Y,dp, $E4 MOV A,dp, $CB MOV dp,Y, $C4 MOV dp,A, $D7 MOV [dp]+Y,A, $FC INC Y, $AB INC dp, $1D DEC X, $BA MOVW YA,dp, $DA MOVW dp,YA, $1F JMP [abs+X]); then wire SPC700 CPUIO ($F4–$F7) reads/writes through Apu port arrays; integrate step() into main emulation loop
 2. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
 3. **Mode 7 rendering** — rotation/scaling matrix pipeline, EXTBG
 4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets

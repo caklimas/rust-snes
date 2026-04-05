@@ -1,4 +1,4 @@
-use crate::apu::spc700::Spc700;
+use crate::apu::{opcodes::get_direct_page_address, spc700::Spc700};
 
 pub fn mov_x_imm(spc700: &mut Spc700) {
     let value = spc700.read_byte();
@@ -21,7 +21,10 @@ pub fn mov_a_imm(spc700: &mut Spc700) {
 }
 
 pub fn mov_ind_x_a(spc700: &mut Spc700) {
-    spc700.write(get_direct_page_address(spc700), spc700.registers.a);
+    spc700.write(
+        get_direct_page_address(spc700, spc700.registers.x as u32),
+        spc700.registers.a,
+    );
 }
 
 pub fn mov_a_y(spc700: &mut Spc700) {
@@ -36,8 +39,4 @@ pub fn mov_x_a(spc700: &mut Spc700) {
 
     spc700.set_n(spc700.registers.a);
     spc700.set_z(spc700.registers.a);
-}
-
-fn get_direct_page_address(spc700: &Spc700) -> u32 {
-    ((spc700.registers.psw.direct_page() as u32) * 0x100) | (spc700.registers.x as u32)
 }

@@ -52,6 +52,10 @@ impl Spc700 {
     pub fn set_n(&mut self, value: u8) {
         self.registers.psw.set_negative(value & 0x80 != 0);
     }
+
+    pub fn set_c(&mut self, left: u8, right: u8) {
+        self.registers.psw.set_carry(left >= right);
+    }
 }
 
 impl Default for Spc700 {
