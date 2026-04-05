@@ -19,6 +19,19 @@ impl Spc700 {
 
         execute_opcode(self, opcode);
     }
+
+    pub fn read_word_direct(&mut self, address: u32) -> u16 {
+        let lo = self.read(address);
+        let hi = self.read((address.wrapping_add(1)) & 0x00FF_FFFF);
+        u16::from_le_bytes([lo, hi])
+    }
+
+    pub fn read_word(&mut self) -> u16 {
+        let lo = self.read_byte();
+        let hi = self.read_byte();
+        u16::from_le_bytes([lo, hi])
+    }
+
     pub fn read_byte(&mut self) -> u8 {
         let value = self.read(self.registers.pc as u32);
         self.registers.pc = self.registers.pc.wrapping_add(1);
