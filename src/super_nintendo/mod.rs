@@ -16,6 +16,7 @@ pub struct SuperNintendo {
     pub bus: Bus,
     cpu: Cpu,
     current_scanline: u16,
+    pub debug: bool,
     frame_complete: bool,
     master_clocks: u32,
     spc700: Spc700,
@@ -36,6 +37,7 @@ impl SuperNintendo {
             bus,
             cpu,
             current_scanline: 0,
+            debug: false,
             frame_complete: false,
             master_clocks: 0,
             spc700: Spc700::new(apu.clone()),
@@ -71,6 +73,7 @@ impl SuperNintendo {
             self.bus.ppu.current_scanline = self.current_scanline;
 
             if self.current_scanline == 225 {
+                self.bus.ppu.oam.reset_address();
                 self.bus.ppu.vram.rendering_active = false;
                 self.bus.nmi_status.set_nmi_flag(true);
                 self.bus.hvbjoy.set_vblank(true);
@@ -81,6 +84,17 @@ impl SuperNintendo {
             }
 
             if self.current_scanline == 0 {
+                if self.debug {
+                    eprintln!("--- ALL 128 sprites ---");
+                    for i in 0..128 {
+                        let (low, high) = self.bus.ppu.oam.get_sprite(i);
+                        let x_full = (low.x as u16) | ((high.x_position_bit_8() as u16) << 8);
+                        if low.tile_number != 0 {
+                            eprintln!("Sprite {}: x={} y={} tile={:#04X} size={}", i, x_full, low.y, low.tile_number, high.size());
+                        }
+                    }
+                    self.debug = false;
+                }
                 self.bus.ppu.vram.rendering_active = !self.bus.ppu.display.forced_blank();
                 self.bus.init_hdma();
                 self.bus.hvbjoy.set_vblank(false);

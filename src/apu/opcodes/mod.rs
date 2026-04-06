@@ -1,4 +1,5 @@
 use crate::apu::{
+    constants::INSTRUCTION_LENGTHS,
     opcodes::{
         br::{bne_rel, bpl_rel, bra_rel},
         cmp::{cmp_dp_imm, cmp_y_dp},
@@ -45,6 +46,10 @@ pub fn execute_opcode(spc700: &mut Spc700, opcode: u8) {
         0xE8 => mov_a_imm(spc700),
         0xEB => mov_y_dp(spc700),
         0xFC => inc_y(spc700),
-        _ => (),
+        _ => {
+            for _ in 1..INSTRUCTION_LENGTHS[opcode as usize] {
+                spc700.read_byte();
+            }
+        }
     }
 }

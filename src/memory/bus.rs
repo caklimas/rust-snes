@@ -38,8 +38,8 @@ pub struct Bus {
 
     apu: Rc<RefCell<Apu>>,
     cartridge: Cartridge,
-    dma_channels: [DmaChannel; 8],
-    hdmaen: u8,
+    pub dma_channels: [DmaChannel; 8],
+    pub hdmaen: u8,
     wram: MemoryRegion,
     wram_access_address: WramAccessAddress,
 }
@@ -148,7 +148,12 @@ impl Bus {
                     }
                 }
             }
-            HDMAEN => self.hdmaen = value,
+            HDMAEN => {
+                if value != 0 {
+                    eprintln!("HDMAEN write: {:#04X}", value);
+                }
+                self.hdmaen = value;
+            }
             addr if DMA_REGISTERS_RANGE.contains(&addr) => {
                 let offset = addr - DMA_REGISTERS_START;
                 let upper_nibble = offset >> 4;
