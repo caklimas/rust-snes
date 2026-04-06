@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::{cell::RefCell, ops::RangeInclusive, rc::Rc};
 
 use crate::{
     apu::Apu,
@@ -36,7 +36,7 @@ pub struct Bus {
     pub nmi_status: NmiStatus,
     pub ppu: Ppu,
 
-    apu: Apu,
+    apu: Rc<RefCell<Apu>>,
     cartridge: Cartridge,
     dma_channels: [DmaChannel; 8],
     hdmaen: u8,
@@ -45,9 +45,9 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new(data: Vec<u8>) -> Self {
+    pub fn new(apu: Rc<RefCell<Apu>>, data: Vec<u8>) -> Self {
         Self {
-            apu: Default::default(),
+            apu,
             cartridge: Cartridge::new(data),
             dma_channels: [Default::default(); 8],
             hdmaen: 0,
@@ -87,7 +87,7 @@ impl Bus {
                 self.wram.read(&wram_addr)
             }
             addr if PPU_REGISTERS_RANGE.contains(&addr) => self.ppu.read(addr),
-            addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.read(addr),
+            addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.borrow_mut().read(addr),
             NMITIMEN => 0,
             HVBJOY => (self.hvbjoy.vblank() as u8) << 7,
             addr if CPU_IO_RANGE.contains(&addr) => self.input_output.read(addr),
@@ -160,7 +160,7 @@ impl Bus {
                 self.wram.write(&wram_addr, value)
             }
             addr if PPU_REGISTERS_RANGE.contains(&addr) => self.ppu.write(addr, value),
-            addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.write(addr, value),
+            addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.borrow_mut().write(addr, value),
             NMITIMEN => self.interrupt_enable.0 = value,
             MEMSEL => self.memory_select.0 = value,
             addr if CPU_IO_RANGE.contains(&addr) => self.input_output.write(addr, value),

@@ -1,5 +1,8 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::apu::{
-    addresses::{CPU_IO_RANGE, IO_PORTS_RANGE, IPL_BOOT_RANGE, IPL_BOOT_START},
+    Apu,
+    addresses::{CPU_IO_RANGE, CPU_IO_START, IO_PORTS_RANGE, IPL_BOOT_RANGE, IPL_BOOT_START},
     constants::IPL_ROM,
     io_ports::IoPorts,
     opcodes::execute_opcode,
@@ -7,13 +10,24 @@ use crate::apu::{
 };
 
 pub struct Spc700 {
-    pub io_ports: IoPorts,
-    pub ipl_rom: [u8; 64],
-    pub ram: [u8; 65536],
     pub registers: Registers,
+    apu: Rc<RefCell<Apu>>,
+    io_ports: IoPorts,
+    ipl_rom: [u8; 64],
+    ram: [u8; 65536],
 }
 
 impl Spc700 {
+    pub fn new(apu: Rc<RefCell<Apu>>) -> Self {
+        Self {
+            apu,
+            io_ports: Default::default(),
+            ipl_rom: IPL_ROM,
+            ram: [0; 65536],
+            registers: Default::default(),
+        }
+    }
+
     pub fn step(&mut self) {
         let opcode = self.read_byte();
 
@@ -41,7 +55,9 @@ impl Spc700 {
 
     pub fn read(&mut self, address: u32) -> u8 {
         match (address, self.io_ports.control.ipl_rom_overlay()) {
-            (addr, _) if CPU_IO_RANGE.contains(&addr) => 0,
+            (addr, _) if CPU_IO_RANGE.contains(&addr) => {
+                self.apu.borrow().cpu_to_spc[(addr - CPU_IO_START) as usize]
+            }
             (addr, _) if IO_PORTS_RANGE.contains(&addr) => self.io_ports.read(address),
             (addr, true) if IPL_BOOT_RANGE.contains(&addr) => {
                 self.ipl_rom[(addr - IPL_BOOT_START) as usize]
@@ -52,10 +68,16 @@ impl Spc700 {
 
     pub fn write(&mut self, address: u32, value: u8) {
         match address {
-            addr if CPU_IO_RANGE.contains(&addr) => (),
+            addr if CPU_IO_RANGE.contains(&addr) => {
+                self.apu.borrow_mut().spc_to_cpu[(addr - CPU_IO_START) as usize] = value
+            }
             addr if IO_PORTS_RANGE.contains(&addr) => self.io_ports.write(address, value),
             _ => self.ram[address as usize] = value,
         }
+    }
+
+    pub fn get_direct_page_address(&self, offset: u32) -> u32 {
+        ((self.registers.psw.direct_page() as u32) * 0x100) | offset
     }
 
     pub fn set_z(&mut self, value: u8) {
@@ -68,16 +90,5 @@ impl Spc700 {
 
     pub fn set_c(&mut self, left: u8, right: u8) {
         self.registers.psw.set_carry(left >= right);
-    }
-}
-
-impl Default for Spc700 {
-    fn default() -> Self {
-        Self {
-            io_ports: Default::default(),
-            ipl_rom: IPL_ROM,
-            ram: [0; 65536],
-            registers: Default::default(),
-        }
     }
 }

@@ -45,10 +45,6 @@ pub fn execute_opcode(spc700: &mut Spc700, opcode: u8) {
         0xE8 => mov_a_imm(spc700),
         0xEB => mov_y_dp(spc700),
         0xFC => inc_y(spc700),
-        _ => unimplemented!(),
+        _ => (),
     }
-}
-
-pub fn get_direct_page_address(spc700: &Spc700, offset: u32) -> u32 {
-    ((spc700.registers.psw.direct_page() as u32) * 0x100) | offset
 }

@@ -1,4 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
+    apu::{Apu, spc700::Spc700},
     cpu::Cpu,
     memory::{
         addresses::{RESET_VECTOR_HI, RESET_VECTOR_LO},
@@ -13,13 +16,16 @@ pub struct SuperNintendo {
     pub bus: Bus,
     cpu: Cpu,
     current_scanline: u16,
-    master_clocks: u32,
     frame_complete: bool,
+    master_clocks: u32,
+    spc700: Spc700,
+    spc_clocks: i32,
 }
 
 impl SuperNintendo {
     pub fn new(data: Vec<u8>) -> Self {
-        let mut bus = Bus::new(data);
+        let apu = Rc::new(RefCell::new(Apu::default()));
+        let mut bus = Bus::new(apu.clone(), data);
         let mut cpu = Cpu::default();
 
         let lo = bus.read(RESET_VECTOR_LO);
@@ -30,8 +36,10 @@ impl SuperNintendo {
             bus,
             cpu,
             current_scanline: 0,
-            master_clocks: 0,
             frame_complete: false,
+            master_clocks: 0,
+            spc700: Spc700::new(apu.clone()),
+            spc_clocks: 0,
         }
     }
 
@@ -40,7 +48,14 @@ impl SuperNintendo {
         let pc_address = ((self.cpu.registers.pb as u32) << 16) | (self.cpu.registers.pc as u32);
         let clocks_per_cycle = self.bus.master_clocks_for_address(pc_address);
         let cpu_cycles = self.cpu.step(&mut self.bus) as u32;
-        self.master_clocks += cpu_cycles * clocks_per_cycle;
+        let cpu_master_clocks = cpu_cycles * clocks_per_cycle;
+        self.master_clocks += cpu_master_clocks;
+        self.spc_clocks += (cpu_master_clocks * 768 / 1364) as i32;
+
+        while self.spc_clocks > 0 {
+            self.spc700.step();
+            self.spc_clocks -= 1; // refine with actual cycle counts later                                                                                
+        }
 
         if self.master_clocks >= MASTER_CLOCKS_PER_SCANLINE {
             self.master_clocks -= MASTER_CLOCKS_PER_SCANLINE;

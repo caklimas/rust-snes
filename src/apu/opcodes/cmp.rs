@@ -1,9 +1,9 @@
-use crate::apu::{opcodes::get_direct_page_address, spc700::Spc700};
+use crate::apu::spc700::Spc700;
 
 pub fn cmp_dp_imm(spc700: &mut Spc700) {
     let immediate = spc700.read_byte();
     let offset = spc700.read_byte() as u32;
-    let dp_value = spc700.read(get_direct_page_address(spc700, offset));
+    let dp_value = spc700.read(spc700.get_direct_page_address(offset));
     let result = dp_value.wrapping_sub(immediate);
 
     spc700.set_z(result);
@@ -13,7 +13,7 @@ pub fn cmp_dp_imm(spc700: &mut Spc700) {
 
 pub fn cmp_y_dp(spc700: &mut Spc700) {
     let offset = spc700.read_byte() as u32;
-    let dp_value = spc700.read(get_direct_page_address(spc700, offset));
+    let dp_value = spc700.read(spc700.get_direct_page_address(offset));
     let result = spc700.registers.y.wrapping_sub(dp_value);
 
     spc700.set_z(result);
