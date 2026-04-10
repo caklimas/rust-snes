@@ -1,0 +1,57 @@
+=== DEBUG DUMP @ 1775792066732 ===
+Cpu {
+    registers: Registers {
+        a: $B700,
+        x: $0000,
+        y: $0000,
+        s: $01FF,
+        d: $0000,
+        pc: $00:8036,
+        db: $00,
+        p: ProcessorStatus(
+            ZERO | INDEX_WIDTH | MEMORY_WIDTH,
+        ),
+    },
+    emulation_mode: false,
+    waiting_for_interrupt: false,
+    stopped: false,
+}
+Spc700 {
+    registers: Registers {
+        a: $02,
+        x: $00,
+        y: $01,
+        sp: $00,
+        pc: $0B41,
+        psw: -------- (0x00),
+    },
+}
+Ppu {
+    mode: 1,
+    forced_blank: false,
+    brightness: 15,
+    scanline: 0,
+    bg_hofs: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    bg_vofs: [
+        0,
+        0,
+        0,
+        0,
+    ],
+    tm: BG1=true BG2=false BG3=true BG4=false OBJ=true,
+    ts: BG1=false BG2=false BG3=false BG4=false OBJ=false,
+    window_1: left=0 right=0,
+    window_2: left=0 right=0,
+    w12sel: 0x00,
+    w34sel: 0x00,
+    wobjsel: 0x00,
+    tmw: BG1=false BG2=false BG3=false BG4=false OBJ=false,
+    tsw: BG1=false BG2=false BG3=false BG4=false OBJ=false,
+}
+
+[pixel trace] x=131 y=120: bg1=None bg2=None bg3=None bg4=None obj=None

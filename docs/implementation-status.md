@@ -128,6 +128,8 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | HVBJOY ($4212) | ✅ Complete | vblank/hblank flags |
 | MDMAEN ($420B) | ✅ Complete | |
 | HDMAEN ($420C) | ✅ Complete | |
+| Hardware multiply ($4202–$4203, $4216–$4217) | ✅ Complete | 8x8→16 unsigned, result instant on $4203 write |
+| Hardware divide ($4204–$4206, $4214–$4217) | ✅ Complete | 16÷8 unsigned, quotient+remainder instant on $4206 write; div-by-zero→$FFFF |
 | Joypad auto-read ($4218–$421F) | ✅ Complete | Controller 1 via InputOutput struct |
 | Keyboard input (winit) | ✅ Complete | Arrows=d-pad, Z=B, X=A, A=Y, S=X, Q=L, W=R, Enter=Start, RShift=Select |
 | Joypad serial ($4016–$4017) | ❌ Not implemented | |
