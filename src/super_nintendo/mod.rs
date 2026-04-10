@@ -103,7 +103,21 @@ impl SuperNintendo {
         frame_complete
     }
 
-    pub fn debug_info(&self) -> String {
-        format!("{:#?}\n{:#?}\n{:#?}", self.cpu, self.spc700, self.bus.ppu)
+    pub fn debug_info(&mut self) -> String {
+        // Read NMI vector and first 32 bytes of the handler
+        let nmi_lo = self.bus.read(0x00FFEA) as u16;
+        let nmi_hi = self.bus.read(0x00FFEB) as u16;
+        let nmi_addr = (nmi_hi << 8) | nmi_lo;
+
+        let mut handler_bytes = String::new();
+        for i in 0u16..32 {
+            let byte = self.bus.read(nmi_addr.wrapping_add(i) as u32);
+            handler_bytes.push_str(&format!("{:02X} ", byte));
+        }
+
+        format!(
+            "{:#?}\n{:#?}\n{:#?}\nNMI vector: ${:04X}\nNMI handler bytes: {}",
+            self.cpu, self.spc700, self.bus.ppu, nmi_addr, handler_bytes
+        )
     }
 }
