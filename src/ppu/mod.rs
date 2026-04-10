@@ -4,9 +4,9 @@ use crate::{
     memory::addresses::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
         BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGADSUB, CGDATA, CGDATAREAD, CGWSEL, COLDATA,
-        INIDISP, MOSAIC, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, SETINI, TM, TMW, TS,
-        TSW, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL, W12SEL, W34SEL, WBGLOG, WH0, WH1, WH2, WH3,
-        WOBJLOG, WOBJSEL,
+        INIDISP, MOSAIC, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, RDVRAMH, RDVRAML,
+        SETINI, TM, TMW, TS, TSW, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL, W12SEL, W34SEL, WBGLOG,
+        WH0, WH1, WH2, WH3, WOBJLOG, WOBJSEL,
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset,
@@ -185,18 +185,9 @@ impl fmt::Debug for Ppu {
                     self.window_bounds_2.left, self.window_bounds_2.right
                 ),
             )
-            .field(
-                "w12sel",
-                &format_args!("0x{:02X}", self.w12sel.0),
-            )
-            .field(
-                "w34sel",
-                &format_args!("0x{:02X}", self.w34sel.0),
-            )
-            .field(
-                "wobjsel",
-                &format_args!("0x{:02X}", self.wobjsel.0),
-            )
+            .field("w12sel", &format_args!("0x{:02X}", self.w12sel.0))
+            .field("w34sel", &format_args!("0x{:02X}", self.w34sel.0))
+            .field("wobjsel", &format_args!("0x{:02X}", self.wobjsel.0))
             .field(
                 "tmw",
                 &format_args!(
@@ -542,6 +533,8 @@ impl Ppu {
             CGADD => 0,
             CGDATA => 0,
             CGDATAREAD => self.cgram.read_cgdata(),
+            RDVRAML => self.vram.read_data_lo(),
+            RDVRAMH => self.vram.read_data_hi(),
             _ => {
                 eprintln!("Unhandled PPU read: {:#06X}", address);
                 0

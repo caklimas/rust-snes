@@ -1,69 +1,97 @@
-# LttP Name Screen — Vertical Cursor Doesn't Move
+# LttP Name Screen — Cursor Off By One Character
 
 ## Symptom
-On the "Register Your Name" screen, the vertical dotted line (column cursor) does not move visually when pressing left/right. The horizontal solid line (row cursor) moves correctly with up/down. The game logic works — selecting a character picks the correct letter for the actual cursor position, but the visual doesn't match.
+On the "Register Your Name" screen, the cursor appears one character to the RIGHT of what gets selected. E.g., cursor visually on H selects G. This is a consistent 16-pixel (one character cell) offset between the sprite cursor position and the BG3 character grid.
 
-The initial cursor position is on H, but selecting a character selects the one to the left (e.g. G on first press).
+## Layer Architecture (confirmed 2026-04-10)
+- **BG1**: Frame/border + dark fill (tile 0x7F) inside the grid area. NOT the character grid.
+- **BG3**: Character letters (tiles 000-009 = A-J, etc.) + tile 0xA9 spacers between them. This IS the character grid.
+- **OBJ**: Horizontal solid line (sprites 0-25) + cursor indicator (sprite 26, tile 0x29)
+- **BG mode**: Mode 1, BGMODE=0x09 (BG3 priority boost), TM=0x15 (BG1 + BG3 + OBJ)
 
-## What we've confirmed
-- **BG mode**: Mode 1, TM=0x15 (BG1 + BG3 + OBJ enabled)
-- **BG scroll offsets**: BG1/BG2/BG3 HOFS all 0 and don't change on left/right
-- **BG1 tilemap**: Contains the character grid, frame border, and background. Identical before and after pressing left/right — no tilemap updates for the cursor.
-- **BG3 tilemap**: Filled with tile 0xA9 everywhere — a background fill layer, not the cursor.
-- **HDMA**: HDMAEN is always 0x00. The game never enables HDMA on the name screen. Not used for cursor positioning.
-- **OAM data**: 
-  - Sprites 0–25: horizontal line at y=131, tile 0x2E, evenly spaced x=24..224 (the solid horizontal line)
-  - Sprite 26: tile 0x29, y=88, **X position updates correctly** (79 → 95 → 111 when pressing left/right, +16 per step)
-  - The vertical dotted line is visually much taller than one 8x8 or 16x16 sprite
+## Root Cause: 16-pixel misalignment between sprite cursor and BG3 grid
 
-## Full sprite dump results
-- Only sprite 26 (tile 0x29, y=88, size=small/8x8) is in the visible Y range
-- All other non-zero sprites have y=240 (offscreen)
-- The visible dotted vertical line is ~80+ pixels tall — far too large for a single 8x8 sprite
-- **Conclusion: the vertical dotted line is NOT sprites.** It's likely rendered using BG3 + window masking.
+### Sprite position
+- Sprite 26 at **x=31** for initial cursor position (position 0)
+- Step = +16 per cursor movement (31 → 47 → 63 → 79 → 95 → 111 → 127...)
 
-## Leading theory: Window masking on BG3
-- BG3 is filled with tile 0xA9 (same tile everywhere)
-- Tile 0xA9 likely contains the dotted pattern
-- The game probably uses PPU windows (WH0–WH3, W34SEL/WOBJSEL, TMW/TSW) to mask BG3 to a narrow vertical column
-- When the cursor moves left/right, the game updates the window left/right bounds (WH0/WH1 or WH2/WH3)
-- **Next step**: trace window register values (WH0–WH3, W12SEL, W34SEL, TMW, TSW) on the name screen and check if they change when pressing left/right
+### BG3 character grid positions (BG3HOFS=0)
+- Characters at tilemap columns 2, 4, 6, 8, 10, 12, 14, 16, 18, 20...
+- Screen pixel positions: A@x=16, B@x=32, C@x=48, D@x=64, E@x=80, F@x=96, G@x=112, H@x=128
 
-## Sprite 26 (tile 0x29)
-- This IS visible and its X updates in OAM, but visually doesn't move
-- Might be a separate small cursor indicator (not the dotted line itself)
-- Possible it's rendered behind a BG layer or its tile is transparent — investigate separately
+### The mismatch
+- Cursor position 0: sprite at x=31, character A at x=16-23 → cursor is 8px past A, visually on B
+- Cursor position 6: sprite at x=127, character G at x=112-119 → cursor visually on H
+- Selecting at position 6 gives G → "cursor on H, selects G"
 
-## OAM fixes applied during investigation
-- **OAM VBlank address reload**: added `reload_address` field and `reset_address()` at scanline 225
-- **OAM write buffering**: first byte of low-table writes goes to buffer, committed as word on second byte
+### Confirmed by hack test
+- Subtracting 16 from BG3 horizontal offset in rendering code **fixes the cursor alignment**
+- This shifts the character grid right so A lands at x=32, aligning with cursor at x=31
+- But breaks the rest of the screen (global shift)
 
-## Corrected understanding (2026-04-09)
-- The vertical dashed line is CORRECT and should stay fixed — it's the backdrop color (232,208,144) showing through transparent gaps in BG3 tile 0xA9
-- It's the **character grid (BG1) that should scroll horizontally** when pressing left/right, not the cursor line
-- The off-by-one (selects G when visually at H) is because BG1 HOFS is stuck at 0 — the grid should shift to align the correct letter under the fixed cursor line
+## What's been ruled out
 
-## Root cause investigation
-- **BG1 HOFS is always 0** — confirmed across multiple debug dumps, never changes
-- **Game never writes to $210D (BG1HOFS)** — traced one full frame with write logging, zero writes captured
-- **Window registers all zero** — not used on this screen
-- **HDMA not active** — HDMAEN always 0x00
-- **PPU rendering is correct** — pixel trace at (131,120) confirms all layers return None (backdrop shows through as expected)
-- **NMI handler IS running** — sprites update correctly (horizontal line moves with up/down, sprite 26 X updates)
-- **Hardware multiply/divide was missing** — implemented ($4202-$4206 write, $4214-$4217 read), but did not fix this bug
-- **Conclusion**: the game's NMI handler reaches OAM DMA (sprites update) but never reaches the code that writes BG1HOFS. Some game logic condition is not being met, likely due to a read returning an incorrect value from an unimplemented or stubbed register
+### BG1 scroll is NOT the issue
+- BG1HOFS = 0 is correct — characters are NOT on BG1
+- BG1 is the border frame only
 
-## Registers ruled out
-- **$4211 (TIMEUP)** is the ONLY unhandled CPU I/O read (confirmed by adding logging to InputOutput catch-all). Returns 0 which is correct for no IRQ pending.
-- All PPU reads are handled — no "Unhandled PPU read" messages on the name screen
-- Hardware multiply/divide ($4202-$4206, $4214-$4217) was missing and has been implemented, but did NOT fix this bug
+### BG3HOFS = 0 is intentional
+- Scroll shadow at DP $E4/$E5 is 0
+- NMI handler writes $E4/$E5 to $2111 (BG3HOFS) every frame
+- **116 writes to $E4/$E5 captured from boot to name screen — ALL are 0x00**
+- The game never sets BG3HOFS to non-zero
 
-## Next steps
-- **Debug dump now includes NMI handler bytes** — press D on name screen to capture the NMI vector address and first 32 bytes of handler code. Disassemble to find where the handler branches away from the scroll/tilemap update.
-- The game's NMI handler reaches OAM DMA (sprites update) but never writes to BG1HOFS or updates the BG1 tilemap in VRAM. Something in the handler's control flow skips the scroll update path.
-- Could also be a DMA issue for transfer modes 3-5 (only 0/1/2 implemented) — unlikely but worth checking if the handler disassembly shows a DMA-based tilemap update
+### Tilemap data is written to correct VRAM addresses
+- BG3 tilemap at VRAM 0x6000 (BG3SC=0x63, 64x64 tilemap)
+- VRAM write log shows: clear pass (0x7F), spacer fill (0xA9), then character tiles written to columns 2, 4, 6...
+- The game intentionally places characters at those columns
+- Tilemap is written during screen initialization, NOT during per-frame NMI
 
-## Debug infrastructure added
-- `D` key (while paused) writes CPU/SPC700/PPU state to `docs/bugs/debug_dump.txt`
-- `F` key (while paused) writes frame buffer PPM to `docs/bugs/`
-- `P` key pauses/unpauses emulation
+### Font data is correctly aligned
+- Tile 000 renders as A, tile 002 as C (verified via pixel dump)
+- No tile index offset
+
+### NMI handler disassembly (at $80C9)
+- Scroll register writes at $8188+:
+  - BG1HOFS from WRAM $0120/$0121
+  - BG1VOFS from $0124/$0125
+  - BG2HOFS from $011E/$011F
+  - BG2VOFS from $0122/$0123
+  - BG3HOFS from DP $E4/$E5
+  - BG3VOFS from DP $EA/$EB
+- All scroll shadows are 0 — confirmed by trace
+- Handler control flow: APU comm → INIDISP=0x80 → HDMA off → DMA subroutines ($89E0, $83D1) → PPU register updates → scroll writes → BGMODE → INIDISP=0x0F
+
+### Hardware multiply/divide
+- Implemented ($4202-$4206 write, $4214-$4217 read)
+- Did NOT fix this bug
+
+### VRAM reads
+- Were completely missing ($2139/$213A unhandled)
+- Implemented: prefetch buffer, read_data_lo/hi, prefetch on VMADDH write, address increment on read
+- Did NOT fix this bug
+
+## Likely root cause (unconfirmed)
+Either:
+1. **The sprite position computation produces x=31 when it should produce ~x=15** — the game's cursor code adds 16 extra pixels, possibly due to reading a wrong value from an unimplemented or incorrectly-stubbed register during initialization
+2. **The tilemap should have characters at columns 4, 6, 8... instead of 2, 4, 6...** — something during initialization shifts the tilemap data 2 entries earlier than intended
+
+Both explanations produce the same visual result. The root cause is likely an unimplemented hardware feature or register that the name screen initialization code depends on. Candidates to investigate:
+- CPU instruction edge cases (addressing modes, flag handling)
+- Unimplemented I/O registers read during init (returning 0 instead of expected value)
+- DMA transfer modes 3-7 (only 0-2 fully implemented)
+- VRAM address translation (VMAIN bits 3-2, not implemented)
+- Block move instructions (MVN/MVP) if used for OAM buffer population
+
+## Code changes made during investigation
+- **DMA A1T/DAS update**: after DMA transfer, A1T now advances and DAS is set to 0 (matching real hardware)
+- **DMA bank wrapping**: source address wraps within bank via A1T u16 wrapping (no cross-bank DMA)
+- **VRAM read support**: prefetch buffer, RDVRAML ($2139), RDVRAMH ($213A) with proper address increment
+- **Frame trace system**: T key (while paused) runs one traced frame, writes to `docs/bugs/frame_trace.txt`
+- **Various debug outputs in trace**: NMI handler hex dump, BG3 tilemap dump, sprite 26 OAM data, DMA channel configs, VRAM write log, WRAM watchpoints
+
+## Debug infrastructure
+- `D` key (while paused): CPU/SPC700/PPU state dump to `docs/bugs/debug_dump.txt`
+- `F` key (while paused): frame buffer PPM screenshot to `docs/bugs/`
+- `T` key (while paused): full frame trace to `docs/bugs/frame_trace.txt`
+- `P` key: pause/unpause emulation
