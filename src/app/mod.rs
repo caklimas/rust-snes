@@ -15,6 +15,7 @@ use crate::{
 };
 
 pub struct App {
+    pub paused: bool,
     pub surface: Option<Surface<Arc<Window>, Arc<Window>>>,
     pub super_nintendo: SuperNintendo,
     pub window: Option<Arc<Window>>,
@@ -23,6 +24,7 @@ pub struct App {
 impl App {
     pub fn new(super_nintendo: SuperNintendo) -> Self {
         Self {
+            paused: false,
             surface: None,
             super_nintendo,
             window: None,
@@ -184,9 +186,18 @@ impl ApplicationHandler for App {
                     .controller_1
                     .set_select(state.is_pressed()),
                 KeyCode::KeyD => {
+                    if state.is_pressed() && self.paused {
+                        println!("{}", self.super_nintendo.debug_info());
+                    }
+                }
+                KeyCode::KeyF => {
+                    if state.is_pressed() && self.paused {
+                        println!("{:?}", self.super_nintendo.frame_buffer());
+                    }
+                }
+                KeyCode::KeyP => {
                     if state.is_pressed() {
-                        self.super_nintendo.debug = true;
-                        eprintln!("Debug triggered");
+                        self.paused = !self.paused;
                     }
                 }
                 _ => {}
@@ -196,10 +207,12 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, _: &winit::event_loop::ActiveEventLoop) {
-        loop {
-            self.super_nintendo.step();
-            if self.super_nintendo.frame_complete() {
-                break;
+        if !self.paused {
+            loop {
+                self.super_nintendo.step();
+                if self.super_nintendo.frame_complete() {
+                    break;
+                }
             }
         }
 

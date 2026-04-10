@@ -145,6 +145,9 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Window creation (winit 0.30) | ✅ Complete | |
 | Framebuffer rendering (softbuffer 0.4) | ✅ Complete | BGR555 → u32, nearest-neighbour scale |
 | Frame pacing (vblank-driven) | ✅ Complete | `frame_complete()` gates redraws |
+| Pause (P key) | ✅ Complete | Toggles emulation; completes current frame before stopping |
+| Debug dump (D key, paused) | ✅ Complete | Prints CPU, SPC700, PPU state via `debug_info()` |
+| Frame buffer dump (F key, paused) | ✅ Complete | Prints raw BGR555 `&[u16]` via `frame_buffer()` |
 
 ---
 
