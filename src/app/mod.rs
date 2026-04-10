@@ -183,6 +183,12 @@ impl ApplicationHandler for App {
                     .input_output
                     .controller_1
                     .set_select(state.is_pressed()),
+                KeyCode::KeyD => {
+                    if state.is_pressed() {
+                        self.super_nintendo.debug = true;
+                        eprintln!("Debug triggered");
+                    }
+                }
                 _ => {}
             },
             _ => (),

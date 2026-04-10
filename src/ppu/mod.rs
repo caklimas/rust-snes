@@ -64,6 +64,7 @@ pub const SCREEN_HEIGHT: u16 = 224;
 #[derive(Default)]
 pub struct Ppu {
     pub display: Display,
+    pub oam: Oam,
     pub vram: Vram,
     bg1: BgTilemap,
     bg2: BgTilemap,
@@ -81,7 +82,6 @@ pub struct Ppu {
     frame_buffer: FrameBuffer,
     main_screen_designation: ScreenDesignation,
     mosaic: Mosaic,
-    oam: Oam,
     obsel: Obsel,
     screen_setting: ScreenSetting,
     sub_screen_designation: ScreenDesignation,
@@ -122,6 +122,14 @@ impl Ppu {
 
     pub fn bg_mode_value(&self) -> u8 {
         self.bg_mode.bg_mode()
+    }
+
+    pub fn bg1_tilemap_base(&self) -> u16 {
+        self.bg1.get_vram_word_address()
+    }
+
+    pub fn bg3_tilemap_base(&self) -> u16 {
+        self.bg3.get_vram_word_address()
     }
 
     pub fn render_scanline(&mut self, y: u16) {

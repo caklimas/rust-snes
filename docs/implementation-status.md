@@ -104,8 +104,17 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| SPC700 I/O ports ($2140–$217F) | ⚠️ Stubbed | IPL handshake echo; no actual SPC700 execution |
-| SPC700 CPU | ❌ Not implemented | |
+| SPC700 I/O ports ($2140–$217F) | ✅ Complete | Bidirectional via `Rc<RefCell<Apu>>` shared between `Bus` and `Spc700` |
+| SPC700 CPU struct | ✅ Complete | `Spc700` struct with registers, 64KB RAM, IPL ROM, `step()` method; PC defaults to $FFC0 |
+| SPC700 registers | ✅ Complete | `Registers` struct (A, X, Y, SP, PC, PSW); `ProcessorStatusWord` bitfield (N/V/P/B/H/I/Z/C) |
+| SPC700 memory map | ✅ Complete | Read/write routing for RAM, IPL ROM overlay, I/O ports ($F0–$FF); CPUIO ($F4–$F7) via shared `Apu` |
+| SPC700 I/O ports ($F0–$FF) | ✅ Complete | `IoPorts` struct: TEST ($F0) no-op, CONTROL ($F1 — defaults 0x80, overlay on), DSPADDR/DSPDATA ($F2/$F3) with 128-byte stub DSP, AUX ($F8/$F9), timer dividers ($FA–$FC write-only), timer counters ($FD–$FF read-clear, 4-bit masked) |
+| SPC700 CONTROL ($F1) | ✅ Complete | `Control` bitfield: `ipl_rom_overlay` bit 7 (defaults on), `timer_enables` bits 0–2, `clear_cpuio_input_latch` bits 4–5 |
+| SPC700 CPUIO ($F4–$F7) | ✅ Complete | `Rc<RefCell<Apu>>` shared between Bus and Spc700; main CPU side via $2140–$2143, SPC700 side via $00F4–$00F7 |
+| SPC700 IPL ROM | ✅ Complete | 64-byte boot ROM embedded as `IPL_ROM` constant; IPL handshake verified working (LttP boots) |
+| SPC700 instruction decoder | 🟡 In progress | 23 IPL ROM opcodes implemented; unimplemented opcodes log and skip; integrated into main loop with clock accumulator (768 SPC clocks per 1364 main clocks) |
+| SPC700 execution integration | ✅ Complete | `spc_clocks: i32` accumulator on `SuperNintendo`; SPC700 steps proportionally alongside main CPU |
+| SPC700 timers (T0–T2) | ❌ Not implemented | Divider/counter storage in place, no tick logic yet |
 | DSP / audio output | ❌ Not implemented | |
 
 ---
@@ -141,7 +150,8 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Mode 7 rendering** — rotation/scaling matrix pipeline, EXTBG
-2. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
-3. **SPC700 CPU** — full audio emulation
-4. **IRQ timer** — H/V count IRQ ($4207–$420A)
+1. **SPC700 opcodes** — implement remaining opcodes as games hit them (currently logs unimplemented opcodes and skips)
+2. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
+3. **Mode 7 rendering** — rotation/scaling matrix pipeline, EXTBG
+4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
+5. **IRQ timer** — H/V count IRQ ($4207–$420A)

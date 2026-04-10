@@ -8,16 +8,21 @@ pub struct Oam {
     low_table: [u8; 512],
     oamadd: u16,
     read_address: u16,
+    reload_address: u16,
+    write_buffer: u8,
     write_latch: bool,
 }
 
 impl Oam {
     pub fn set_oamadd(&mut self, value: u8, is_low_bits: bool) {
-        if is_low_bits {
-            self.oamadd = (self.oamadd & 0xFF00) | (value as u16);
+        let value = if is_low_bits {
+            (self.oamadd & 0xFF00) | (value as u16)
         } else {
-            self.oamadd = (self.oamadd & 0xFF) | (((value & 0x1) as u16) << 8);
-        }
+            (self.oamadd & 0xFF) | (((value & 0x1) as u16) << 8)
+        };
+
+        self.oamadd = value;
+        self.reload_address = value;
 
         self.read_address = self.oamadd * 2;
         self.write_latch = false;
@@ -25,9 +30,12 @@ impl Oam {
 
     pub fn write_oamdata(&mut self, value: u8) {
         if self.oamadd <= 255 {
-            let index = self.get_index(true);
-            self.low_table[index] = value;
-            if self.write_latch {
+            if !self.write_latch {
+                self.write_buffer = value;
+            } else {
+                let index = (self.oamadd as usize) * 2;
+                self.low_table[index] = self.write_buffer;
+                self.low_table[index + 1] = value;
                 self.oamadd += 1;
             }
         } else {
@@ -67,6 +75,11 @@ impl Oam {
         (low_table_sprite, high_table_sprite)
     }
 
+    pub fn reset_address(&mut self) {
+        self.oamadd = self.reload_address;
+        self.write_latch = false;
+    }
+
     fn get_index(&self, is_low_table: bool) -> usize {
         let oamadd = if is_low_table {
             self.oamadd
@@ -89,6 +102,8 @@ impl Default for Oam {
             low_table: [0; 512],
             oamadd: 0,
             read_address: 0,
+            reload_address: 0,
+            write_buffer: 0,
             write_latch: false,
         }
     }

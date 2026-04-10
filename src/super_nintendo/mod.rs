@@ -1,4 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
+    apu::{Apu, spc700::Spc700},
     cpu::Cpu,
     memory::{
         addresses::{RESET_VECTOR_HI, RESET_VECTOR_LO},
@@ -13,13 +16,17 @@ pub struct SuperNintendo {
     pub bus: Bus,
     cpu: Cpu,
     current_scanline: u16,
-    master_clocks: u32,
+    pub debug: bool,
     frame_complete: bool,
+    master_clocks: u32,
+    spc700: Spc700,
+    spc_clocks: i32,
 }
 
 impl SuperNintendo {
     pub fn new(data: Vec<u8>) -> Self {
-        let mut bus = Bus::new(data);
+        let apu = Rc::new(RefCell::new(Apu::default()));
+        let mut bus = Bus::new(apu.clone(), data);
         let mut cpu = Cpu::default();
 
         let lo = bus.read(RESET_VECTOR_LO);
@@ -30,8 +37,11 @@ impl SuperNintendo {
             bus,
             cpu,
             current_scanline: 0,
-            master_clocks: 0,
+            debug: false,
             frame_complete: false,
+            master_clocks: 0,
+            spc700: Spc700::new(apu.clone()),
+            spc_clocks: 0,
         }
     }
 
@@ -40,7 +50,14 @@ impl SuperNintendo {
         let pc_address = ((self.cpu.registers.pb as u32) << 16) | (self.cpu.registers.pc as u32);
         let clocks_per_cycle = self.bus.master_clocks_for_address(pc_address);
         let cpu_cycles = self.cpu.step(&mut self.bus) as u32;
-        self.master_clocks += cpu_cycles * clocks_per_cycle;
+        let cpu_master_clocks = cpu_cycles * clocks_per_cycle;
+        self.master_clocks += cpu_master_clocks;
+        self.spc_clocks += (cpu_master_clocks * 768 / 1364) as i32;
+
+        while self.spc_clocks > 0 {
+            self.spc700.step();
+            self.spc_clocks -= 1; // refine with actual cycle counts later                                                                                
+        }
 
         if self.master_clocks >= MASTER_CLOCKS_PER_SCANLINE {
             self.master_clocks -= MASTER_CLOCKS_PER_SCANLINE;
@@ -56,6 +73,7 @@ impl SuperNintendo {
             self.bus.ppu.current_scanline = self.current_scanline;
 
             if self.current_scanline == 225 {
+                self.bus.ppu.oam.reset_address();
                 self.bus.ppu.vram.rendering_active = false;
                 self.bus.nmi_status.set_nmi_flag(true);
                 self.bus.hvbjoy.set_vblank(true);
@@ -66,6 +84,17 @@ impl SuperNintendo {
             }
 
             if self.current_scanline == 0 {
+                if self.debug {
+                    eprintln!("--- ALL 128 sprites ---");
+                    for i in 0..128 {
+                        let (low, high) = self.bus.ppu.oam.get_sprite(i);
+                        let x_full = (low.x as u16) | ((high.x_position_bit_8() as u16) << 8);
+                        if low.tile_number != 0 {
+                            eprintln!("Sprite {}: x={} y={} tile={:#04X} size={}", i, x_full, low.y, low.tile_number, high.size());
+                        }
+                    }
+                    self.debug = false;
+                }
                 self.bus.ppu.vram.rendering_active = !self.bus.ppu.display.forced_blank();
                 self.bus.init_hdma();
                 self.bus.hvbjoy.set_vblank(false);
