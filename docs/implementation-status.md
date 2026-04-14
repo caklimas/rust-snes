@@ -57,7 +57,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | CGADSUB ($2131) | ✅ Complete | |
 | COLDATA ($2132) | ✅ Complete | |
 | SETINI ($2133) | ✅ Complete | |
-| Mode 7 registers ($211A–$2120) | ❌ Not implemented | Writes logged but ignored |
+| Mode 7 registers ($211A–$2120) | ✅ Complete | M7SEL, M7A–D, M7X/M7Y, M7HOFS/M7VOFS; double-write via m7_old latch; 13-bit sign-extend for center/scroll |
 
 ### Rendering
 
@@ -71,7 +71,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | BG rendering — Mode 4 | ✅ Complete | BG1 8bpp, BG2 2bpp |
 | BG rendering — Mode 5 | ✅ Complete | BG1 4bpp, BG2 2bpp |
 | BG rendering — Mode 6 | ✅ Complete | BG1 4bpp only |
-| BG rendering — Mode 7 | ❌ Not implemented | Rotation/scaling matrix pipeline needed |
+| BG rendering — Mode 7 | 🟡 In progress | Affine transform + tile/pixel lookup implemented; not yet tested (no game has triggered Mode 7); missing brightness, color math, OBJ compositing in Mode 7 path |
 | Offset-per-tile (Modes 2, 4, 6) | ❌ Not implemented | BG3 used as per-tile offset source |
 | 16x16 tile support | ✅ Complete | Per-layer via BGMODE bits 4–7, quadrant flip |
 | Multi-screen tilemap layout | ✅ Complete | 64-wide/tall via SC register bits |
@@ -153,10 +153,20 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ---
 
+## Known Bugs
+
+### LttP Triforce intro — missing Triforce graphic
+- **Symptom**: The "1991, 1992" copyright text renders at the bottom, but the Triforce above it is missing. The rest of the intro works fine.
+- **Root cause (suspected)**: The Triforce is NOT a static asset or Mode 7 — it is **CPU-rasterized polygons written directly into VRAM each frame** (15 polygons at 60fps, software-rendered by the CPU). The game's CPU calculates triangle fill during VBlank and writes the pixel data into VRAM as tile data. The PPU renders it as normal BG tiles.
+- **Likely culprit**: VRAM write guard timing. `write_data_lo`/`write_data_hi` gate writes on `!rendering_active || forced_blank()`. If `rendering_active` isn't being cleared at the right time during VBlank, CPU-driven VRAM writes are silently dropped.
+- **How to investigate**: Add a trace to `write_data_lo`/`write_data_hi` during the Triforce screen to see if writes are being blocked. Check that `rendering_active` transitions align with VBlank timing.
+
+---
+
 ## Next Steps (Priority Order)
 
-1. **SPC700 opcodes** — implement remaining opcodes as games hit them (currently logs unimplemented opcodes and skips)
-2. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
-3. **Mode 7 rendering** — rotation/scaling matrix pipeline, EXTBG
+1. **Mode 7 rendering — finish and test** — registers and affine transform implemented; needs brightness/color math/OBJ compositing in the Mode 7 render path; needs a game or ROM that actually triggers Mode 7 to verify (LttP map screen, F-Zero, or Super Mario Kart)
+2. **SPC700 opcodes** — implement remaining opcodes as games hit them (currently logs unimplemented opcodes and skips)
+3. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
 4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
 5. **IRQ timer** — H/V count IRQ ($4207–$420A)
