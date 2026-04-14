@@ -4,9 +4,9 @@ use crate::{
     memory::addresses::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
         BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGADSUB, CGDATA, CGDATAREAD, CGWSEL, COLDATA,
-        INIDISP, MOSAIC, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, RDVRAMH, RDVRAML,
-        SETINI, TM, TMW, TS, TSW, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL, W12SEL, W34SEL, WBGLOG,
-        WH0, WH1, WH2, WH3, WOBJLOG, WOBJSEL,
+        INIDISP, M7SEL, M7Y, MOSAIC, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, RDVRAMH,
+        RDVRAML, SETINI, TM, TMW, TS, TSW, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL, W12SEL, W34SEL,
+        WBGLOG, WH0, WH1, WH2, WH3, WOBJLOG, WOBJSEL,
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset,
@@ -22,6 +22,7 @@ use crate::{
         coldata::Coldata,
         display::Display,
         frame_buffer::FrameBuffer,
+        mode_7::Mode7,
         mosaic::Mosaic,
         mosaic_config::MosaicConfig,
         oam::Oam,
@@ -60,6 +61,7 @@ pub mod display;
 pub mod frame_buffer;
 pub mod high_table_sprite;
 pub mod low_table_sprite;
+pub mod mode_7;
 pub mod mosaic;
 pub mod mosaic_config;
 pub mod oam;
@@ -106,6 +108,7 @@ pub struct Ppu {
     fixed_color: Rgb,
     frame_buffer: FrameBuffer,
     main_screen_designation: ScreenDesignation,
+    mode_7: Mode7,
     mosaic: Mosaic,
     obsel: Obsel,
     screen_setting: ScreenSetting,
@@ -557,8 +560,14 @@ impl Ppu {
             BG4SC => self.bg4.0 = value,
             BG12NBA => self.tile_graphic12.0 = value,
             BG34NBA => self.tile_graphic34.0 = value,
-            BG1HOFS => self.set_horizontal_offset(1, value),
-            BG1VOFS => self.set_vertical_offset(1, value),
+            BG1HOFS => {
+                self.set_horizontal_offset(1, value);
+                self.mode_7.write(address, value);
+            }
+            BG1VOFS => {
+                self.set_vertical_offset(1, value);
+                self.mode_7.write(address, value);
+            }
             BG2HOFS => self.set_horizontal_offset(2, value),
             BG2VOFS => self.set_vertical_offset(2, value),
             BG3HOFS => self.set_horizontal_offset(3, value),
@@ -609,6 +618,7 @@ impl Ppu {
                 value,
                 !self.vram.rendering_active || self.display.forced_blank(),
             ),
+            M7SEL..=M7Y => self.mode_7.write(address, value),
             CGADD => self.cgram.write_cgadd(value),
             CGDATA => self.cgram.write_cgdata(value),
             CGDATAREAD => {}
