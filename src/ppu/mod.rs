@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, ops::RangeInclusive};
 
 use crate::{
     memory::addresses::{
@@ -87,6 +87,7 @@ pub mod wobjlog;
 
 pub const SCREEN_WIDTH: u16 = 256;
 pub const SCREEN_HEIGHT: u16 = 224;
+pub const MODE_7_BOUNDS: RangeInclusive<i32> = 0..=1023;
 
 #[derive(Default)]
 pub struct Ppu {
@@ -256,6 +257,178 @@ impl Ppu {
         let palette_base = PaletteBase::new(&self.bg_mode);
         let brightness_factor = self.display.master_brightness() as u16 + 1;
 
+        if self.bg_mode.bg_mode() == 7 {
+            self.mode_7_sample(y);
+        } else {
+            self.mode_0_6_sample(y, bpp_settings, palette_base, brightness_factor);
+        }
+    }
+
+    pub fn read(&mut self, address: u32) -> u8 {
+        match address {
+            OAMADD_LO => 0,
+            OAMADD_HI => 0,
+            OAMDATA => 0,
+            BGMODE => self.bg_mode.0,
+            BG1SC => self.bg1.0,
+            BG2SC => self.bg2.0,
+            BG3SC => self.bg3.0,
+            BG4SC => self.bg4.0,
+            BG12NBA => self.tile_graphic12.0,
+            BG34NBA => self.tile_graphic34.0,
+            TM => self.main_screen_designation.0,
+            TS => self.sub_screen_designation.0,
+            OAMDATAREAD => self.oam.read_oamdata(),
+            CGADD => 0,
+            CGDATA => 0,
+            CGDATAREAD => self.cgram.read_cgdata(),
+            RDVRAML => self.vram.read_data_lo(),
+            RDVRAMH => self.vram.read_data_hi(),
+            _ => {
+                eprintln!("Unhandled PPU read: {:#06X}", address);
+                0
+            }
+        }
+    }
+
+    pub fn write(&mut self, address: u32, value: u8) {
+        match address {
+            INIDISP => self.display.0 = value,
+            OBSEL => self.obsel.0 = value,
+            OAMADD_LO => self.oam.set_oamadd(value, true),
+            OAMADD_HI => self.oam.set_oamadd(value, false),
+            OAMDATA => self.oam.write_oamdata(value),
+            BGMODE => self.bg_mode.0 = value,
+            MOSAIC => self.mosaic.0 = value,
+            BG1SC => self.bg1.0 = value,
+            BG2SC => self.bg2.0 = value,
+            BG3SC => self.bg3.0 = value,
+            BG4SC => self.bg4.0 = value,
+            BG12NBA => self.tile_graphic12.0 = value,
+            BG34NBA => self.tile_graphic34.0 = value,
+            BG1HOFS => {
+                self.set_horizontal_offset(1, value);
+                self.mode_7.write(address, value);
+            }
+            BG1VOFS => {
+                self.set_vertical_offset(1, value);
+                self.mode_7.write(address, value);
+            }
+            BG2HOFS => self.set_horizontal_offset(2, value),
+            BG2VOFS => self.set_vertical_offset(2, value),
+            BG3HOFS => self.set_horizontal_offset(3, value),
+            BG3VOFS => self.set_vertical_offset(3, value),
+            BG4HOFS => self.set_horizontal_offset(4, value),
+            BG4VOFS => self.set_vertical_offset(4, value),
+            W12SEL => self.w12sel.0 = value,
+            W34SEL => self.w34sel.0 = value,
+            WOBJSEL => self.wobjsel.0 = value,
+            WBGLOG => self.wbglog.0 = value,
+            WOBJLOG => self.wobjlog.0 = value,
+            WH0 => self.window_bounds_1.left = value,
+            WH1 => self.window_bounds_1.right = value,
+            WH2 => self.window_bounds_2.left = value,
+            WH3 => self.window_bounds_2.right = value,
+            TM => self.main_screen_designation.0 = value,
+            TS => self.sub_screen_designation.0 = value,
+            TMW => self.tmw.0 = value,
+            TSW => self.tsw.0 = value,
+            CGWSEL => self.cgwsel.0 = value,
+            CGADSUB => self.cgadsub.0 = value,
+            COLDATA => {
+                self.coldata.0 = value;
+
+                let intensity = self.coldata.intensity() as u16;
+                if self.coldata.apply_to_red() {
+                    self.fixed_color.set_red(intensity);
+                }
+
+                if self.coldata.apply_to_green() {
+                    self.fixed_color.set_green(intensity);
+                }
+
+                if self.coldata.apply_to_blue() {
+                    self.fixed_color.set_blue(intensity);
+                }
+            }
+            SETINI => self.screen_setting.0 = value,
+            OAMDATAREAD => {}
+            VMAIN => self.vram.vmain.0 = value,
+            VMADDL => self.vram.set_address_lo(value),
+            VMADDH => self.vram.set_address_hi(value),
+            VMDATAL => self.vram.write_data_lo(
+                value,
+                !self.vram.rendering_active || self.display.forced_blank(),
+            ),
+            VMDATAH => self.vram.write_data_hi(
+                value,
+                !self.vram.rendering_active || self.display.forced_blank(),
+            ),
+            M7SEL..=M7Y => self.mode_7.write(address, value),
+            CGADD => self.cgram.write_cgadd(value),
+            CGDATA => self.cgram.write_cgdata(value),
+            CGDATAREAD => {}
+            _ => eprintln!("Unhandled PPU write: {:#06X} = {:#04X}", address, value),
+        }
+    }
+
+    fn mode_7_sample(&mut self, y: u16) {
+        for x in 0u16..SCREEN_WIDTH {
+            let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
+            if self.display.forced_blank() {
+                self.frame_buffer.0[index] = 0;
+                continue;
+            }
+
+            let (sx, sy) = self.mode_7.m7sel.get_screen_flips(x, y);
+            let (org_x, org_y) = self.mode_7.get_origin_relative_coords(sx, sy);
+            let (vram_x, vram_y) = self.mode_7.get_affine_transform(org_x, org_y);
+
+            let mut int_x = vram_x >> 8;
+            let mut int_y = vram_y >> 8;
+            let mut force_tile_zero = false;
+
+            if !MODE_7_BOUNDS.contains(&int_x) || !MODE_7_BOUNDS.contains(&int_y) {
+                match self.mode_7.m7sel.screen_over_mode() {
+                    2 => {
+                        self.frame_buffer.0[index] = 0;
+                        continue;
+                    }
+                    3 => force_tile_zero = true,
+                    _ => (),
+                }
+            }
+
+            int_x &= 0x3FF;
+            int_y &= 0x3FF;
+
+            let pixel_x = int_x & 7;
+            let pixel_y = int_y & 7;
+
+            let tile_x = (int_x >> 3) & 127;
+            let tile_y = (int_y >> 3) & 127;
+
+            let tilemap_address = (tile_y as usize * 128 + tile_x as usize) * 2;
+            let tile_number = if force_tile_zero {
+                0
+            } else {
+                self.vram.read(tilemap_address)
+            };
+            let pixel_address =
+                (tile_number as usize * 64 + pixel_y as usize * 8 + pixel_x as usize) * 2 + 1;
+            let pixel_color = self.vram.read(pixel_address);
+
+            self.frame_buffer.0[index] = self.cgram.read_color(pixel_color as u16);
+        }
+    }
+
+    fn mode_0_6_sample(
+        &mut self,
+        y: u16,
+        bpp_settings: BppSettings,
+        palette_base: PaletteBase,
+        brightness_factor: u16,
+    ) {
         let bg1_layer = BgLayerConfig {
             bg_tilemap: &self.bg1,
             horizontal_offset: self.bg_horizontal_offset.bg1_offset,
@@ -515,114 +688,6 @@ impl Ppu {
             color.set_blue((color.blue() * brightness_factor) / 16);
 
             self.frame_buffer.0[index] = color.0;
-        }
-    }
-
-    pub fn read(&mut self, address: u32) -> u8 {
-        match address {
-            OAMADD_LO => 0,
-            OAMADD_HI => 0,
-            OAMDATA => 0,
-            BGMODE => self.bg_mode.0,
-            BG1SC => self.bg1.0,
-            BG2SC => self.bg2.0,
-            BG3SC => self.bg3.0,
-            BG4SC => self.bg4.0,
-            BG12NBA => self.tile_graphic12.0,
-            BG34NBA => self.tile_graphic34.0,
-            TM => self.main_screen_designation.0,
-            TS => self.sub_screen_designation.0,
-            OAMDATAREAD => self.oam.read_oamdata(),
-            CGADD => 0,
-            CGDATA => 0,
-            CGDATAREAD => self.cgram.read_cgdata(),
-            RDVRAML => self.vram.read_data_lo(),
-            RDVRAMH => self.vram.read_data_hi(),
-            _ => {
-                eprintln!("Unhandled PPU read: {:#06X}", address);
-                0
-            }
-        }
-    }
-
-    pub fn write(&mut self, address: u32, value: u8) {
-        match address {
-            INIDISP => self.display.0 = value,
-            OBSEL => self.obsel.0 = value,
-            OAMADD_LO => self.oam.set_oamadd(value, true),
-            OAMADD_HI => self.oam.set_oamadd(value, false),
-            OAMDATA => self.oam.write_oamdata(value),
-            BGMODE => self.bg_mode.0 = value,
-            MOSAIC => self.mosaic.0 = value,
-            BG1SC => self.bg1.0 = value,
-            BG2SC => self.bg2.0 = value,
-            BG3SC => self.bg3.0 = value,
-            BG4SC => self.bg4.0 = value,
-            BG12NBA => self.tile_graphic12.0 = value,
-            BG34NBA => self.tile_graphic34.0 = value,
-            BG1HOFS => {
-                self.set_horizontal_offset(1, value);
-                self.mode_7.write(address, value);
-            }
-            BG1VOFS => {
-                self.set_vertical_offset(1, value);
-                self.mode_7.write(address, value);
-            }
-            BG2HOFS => self.set_horizontal_offset(2, value),
-            BG2VOFS => self.set_vertical_offset(2, value),
-            BG3HOFS => self.set_horizontal_offset(3, value),
-            BG3VOFS => self.set_vertical_offset(3, value),
-            BG4HOFS => self.set_horizontal_offset(4, value),
-            BG4VOFS => self.set_vertical_offset(4, value),
-            W12SEL => self.w12sel.0 = value,
-            W34SEL => self.w34sel.0 = value,
-            WOBJSEL => self.wobjsel.0 = value,
-            WBGLOG => self.wbglog.0 = value,
-            WOBJLOG => self.wobjlog.0 = value,
-            WH0 => self.window_bounds_1.left = value,
-            WH1 => self.window_bounds_1.right = value,
-            WH2 => self.window_bounds_2.left = value,
-            WH3 => self.window_bounds_2.right = value,
-            TM => self.main_screen_designation.0 = value,
-            TS => self.sub_screen_designation.0 = value,
-            TMW => self.tmw.0 = value,
-            TSW => self.tsw.0 = value,
-            CGWSEL => self.cgwsel.0 = value,
-            CGADSUB => self.cgadsub.0 = value,
-            COLDATA => {
-                self.coldata.0 = value;
-
-                let intensity = self.coldata.intensity() as u16;
-                if self.coldata.apply_to_red() {
-                    self.fixed_color.set_red(intensity);
-                }
-
-                if self.coldata.apply_to_green() {
-                    self.fixed_color.set_green(intensity);
-                }
-
-                if self.coldata.apply_to_blue() {
-                    self.fixed_color.set_blue(intensity);
-                }
-            }
-            SETINI => self.screen_setting.0 = value,
-            OAMDATAREAD => {}
-            VMAIN => self.vram.vmain.0 = value,
-            VMADDL => self.vram.set_address_lo(value),
-            VMADDH => self.vram.set_address_hi(value),
-            VMDATAL => self.vram.write_data_lo(
-                value,
-                !self.vram.rendering_active || self.display.forced_blank(),
-            ),
-            VMDATAH => self.vram.write_data_hi(
-                value,
-                !self.vram.rendering_active || self.display.forced_blank(),
-            ),
-            M7SEL..=M7Y => self.mode_7.write(address, value),
-            CGADD => self.cgram.write_cgadd(value),
-            CGDATA => self.cgram.write_cgdata(value),
-            CGDATAREAD => {}
-            _ => eprintln!("Unhandled PPU write: {:#06X} = {:#04X}", address, value),
         }
     }
 
