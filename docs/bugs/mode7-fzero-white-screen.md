@@ -1,8 +1,8 @@
-# Mode 7 F-Zero White Screen — Debug Notes
+# Mode 7 F-Zero — Debug Notes
 
-## Symptom
+## Status: White screen RESOLVED, garbage rendering remains
 
-F-Zero title screen: the lower three-quarters of the screen renders as solid white. A YouTube reference shows it should display a Mode 7 perspective track demo.
+The white screen was caused by HDMA non-repeat mode not being implemented. After fixing that, F-Zero's Mode 7 track is visible but rendering garbage. The next step is debugging the visual artifacts.
 
 ## What was implemented this session
 
@@ -19,65 +19,41 @@ F-Zero title screen: the lower three-quarters of the screen renders as solid whi
 - Mode 3: 4 bytes to `bbad`, `bbad`, `bbad+1`, `bbad+1`.
 - Mode 4: 4 bytes to `bbad`, `bbad+1`, `bbad+2`, `bbad+3`.
 
+### HDMA non-repeat mode (THE FIX for white screen)
+- After decrementing `hdma_line_counter`, set `hdma_do_transfer = (line_counter & 0x80 != 0)`.
+- Repeat entries (bit 7 set): transfer every scanline, advance data pointer each time.
+- Non-repeat entries (bit 7 clear): transfer once on first scanline, idle for remaining count.
+- Without this, non-repeat entries consumed `count * bytes` from the table instead of `1 * bytes`, causing the data pointer to overshoot into zeros.
+
+### PPU multiply ($2134-$2136)
+- `Mode7::multiply_result` computed on M7B writes: `m7a * (value as i8 as i32)`.
+- MPYL/MPYM/MPYH return bytes 0/1/2 of the 24-bit result.
+- Note: F-Zero does NOT use this for its Mode 7 table computation (no reads observed). Implemented for correctness — other games may use it.
+
 ### PaletteBase
 - Extended match from `1..=3` to `1..=7` so Mode 7 doesn't panic.
 
-## What we confirmed
+## Current state: garbage rendering
 
-1. **F-Zero uses HDMA channels 4-7 with transfer mode 2** to write M7A ($211B), M7B ($211C), M7C ($211D), M7D ($211E) per scanline. This creates the perspective scaling effect.
-2. **Writes DO reach the PPU** — a trace inside `ppu.write()` at the `M7SEL..=M7Y` arm showed non-zero values arriving (e.g. `0x2F`, `0xA3`, `0xC0`).
-3. **But matrix values are zero at render time** — traces inside `mode_7_sample` at scanlines 2, 10, and 112 all showed `M7A=0 M7D=0`.
-4. **HDMA runs before render_scanline** (`super_nintendo/mod.rs:66-67`), so timing order is correct.
-5. **No code runs between HDMA and render** — they're back-to-back in the same `if` block.
+The Mode 7 track is now visible (no longer white) but the output is garbled. Possible causes:
+1. **Affine transform math** — the origin calculation or matrix multiply might have precision or sign issues
+2. **VRAM data interpretation** — Mode 7 interleaved layout (tilemap at even bytes, pixel data at odd bytes) might have addressing bugs
+3. **Screen Y coordinate** — `get_screen_flips` receives the V counter (1-224) but Mode 7 SCREEN.Y might need to be 0-based (V-1)
+4. **13-bit origin clipping** — the spec says `(HOFS-X)` should be masked/sign-extended to 13 bits; the current code does raw i32 subtraction
+5. **HDMA table data** — the game's precomputed tables in WRAM might still have partially wrong values if some CPU/IO feature is missing
 
-## The mystery
+### Debugging approach
+- Capture a frame dump with F key (PPM in docs/bugs/)
+- Compare matrix values per scanline against what a reference emulator produces
+- Check if the affine transform formula matches fullsnes exactly (especially the origin computation and per-pixel increment optimization)
 
-HDMA writes arrive at the PPU with non-zero values, but by the time `mode_7_sample` reads the matrix, all values are zero. Since both the write path (`ppu.write() -> mode_7.write() -> get_affine_value()`) and the read path (`mode_7_sample -> self.mode_7.affine_matrix.m7a`) operate on the same `Ppu.mode_7` struct, the values should persist.
+## Reference: HDMA algorithm (from Anomie's docs)
 
-## Leading theories
-
-### 1. The non-zero writes are from VBlank CPU code, not HDMA
-The `[PPU M7]` trace was NOT filtered by scanline — it captured all writes across the entire frame. The non-zero values might come from CPU writes during VBlank (the game setting up initial matrix values), while the HDMA during active rendering might actually be writing zeros. The HDMA table data itself could be at the wrong address.
-
-**How to verify:** Add a trace inside the HDMA mode-2 handler (bus.rs, the `2 =>` arm) that prints the source address and data bytes for ch4 only. Compare the source address against what the ROM actually contains at that location.
-
-### 2. HDMA table pointer drift from non-repeat mode mishandling
-The emulator currently treats ALL HDMA entries as repeat mode (always transfers). If F-Zero's HDMA tables contain non-repeat entries (bit 7 = 0 in the line count byte), the emulator would advance the data pointer every scanline instead of once, consuming the table too fast and overshooting into garbage/zeros.
-
-The initial line counter for ch4-7 is 181 (0xB5) — bit 7 set = repeat, count = 53 scanlines. After 53 scanlines the channels disappear from the trace (next entry byte is 0, terminating the table). But F-Zero's track should have ~200 scanlines of data.
-
-**How to verify:** When the line counter expires and the next entry byte is read (bus.rs around line 268), log the address being read and the value. If it's 0 but shouldn't be, the pointer has drifted.
-
-**How to fix (if confirmed):** Implement non-repeat mode properly. After a transfer on a non-repeat entry, set `hdma_do_transfer = false`. The pointer should only advance by `bytes_consumed` on the one scanline where the transfer happens, then stay put until the counter expires.
-
-### 3. HDMA table address is wrong
-The HDMA channels' `a1b` (bank) and `a1t` (table start address) might not point to the correct location in ROM. If the address is slightly wrong, the table data could be all zeros (uninitialized WRAM or wrong ROM region).
-
-**How to verify:** At `init_hdma`, log `a1b`, `a1t`, and the first few bytes of the table for ch4. Cross-reference with the ROM contents at that address.
-
-## How to continue debugging
-
-The most productive next step is a single trace in the HDMA mode-2 code path (`bus.rs`, the `2 =>` arm) that fires for ch4 only, on the first 3 scanlines:
-
-```rust
-// Inside the 2 => arm, after both writes:
-if i == 4 && self.dma_channels[4].hdma_line_counter >= 0xB3 {
-    let lo = self.read(address);
-    let hi = self.read(address + 1);
-    eprintln!(
-        "[HDMA2] ch=4 src={:#08X} lo={:#04X} hi={:#04X} ctr={}",
-        address, lo, hi,
-        self.dma_channels[4].hdma_line_counter,
-    );
-}
-```
-
-Note: `self.read(address)` is called again here just for logging — the actual data was already read and written above. This tells you:
-- **src address**: where the HDMA is reading from. Verify this is valid ROM/WRAM.
-- **lo/hi bytes**: the actual data. If both are 0x00, the table data is wrong (theory 1 or 3).
-- **ctr**: which scanline within the entry.
-
-If the data IS non-zero but the matrix is still zero at render, the bug is in `Mode7::get_affine_value()` or the `m7_old` latch. Add a trace there showing the latch state before/after each write.
+Per-scanline steps:
+1. If `do_transfer`: transfer data, advance pointer
+2. Decrement line counter (full byte, including bit 7)
+3. Set `do_transfer = (line_counter & 0x80 != 0)` ← **the fix**
+4. If `(line_counter & 0x7F) == 0`: read next entry, set `do_transfer = true`
 
 ## Reference: SNES HDMA transfer modes
 
@@ -102,6 +78,8 @@ Backdrop           (CGRAM index 0)
 
 ## Files modified this session
 
-- `src/ppu/mod.rs` — brightness + OBJ compositing in `mode_7_sample`, render_scanline passes brightness_factor
-- `src/memory/bus.rs` — HDMA transfer modes 2, 3, 4 in `run_hdma_scanline`
+- `src/ppu/mod.rs` — brightness + OBJ compositing in `mode_7_sample`, MPYL-MPYH reads
+- `src/ppu/mode_7/mod.rs` — `multiply_result` field, `read()` method, multiply on M7B write
+- `src/memory/bus.rs` — HDMA transfer modes 2-4, HDMA non-repeat fix
+- `src/memory/addresses.rs` — MPYL/MPYM/MPYH constants
 - `src/ppu/palette_base.rs` — extended mode range to `1..=7`

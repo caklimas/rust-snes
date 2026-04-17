@@ -99,6 +99,9 @@ pub const M7C: u32 = 0x00211D;
 pub const M7D: u32 = 0x00211E;
 pub const M7X: u32 = 0x00211F;
 pub const M7Y: u32 = 0x002120;
+pub const MPYL: u32 = 0x002134;
+pub const MPYM: u32 = 0x002135;
+pub const MPYH: u32 = 0x002136;
 pub const RDVRAML: u32 = 0x002139;
 pub const RDVRAMH: u32 = 0x00213A;
 

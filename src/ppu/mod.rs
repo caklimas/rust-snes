@@ -4,9 +4,9 @@ use crate::{
     memory::addresses::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
         BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGADSUB, CGDATA, CGDATAREAD, CGWSEL, COLDATA,
-        INIDISP, M7SEL, M7Y, MOSAIC, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, RDVRAMH,
-        RDVRAML, SETINI, TM, TMW, TS, TSW, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL, W12SEL, W34SEL,
-        WBGLOG, WH0, WH1, WH2, WH3, WOBJLOG, WOBJSEL,
+        INIDISP, M7SEL, M7Y, MOSAIC, MPYH, MPYL, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL,
+        RDVRAMH, RDVRAML, SETINI, TM, TMW, TS, TSW, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL,
+        W12SEL, W34SEL, WBGLOG, WH0, WH1, WH2, WH3, WOBJLOG, WOBJSEL,
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset,
@@ -278,6 +278,7 @@ impl Ppu {
             BG34NBA => self.tile_graphic34.0,
             TM => self.main_screen_designation.0,
             TS => self.sub_screen_designation.0,
+            MPYL..=MPYH => self.mode_7.read(address),
             OAMDATAREAD => self.oam.read_oamdata(),
             CGADD => 0,
             CGDATA => 0,

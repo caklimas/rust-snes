@@ -1,5 +1,5 @@
 use crate::{
-    memory::addresses::{BG1HOFS, BG1VOFS, M7A, M7B, M7C, M7D, M7SEL, M7X, M7Y},
+    memory::addresses::{BG1HOFS, BG1VOFS, M7A, M7B, M7C, M7D, M7SEL, M7X, M7Y, MPYH, MPYL, MPYM},
     ppu::mode_7::{
         affine_matrix::AffineMatrix, m7sel::M7sel, rotation_scaling::RotationScaling,
         scroll_offset::ScrollOffset,
@@ -16,16 +16,29 @@ pub struct Mode7 {
     pub affine_matrix: AffineMatrix,
     pub m7sel: M7sel,
     pub m7_old: u8,
+    pub multiply_result: i32,
     pub rotation_scaling: RotationScaling,
     pub scroll_offset: ScrollOffset,
 }
 
 impl Mode7 {
+    pub fn read(&mut self, address: u32) -> u8 {
+        match address {
+            MPYL => self.multiply_result as u8,
+            MPYM => (self.multiply_result >> 8) as u8,
+            MPYH => (self.multiply_result >> 16) as u8,
+            _ => unimplemented!(),
+        }
+    }
+
     pub fn write(&mut self, address: u32, value: u8) {
         match address {
             M7SEL => self.m7sel.0 = value,
             M7A => self.affine_matrix.m7a = self.get_affine_value(value),
-            M7B => self.affine_matrix.m7b = self.get_affine_value(value),
+            M7B => {
+                self.affine_matrix.m7b = self.get_affine_value(value);
+                self.multiply_result = (self.affine_matrix.m7a as i32) * (value as i8 as i32);
+            }
             M7C => self.affine_matrix.m7c = self.get_affine_value(value),
             M7D => self.affine_matrix.m7d = self.get_affine_value(value),
             M7X => self.rotation_scaling.m7x = self.get_rotation_scaling_value(value),
