@@ -115,9 +115,92 @@ impl SuperNintendo {
             handler_bytes.push_str(&format!("{:02X} ", byte));
         }
 
+        let mode_7_trace = self.bus.ppu.scanline_trace.join("\n");
+
+        // Dump BG1 tilemap entries (row 29, 32 tiles from each screen = 64 tiles total)
+        // BG1 base = 0x7800 word. For ms=1 (64x32): screen 0 at base, screen 1 at base+0x400.
+        // Row 29, local_y=29 -> offset = 29*32 = 928 = 0x3A0.
+        let mut bg1_row29 = String::new();
+        bg1_row29.push_str("\nBG1 tilemap row 29 (left screen @ 0x7BA0..0x7BBF, right @ 0x7FA0..0x7FBF):\n  LEFT : ");
+        for i in 0..32 {
+            let word = self.bus.ppu.vram.read_word(0x7800 + 0x3A0 + i);
+            bg1_row29.push_str(&format!("{:04X} ", word));
+        }
+        bg1_row29.push_str("\n  RIGHT: ");
+        for i in 0..32 {
+            let word = self.bus.ppu.vram.read_word(0x7800 + 0x400 + 0x3A0 + i);
+            bg1_row29.push_str(&format!("{:04X} ", word));
+        }
+        // Also dump row 4 (logo row) for comparison — should be the logo tiles
+        bg1_row29.push_str("\nBG1 tilemap row 4 (should be logo area):\n  LEFT : ");
+        for i in 0..32 {
+            let word = self.bus.ppu.vram.read_word(0x7800 + 4 * 32 + i);
+            bg1_row29.push_str(&format!("{:04X} ", word));
+        }
+        bg1_row29.push_str("\n  RIGHT: ");
+        for i in 0..32 {
+            let word = self.bus.ppu.vram.read_word(0x7800 + 0x400 + 4 * 32 + i);
+            bg1_row29.push_str(&format!("{:04X} ", word));
+        }
+        // Tile 384's char data (word 0x7800..0x780F for 4bpp tile)
+        bg1_row29.push_str("\nTile 384 char data (word 0x7800..0x780F — collides with BG1 tilemap!):\n  ");
+        for i in 0..16 {
+            let word = self.bus.ppu.vram.read_word(0x7800 + i);
+            bg1_row29.push_str(&format!("{:04X} ", word));
+        }
+        // BG1 tilemap rows 0..3 (above row 4) — what's at the very top
+        bg1_row29.push_str("\nBG1 tilemap rows 0..3 (left screen only):");
+        for row in 0..4 {
+            bg1_row29.push_str(&format!("\n  row{}: ", row));
+            for i in 0..32 {
+                let word = self.bus.ppu.vram.read_word(0x7800 + row * 32 + i);
+                bg1_row29.push_str(&format!("{:04X} ", word));
+            }
+        }
+        // BG2 tilemap rows 11..17 (logo area) — what should contain the logo
+        bg1_row29.push_str("\nBG2 tilemap rows 11..17 (logo area, left screen):");
+        for row in 11..18 {
+            bg1_row29.push_str(&format!("\n  row{:2}: ", row));
+            for i in 0..32 {
+                let word = self.bus.ppu.vram.read_word(0x7000 + row * 32 + i);
+                bg1_row29.push_str(&format!("{:04X} ", word));
+            }
+        }
+        // BG2 tilemap rows 17..22 (road area start)
+        bg1_row29.push_str("\nBG2 tilemap rows 17..22 (road area, left screen):");
+        for row in 17..22 {
+            bg1_row29.push_str(&format!("\n  row{:2}: ", row));
+            for i in 0..32 {
+                let word = self.bus.ppu.vram.read_word(0x7000 + row * 32 + i);
+                bg1_row29.push_str(&format!("{:04X} ", word));
+            }
+        }
+        // Char data for key tiles used on this screen (4bpp, 16 words each)
+        bg1_row29.push_str("\nChar data for sky tiles 1,5,10 (garbled in render) and logo tile 38 (correct):");
+        for tile in &[1u16, 5, 10, 38, 70] {
+            bg1_row29.push_str(&format!("\n  tile{:3} @ word 0x{:04X}: ", tile, 0x6000 + tile * 16));
+            for i in 0..16 {
+                let word = self.bus.ppu.vram.read_word(0x6000 + tile * 16 + i);
+                bg1_row29.push_str(&format!("{:04X} ", word));
+            }
+        }
+        // CGRAM palette 7 (indices 112..127) vs palette 0 (indices 0..15)
+        bg1_row29.push_str("\nCGRAM palette 0 (indices 0..15):\n  ");
+        for i in 0..16u8 {
+            let color = self.bus.ppu.cgram.read_color(i as u16);
+            bg1_row29.push_str(&format!("{:04X} ", color));
+        }
+        bg1_row29.push_str("\nCGRAM palette 7 (indices 112..127):\n  ");
+        for i in 112..128u16 {
+            let color = self.bus.ppu.cgram.read_color(i);
+            bg1_row29.push_str(&format!("{:04X} ", color));
+        }
+
         format!(
-            "{:#?}\n{:#?}\n{:#?}\nNMI vector: ${:04X}\nNMI handler bytes: {}",
-            self.cpu, self.spc700, self.bus.ppu, nmi_addr, handler_bytes
+            "{:#?}\n{:#?}\n{:#?}\nNMI vector: ${:04X}\nNMI handler bytes: {}\n\n\
+             --- Per-scanline trace (captured last frame) ---\n{}\n\
+             --- BG1 VRAM tilemap sample ---{}",
+            self.cpu, self.spc700, self.bus.ppu, nmi_addr, handler_bytes, mode_7_trace, bg1_row29
         )
     }
 }

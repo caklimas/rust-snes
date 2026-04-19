@@ -155,6 +155,11 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Known Bugs
 
+### F-Zero title screen — garbage in sky/road area
+- **Symptom**: Logo and menu text render correctly; the sky gradient and perspective road below render as garbage. See `docs/bugs/fzero-title-garbage.md` for full debug notes.
+- **Key finding**: F-Zero's title is pure Mode 1, not Mode 7. Only HDMA effect is BG1 scroll jumping from (224, 36) to (1008, 440) at y=48.
+- **Next step**: use the new layer toggle keys (1/2/3/4) to isolate which layer produces the garbage — we added the infrastructure but never actually ran the test.
+
 ### LttP Triforce intro — missing Triforce graphic
 - **Symptom**: The "1991, 1992" copyright text renders at the bottom, but the Triforce above it is missing. The rest of the intro works fine.
 - **Root cause (suspected)**: The Triforce is NOT a static asset or Mode 7 — it is **CPU-rasterized polygons written directly into VRAM each frame** (15 polygons at 60fps, software-rendered by the CPU). The game's CPU calculates triangle fill during VBlank and writes the pixel data into VRAM as tile data. The PPU renders it as normal BG tiles.
