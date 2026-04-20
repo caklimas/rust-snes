@@ -139,6 +139,13 @@ pub const CPU_IO_RANGE: RangeInclusive<u32> = CPU_IO_START..=CPU_IO_END;
 
 pub const NMITIMEN: u32 = 0x004200;
 
+// H/V-IRQ timer
+pub const HTIMEL: u32 = 0x004207;
+pub const HTIMEH: u32 = 0x004208;
+pub const VTIMEL: u32 = 0x004209;
+pub const VTIMEH: u32 = 0x00420A;
+pub const TIMEUP: u32 = 0x004211;
+
 // Hardware multiply/divide
 pub const WRMPYA: u32 = 0x004202;
 pub const WRMPYB: u32 = 0x004203;
@@ -173,6 +180,12 @@ pub const NMI_VECTOR_NATIVE_HI: u32 = 0x00FFEB;
 
 pub const NMI_VECTOR_EMULATOR_LO: u32 = 0x00FFFA;
 pub const NMI_VECTOR_EMULATOR_HI: u32 = 0x00FFFB;
+
+pub const IRQ_VECTOR_NATIVE_LO: u32 = 0x00FFEE;
+pub const IRQ_VECTOR_NATIVE_HI: u32 = 0x00FFEF;
+
+pub const IRQ_VECTOR_EMULATOR_LO: u32 = 0x00FFFE;
+pub const IRQ_VECTOR_EMULATOR_HI: u32 = 0x00FFFF;
 
 // Reset vectors
 pub const RESET_VECTOR_LO: u32 = 0x00FFFC;
