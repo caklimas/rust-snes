@@ -5,6 +5,6 @@ bitfield! {
     pub struct Hvbjoy(u8);
 
     pub auto_joypad, _: 0;
-    pub hblank, _: 6;
+    pub hblank, set_hblank: 6;
     pub vblank, set_vblank: 7;
 }

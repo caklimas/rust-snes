@@ -101,7 +101,7 @@ impl Bus {
                 self.irq_pending = false;
                 value
             }
-            HVBJOY => (self.hvbjoy.vblank() as u8) << 7,
+            HVBJOY => ((self.hvbjoy.vblank() as u8) << 7) | ((self.hvbjoy.hblank() as u8) << 6),
             addr if CPU_IO_RANGE.contains(&addr) => self.input_output.read(addr),
             _ => self.cartridge.read(address),
         }

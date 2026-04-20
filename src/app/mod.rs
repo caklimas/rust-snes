@@ -88,9 +88,9 @@ impl ApplicationHandler for App {
                     for x in 0..SCREEN_WIDTH as u32 {
                         let pixel = frame[(y * SCREEN_WIDTH as u32 + x) as usize];
                         let rgb = Rgb(pixel);
-                        let r = (rgb.red() << 3) as u32;
-                        let g = (rgb.green() << 3) as u32;
-                        let b = (rgb.blue() << 3) as u32;
+                        let r = ((rgb.red() << 3) | (rgb.red() >> 2)) as u32;
+                        let g = ((rgb.green() << 3) | (rgb.green() >> 2)) as u32;
+                        let b = ((rgb.blue() << 3) | (rgb.blue() >> 2)) as u32;
                         let color = (r << 16) | (g << 8) | b;
 
                         for dy in 0..scale {
