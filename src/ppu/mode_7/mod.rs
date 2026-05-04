@@ -49,23 +49,31 @@ impl Mode7 {
         }
     }
 
-    pub fn get_origin_relative_coords(&self, sx: u16, sy: u16) -> (i32, i32) {
-        let org_x = sx as i32
-            + Self::clip13(self.scroll_offset.m7hofs as i32 - self.rotation_scaling.m7x as i32);
-        let org_y = sy as i32
-            + Self::clip13(self.scroll_offset.m7vofs as i32 - self.rotation_scaling.m7y as i32);
+    pub fn get_vram_coords(&self, screen_x: u16, screen_y: u16) -> (i32, i32) {
+        let m7a = self.affine_matrix.m7a as i32;
+        let m7b = self.affine_matrix.m7b as i32;
+        let m7c = self.affine_matrix.m7c as i32;
+        let m7d = self.affine_matrix.m7d as i32;
+        let m7x = self.rotation_scaling.m7x as i32;
+        let m7y = self.rotation_scaling.m7y as i32;
 
-        (org_x, org_y)
-    }
+        let org_x = Self::clip13(self.scroll_offset.m7hofs as i32 - m7x);
+        let org_y = Self::clip13(self.scroll_offset.m7vofs as i32 - m7y);
 
-    pub fn get_affine_transform(&self, org_x: i32, org_y: i32) -> (i32, i32) {
-        let vram_x = self.affine_matrix.m7a as i32 * org_x
-            + self.affine_matrix.m7b as i32 * org_y
-            + ((self.rotation_scaling.m7x as i32) << 8);
+        let sx = screen_x as i32;
+        let sy = screen_y as i32;
 
-        let vram_y = self.affine_matrix.m7c as i32 * org_x
-            + self.affine_matrix.m7d as i32 * org_y
-            + ((self.rotation_scaling.m7y as i32) << 8);
+        let vram_x = ((m7a * org_x) & !0x3F)
+            + ((m7b * org_y) & !0x3F)
+            + (m7x << 8)
+            + ((m7b * sy) & !0x3F)
+            + (m7a * sx);
+
+        let vram_y = ((m7c * org_x) & !0x3F)
+            + ((m7d * org_y) & !0x3F)
+            + (m7y << 8)
+            + ((m7d * sy) & !0x3F)
+            + (m7c * sx);
 
         (vram_x, vram_y)
     }
@@ -83,7 +91,14 @@ impl Mode7 {
         (updated_value << 3) >> 3
     }
 
+    /// Per fullsnes `ppu.md:297-298`, Mode 7's "ORG" computation clips the
+    /// `M7HOFS - M7X` (or `M7VOFS - M7Y`) subtraction with this unusual bit op:
+    /// mask out bits 10-12, then if the masked result is negative, set bits 10-12
+    /// back. This is NOT the same as a clean 13-bit sign-extend — values like
+    /// `0x0800` (2048) collapse to `0`, not to `-2048`.
     fn clip13(input: i32) -> i32 {
-        (input << 19) >> 19
+        let input16 = input as i16 as i32;
+        let masked = input16 & !0x1C00;
+        if masked < 0 { masked | 0x1C00 } else { masked }
     }
 }

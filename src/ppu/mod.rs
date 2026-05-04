@@ -5,8 +5,8 @@ use crate::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
         BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGADSUB, CGDATA, CGDATAREAD, CGWSEL, COLDATA,
         INIDISP, M7SEL, M7Y, MOSAIC, MPYH, MPYL, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL,
-        RDVRAMH, RDVRAML, SETINI, TM, TMW, TS, TSW, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL,
-        W12SEL, W34SEL, WBGLOG, WH0, WH1, WH2, WH3, WOBJLOG, WOBJSEL,
+        RDVRAMH, RDVRAML, SETINI, STAT78, TM, TMW, TS, TSW, VMADDH, VMADDL, VMAIN, VMDATAH,
+        VMDATAL, W12SEL, W34SEL, WBGLOG, WH0, WH1, WH2, WH3, WOBJLOG, WOBJSEL,
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset,
@@ -33,6 +33,7 @@ use crate::{
         rgb::Rgb,
         screen_designation::ScreenDesignation,
         screen_setting::ScreenSetting,
+        stat78::Stat78,
         tile_graphic_base_address::TileGraphicBaseAddress,
         tilemap_entry::TilemapEntry,
         vram::Vram,
@@ -73,6 +74,7 @@ pub mod priority_resolver;
 pub mod rgb;
 pub mod screen_designation;
 pub mod screen_setting;
+pub mod stat78;
 pub mod tile_graphic_base_address;
 pub mod tilemap_entry;
 pub mod vmain;
@@ -91,8 +93,12 @@ pub const MODE_7_BOUNDS: RangeInclusive<i32> = 0..=1023;
 
 #[derive(Default)]
 pub struct Ppu {
+    pub cgram: Cgram,
+    pub current_scanline: u16,
+    pub debug_disabled_layers: u8,
     pub display: Display,
     pub oam: Oam,
+    pub scanline_trace: Vec<String>,
     pub vram: Vram,
     bg1: BgTilemap,
     bg2: BgTilemap,
@@ -103,7 +109,6 @@ pub struct Ppu {
     bg_mode: BgMode,
     bg_old: u8,
     cgadsub: Cgadsub,
-    pub cgram: Cgram,
     cgwsel: Cgwsel,
     coldata: Coldata,
     fixed_color: Rgb,
@@ -112,7 +117,10 @@ pub struct Ppu {
     mode_7: Mode7,
     mosaic: Mosaic,
     obsel: Obsel,
+    ophct_second_read: bool,
+    opvct_second_read: bool,
     screen_setting: ScreenSetting,
+    stat78: Stat78,
     sub_screen_designation: ScreenDesignation,
     tile_graphic12: TileGraphicBaseAddress,
     tile_graphic34: TileGraphicBaseAddress,
@@ -125,100 +133,6 @@ pub struct Ppu {
     window_bounds_2: WindowBounds,
     wobjlog: Wobjlog,
     wobjsel: WindowMaskSettings,
-    pub current_scanline: u16,
-    pub scanline_trace: Vec<String>,
-    /// Debug mask: bits set here disable layers (bit 0 = BG1, 1 = BG2, 2 = BG3, 3 = BG4, 4 = OBJ)
-    pub debug_disabled_layers: u8,
-}
-
-impl fmt::Debug for Ppu {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Ppu")
-            .field("mode", &self.bg_mode.bg_mode())
-            .field("forced_blank", &self.display.forced_blank())
-            .field("brightness", &self.display.master_brightness())
-            .field("scanline", &self.current_scanline)
-            .field(
-                "bg_hofs",
-                &[
-                    self.bg_horizontal_offset.bg1_offset,
-                    self.bg_horizontal_offset.bg2_offset,
-                    self.bg_horizontal_offset.bg3_offset,
-                    self.bg_horizontal_offset.bg4_offset,
-                ],
-            )
-            .field(
-                "bg_vofs",
-                &[
-                    self.bg_vertical_offset.bg1_offset,
-                    self.bg_vertical_offset.bg2_offset,
-                    self.bg_vertical_offset.bg3_offset,
-                    self.bg_vertical_offset.bg4_offset,
-                ],
-            )
-            .field(
-                "tm",
-                &format_args!(
-                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
-                    self.main_screen_designation.bg1_enable(),
-                    self.main_screen_designation.bg2_enable(),
-                    self.main_screen_designation.bg3_enable(),
-                    self.main_screen_designation.bg4_enable(),
-                    self.main_screen_designation.obj_enable(),
-                ),
-            )
-            .field(
-                "ts",
-                &format_args!(
-                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
-                    self.sub_screen_designation.bg1_enable(),
-                    self.sub_screen_designation.bg2_enable(),
-                    self.sub_screen_designation.bg3_enable(),
-                    self.sub_screen_designation.bg4_enable(),
-                    self.sub_screen_designation.obj_enable(),
-                ),
-            )
-            .field(
-                "window_1",
-                &format_args!(
-                    "left={} right={}",
-                    self.window_bounds_1.left, self.window_bounds_1.right
-                ),
-            )
-            .field(
-                "window_2",
-                &format_args!(
-                    "left={} right={}",
-                    self.window_bounds_2.left, self.window_bounds_2.right
-                ),
-            )
-            .field("w12sel", &format_args!("0x{:02X}", self.w12sel.0))
-            .field("w34sel", &format_args!("0x{:02X}", self.w34sel.0))
-            .field("wobjsel", &format_args!("0x{:02X}", self.wobjsel.0))
-            .field(
-                "tmw",
-                &format_args!(
-                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
-                    self.tmw.bg1_disable(),
-                    self.tmw.bg2_disable(),
-                    self.tmw.bg3_disable(),
-                    self.tmw.bg4_disable(),
-                    self.tmw.obj_disable(),
-                ),
-            )
-            .field(
-                "tsw",
-                &format_args!(
-                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
-                    self.tsw.bg1_disable(),
-                    self.tsw.bg2_disable(),
-                    self.tsw.bg3_disable(),
-                    self.tsw.bg4_disable(),
-                    self.tsw.obj_disable(),
-                ),
-            )
-            .finish()
-    }
 }
 
 impl Ppu {
@@ -325,6 +239,14 @@ impl Ppu {
             TM => self.main_screen_designation.0,
             TS => self.sub_screen_designation.0,
             MPYL..=MPYH => self.mode_7.read(address),
+            STAT78 => {
+                let value = self.stat78;
+                self.stat78.set_latch_flag(false);
+                self.ophct_second_read = false;
+                self.opvct_second_read = false;
+
+                value.0
+            }
             OAMDATAREAD => self.oam.read_oamdata(),
             CGADD => 0,
             CGDATA => 0,
@@ -400,6 +322,7 @@ impl Ppu {
             }
             SETINI => self.screen_setting.0 = value,
             OAMDATAREAD => {}
+            STAT78 => {}
             VMAIN => self.vram.vmain.0 = value,
             VMADDL => self.vram.set_address_lo(value),
             VMADDH => self.vram.set_address_hi(value),
@@ -419,6 +342,16 @@ impl Ppu {
         }
     }
 
+    pub fn toggle_interlace_frame_counter(&mut self) {
+        let value = if self.screen_setting.screen_interlace() {
+            !self.stat78.interlace_frame_counter()
+        } else {
+            false
+        };
+
+        self.stat78.set_interlace_frame_counter(value);
+    }
+
     fn mode_7_sample(&mut self, y: u16, brightness_factor: u16) {
         for x in 0u16..SCREEN_WIDTH {
             let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
@@ -428,8 +361,7 @@ impl Ppu {
             }
 
             let (sx, sy) = self.mode_7.m7sel.get_screen_flips(x, y);
-            let (org_x, org_y) = self.mode_7.get_origin_relative_coords(sx, sy);
-            let (vram_x, vram_y) = self.mode_7.get_affine_transform(org_x, org_y);
+            let (vram_x, vram_y) = self.mode_7.get_vram_coords(sx, sy);
 
             let mut int_x = vram_x >> 8;
             let mut int_y = vram_y >> 8;
@@ -1098,5 +1030,95 @@ impl Ppu {
         color.set_red(r.clamp(0, 31) as u16);
         color.set_green(g.clamp(0, 31) as u16);
         color.set_blue(b.clamp(0, 31) as u16);
+    }
+}
+
+impl fmt::Debug for Ppu {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Ppu")
+            .field("mode", &self.bg_mode.bg_mode())
+            .field("forced_blank", &self.display.forced_blank())
+            .field("brightness", &self.display.master_brightness())
+            .field("scanline", &self.current_scanline)
+            .field(
+                "bg_hofs",
+                &[
+                    self.bg_horizontal_offset.bg1_offset,
+                    self.bg_horizontal_offset.bg2_offset,
+                    self.bg_horizontal_offset.bg3_offset,
+                    self.bg_horizontal_offset.bg4_offset,
+                ],
+            )
+            .field(
+                "bg_vofs",
+                &[
+                    self.bg_vertical_offset.bg1_offset,
+                    self.bg_vertical_offset.bg2_offset,
+                    self.bg_vertical_offset.bg3_offset,
+                    self.bg_vertical_offset.bg4_offset,
+                ],
+            )
+            .field(
+                "tm",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.main_screen_designation.bg1_enable(),
+                    self.main_screen_designation.bg2_enable(),
+                    self.main_screen_designation.bg3_enable(),
+                    self.main_screen_designation.bg4_enable(),
+                    self.main_screen_designation.obj_enable(),
+                ),
+            )
+            .field(
+                "ts",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.sub_screen_designation.bg1_enable(),
+                    self.sub_screen_designation.bg2_enable(),
+                    self.sub_screen_designation.bg3_enable(),
+                    self.sub_screen_designation.bg4_enable(),
+                    self.sub_screen_designation.obj_enable(),
+                ),
+            )
+            .field(
+                "window_1",
+                &format_args!(
+                    "left={} right={}",
+                    self.window_bounds_1.left, self.window_bounds_1.right
+                ),
+            )
+            .field(
+                "window_2",
+                &format_args!(
+                    "left={} right={}",
+                    self.window_bounds_2.left, self.window_bounds_2.right
+                ),
+            )
+            .field("w12sel", &format_args!("0x{:02X}", self.w12sel.0))
+            .field("w34sel", &format_args!("0x{:02X}", self.w34sel.0))
+            .field("wobjsel", &format_args!("0x{:02X}", self.wobjsel.0))
+            .field(
+                "tmw",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.tmw.bg1_disable(),
+                    self.tmw.bg2_disable(),
+                    self.tmw.bg3_disable(),
+                    self.tmw.bg4_disable(),
+                    self.tmw.obj_disable(),
+                ),
+            )
+            .field(
+                "tsw",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.tsw.bg1_disable(),
+                    self.tsw.bg2_disable(),
+                    self.tsw.bg3_disable(),
+                    self.tsw.bg4_disable(),
+                    self.tsw.obj_disable(),
+                ),
+            )
+            .finish()
     }
 }
