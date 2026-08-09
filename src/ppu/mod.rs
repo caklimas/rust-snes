@@ -5,8 +5,9 @@ use crate::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
         BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGADSUB, CGDATA, CGDATAREAD, CGWSEL, COLDATA,
         INIDISP, M7SEL, M7Y, MOSAIC, MPYH, MPYL, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL,
-        RDVRAMH, RDVRAML, SETINI, STAT78, TM, TMW, TS, TSW, VMADDH, VMADDL, VMAIN, VMDATAH,
-        VMDATAL, W12SEL, W34SEL, WBGLOG, WH0, WH1, WH2, WH3, WOBJLOG, WOBJSEL,
+        OPHCT, OPVCT, RDVRAMH, RDVRAML, SETINI, SLHV, STAT77, STAT78, TM, TMW, TS, TSW, VMADDH,
+        VMADDL, VMAIN, VMDATAH, VMDATAL, W12SEL, W34SEL, WBGLOG, WH0, WH1, WH2, WH3, WOBJLOG,
+        WOBJSEL,
     },
     ppu::{
         bg_horizontal_offset::BgHorizontalOffset,
@@ -111,14 +112,17 @@ pub struct Ppu {
     cgadsub: Cgadsub,
     cgwsel: Cgwsel,
     coldata: Coldata,
+    current_x: u16,
     fixed_color: Rgb,
     frame_buffer: FrameBuffer,
     main_screen_designation: ScreenDesignation,
     mode_7: Mode7,
     mosaic: Mosaic,
-    obsel: Obsel,
+    ophct_latch: u16,
+    opvct_latch: u16,
     ophct_second_read: bool,
     opvct_second_read: bool,
+    obsel: Obsel,
     screen_setting: ScreenSetting,
     stat78: Stat78,
     sub_screen_designation: ScreenDesignation,
@@ -256,6 +260,34 @@ impl Ppu {
             TM => self.main_screen_designation.0,
             TS => self.sub_screen_designation.0,
             MPYL..=MPYH => self.mode_7.read(address),
+            SLHV => {
+                self.ophct_latch = self.current_x;
+                self.opvct_latch = self.current_scanline;
+                0
+            }
+            OPHCT => {
+                let value = if self.ophct_second_read {
+                    (self.ophct_latch >> 8) as u8
+                } else {
+                    (self.ophct_latch & 0xFF) as u8
+                };
+
+                self.ophct_second_read = !self.ophct_second_read;
+
+                value
+            }
+            OPVCT => {
+                let value = if self.opvct_second_read {
+                    (self.opvct_latch >> 8) as u8
+                } else {
+                    (self.opvct_latch & 0xFF) as u8
+                };
+
+                self.opvct_second_read = !self.opvct_second_read;
+
+                value
+            }
+            STAT77 => 0x01,
             STAT78 => {
                 let value = self.stat78;
                 self.stat78.set_latch_flag(false);
@@ -371,6 +403,8 @@ impl Ppu {
 
     fn mode_7_sample(&mut self, y: u16, brightness_factor: u16) {
         for x in 0u16..SCREEN_WIDTH {
+            self.current_x = x;
+
             let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
             if self.display.forced_blank() {
                 self.frame_buffer.0[index] = 0;
@@ -494,6 +528,8 @@ impl Ppu {
         };
 
         for x in 0u16..SCREEN_WIDTH {
+            self.current_x = x;
+
             let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
             if self.display.forced_blank() {
                 self.frame_buffer.0[index] = 0;
