@@ -47,6 +47,11 @@ pub fn execute_opcode(spc700: &mut Spc700, opcode: u8) {
         0xEB => mov_y_dp(spc700),
         0xFC => inc_y(spc700),
         _ => {
+            eprintln!(
+                "Unimplemented SPC700 opcode: {:#04X} at PC=${:04X}",
+                opcode,
+                spc700.registers.pc.wrapping_sub(1)
+            );
             for _ in 1..INSTRUCTION_LENGTHS[opcode as usize] {
                 spc700.read_byte();
             }
