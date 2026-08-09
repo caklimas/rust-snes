@@ -50,8 +50,10 @@ impl Mode7 {
     }
 
     pub fn get_origin_relative_coords(&self, sx: u16, sy: u16) -> (i32, i32) {
-        let org_x = sx as i32 + self.scroll_offset.m7hofs as i32 - self.rotation_scaling.m7x as i32;
-        let org_y = sy as i32 + self.scroll_offset.m7vofs as i32 - self.rotation_scaling.m7y as i32;
+        let org_x = sx as i32
+            + Self::clip13(self.scroll_offset.m7hofs as i32 - self.rotation_scaling.m7x as i32);
+        let org_y = sy as i32
+            + Self::clip13(self.scroll_offset.m7vofs as i32 - self.rotation_scaling.m7y as i32);
 
         (org_x, org_y)
     }
@@ -79,5 +81,9 @@ impl Mode7 {
         let updated_value = self.get_affine_value(value);
 
         (updated_value << 3) >> 3
+    }
+
+    fn clip13(input: i32) -> i32 {
+        (input << 19) >> 19
     }
 }

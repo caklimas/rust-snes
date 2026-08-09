@@ -103,7 +103,7 @@ pub struct Ppu {
     bg_mode: BgMode,
     bg_old: u8,
     cgadsub: Cgadsub,
-    cgram: Cgram,
+    pub cgram: Cgram,
     cgwsel: Cgwsel,
     coldata: Coldata,
     fixed_color: Rgb,
@@ -126,6 +126,9 @@ pub struct Ppu {
     wobjlog: Wobjlog,
     wobjsel: WindowMaskSettings,
     pub current_scanline: u16,
+    pub scanline_trace: Vec<String>,
+    /// Debug mask: bits set here disable layers (bit 0 = BG1, 1 = BG2, 2 = BG3, 3 = BG4, 4 = OBJ)
+    pub debug_disabled_layers: u8,
 }
 
 impl fmt::Debug for Ppu {
@@ -256,6 +259,40 @@ impl Ppu {
         let bpp_settings = BppSettings::new(&self.bg_mode);
         let palette_base = PaletteBase::new(&self.bg_mode);
         let brightness_factor = self.display.master_brightness() as u16 + 1;
+
+        if y == 1 {
+            self.scanline_trace.clear();
+        }
+        self.scanline_trace.push(format!(
+            "y={:3} bgmode=0x{:02X}(m={} ts1={} ts2={}) bright={:2} \
+             bg1=0x{:02X}(base=0x{:04X} ms={}) bg2=0x{:02X}(base=0x{:04X} ms={}) \
+             nba12=0x{:02X} nba34=0x{:02X} \
+             bg1_hofs={:4} bg1_vofs={:4} bg2_hofs={:4} bg2_vofs={:4} \
+             bg3_hofs={:4} bg3_vofs={:4} \
+             tm=0x{:02X} ts=0x{:02X}",
+            y,
+            self.bg_mode.0,
+            self.bg_mode.bg_mode(),
+            self.bg_mode.tile_size_1() as u8,
+            self.bg_mode.tile_size_2() as u8,
+            self.display.master_brightness(),
+            self.bg1.0,
+            self.bg1.get_vram_word_address(),
+            self.bg1.mirror_size(),
+            self.bg2.0,
+            self.bg2.get_vram_word_address(),
+            self.bg2.mirror_size(),
+            self.tile_graphic12.0,
+            self.tile_graphic34.0,
+            self.bg_horizontal_offset.bg1_offset,
+            self.bg_vertical_offset.bg1_offset,
+            self.bg_horizontal_offset.bg2_offset,
+            self.bg_vertical_offset.bg2_offset,
+            self.bg_horizontal_offset.bg3_offset,
+            self.bg_vertical_offset.bg3_offset,
+            self.main_screen_designation.0,
+            self.sub_screen_designation.0,
+        ));
 
         if self.bg_mode.bg_mode() == 7 {
             self.mode_7_sample(y, brightness_factor);
@@ -523,9 +560,15 @@ impl Ppu {
                 size: mosaic_size,
             };
 
+            let bg1_mask = (self.debug_disabled_layers & 0x01) == 0;
+            let bg2_mask = (self.debug_disabled_layers & 0x02) == 0;
+            let bg3_mask = (self.debug_disabled_layers & 0x04) == 0;
+            let bg4_mask = (self.debug_disabled_layers & 0x08) == 0;
+            let obj_mask = (self.debug_disabled_layers & 0x10) == 0;
+
             let bg_1_params = BgSampleParams::new(
                 self.is_enabled(
-                    self.main_screen_designation.bg1_enable(),
+                    bg1_mask && self.main_screen_designation.bg1_enable(),
                     x as u8,
                     self.w12sel.instance_1_window_1(),
                     self.w12sel.instance_1_window_2(),
@@ -533,7 +576,7 @@ impl Ppu {
                     self.tmw.bg1_disable(),
                 ),
                 self.is_enabled(
-                    self.sub_screen_designation.bg1_enable(),
+                    bg1_mask && self.sub_screen_designation.bg1_enable(),
                     x as u8,
                     self.w12sel.instance_1_window_1(),
                     self.w12sel.instance_1_window_2(),
@@ -548,7 +591,7 @@ impl Ppu {
 
             let bg_2_params = BgSampleParams::new(
                 self.is_enabled(
-                    self.main_screen_designation.bg2_enable(),
+                    bg2_mask && self.main_screen_designation.bg2_enable(),
                     x as u8,
                     self.w12sel.instance_2_window_1(),
                     self.w12sel.instance_2_window_2(),
@@ -556,7 +599,7 @@ impl Ppu {
                     self.tmw.bg2_disable(),
                 ),
                 self.is_enabled(
-                    self.sub_screen_designation.bg2_enable(),
+                    bg2_mask && self.sub_screen_designation.bg2_enable(),
                     x as u8,
                     self.w12sel.instance_2_window_1(),
                     self.w12sel.instance_2_window_2(),
@@ -571,7 +614,7 @@ impl Ppu {
 
             let bg_3_params = BgSampleParams::new(
                 self.is_enabled(
-                    self.main_screen_designation.bg3_enable(),
+                    bg3_mask && self.main_screen_designation.bg3_enable(),
                     x as u8,
                     self.w34sel.instance_1_window_1(),
                     self.w34sel.instance_1_window_2(),
@@ -579,7 +622,7 @@ impl Ppu {
                     self.tmw.bg3_disable(),
                 ),
                 self.is_enabled(
-                    self.sub_screen_designation.bg3_enable(),
+                    bg3_mask && self.sub_screen_designation.bg3_enable(),
                     x as u8,
                     self.w34sel.instance_1_window_1(),
                     self.w34sel.instance_1_window_2(),
@@ -594,7 +637,7 @@ impl Ppu {
 
             let bg_4_params = BgSampleParams::new(
                 self.is_enabled(
-                    self.main_screen_designation.bg4_enable(),
+                    bg4_mask && self.main_screen_designation.bg4_enable(),
                     x as u8,
                     self.w34sel.instance_2_window_1(),
                     self.w34sel.instance_2_window_2(),
@@ -602,7 +645,7 @@ impl Ppu {
                     self.tmw.bg4_disable(),
                 ),
                 self.is_enabled(
-                    self.sub_screen_designation.bg4_enable(),
+                    bg4_mask && self.sub_screen_designation.bg4_enable(),
                     x as u8,
                     self.w34sel.instance_2_window_1(),
                     self.w34sel.instance_2_window_2(),
@@ -623,7 +666,7 @@ impl Ppu {
                 x,
                 y,
                 self.is_enabled(
-                    self.main_screen_designation.obj_enable(),
+                    obj_mask && self.main_screen_designation.obj_enable(),
                     x as u8,
                     self.wobjsel.instance_1_window_1(),
                     self.wobjsel.instance_1_window_2(),
@@ -649,7 +692,7 @@ impl Ppu {
                 x,
                 y,
                 self.is_enabled(
-                    self.sub_screen_designation.obj_enable(),
+                    obj_mask && self.sub_screen_designation.obj_enable(),
                     x as u8,
                     self.wobjsel.instance_1_window_1(),
                     self.wobjsel.instance_1_window_2(),

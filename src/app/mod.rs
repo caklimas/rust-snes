@@ -234,6 +234,42 @@ impl ApplicationHandler for App {
                         self.paused = !self.paused;
                     }
                 }
+                KeyCode::Digit1 => {
+                    if state.is_pressed() {
+                        self.super_nintendo.bus.ppu.debug_disabled_layers ^= 0x01;
+                        eprintln!(
+                            "debug_disabled_layers = 0x{:02X}",
+                            self.super_nintendo.bus.ppu.debug_disabled_layers
+                        );
+                    }
+                }
+                KeyCode::Digit2 => {
+                    if state.is_pressed() {
+                        self.super_nintendo.bus.ppu.debug_disabled_layers ^= 0x02;
+                        eprintln!(
+                            "debug_disabled_layers = 0x{:02X}",
+                            self.super_nintendo.bus.ppu.debug_disabled_layers
+                        );
+                    }
+                }
+                KeyCode::Digit3 => {
+                    if state.is_pressed() {
+                        self.super_nintendo.bus.ppu.debug_disabled_layers ^= 0x04;
+                        eprintln!(
+                            "debug_disabled_layers = 0x{:02X}",
+                            self.super_nintendo.bus.ppu.debug_disabled_layers
+                        );
+                    }
+                }
+                KeyCode::Digit4 => {
+                    if state.is_pressed() {
+                        self.super_nintendo.bus.ppu.debug_disabled_layers ^= 0x10;
+                        eprintln!(
+                            "debug_disabled_layers = 0x{:02X}",
+                            self.super_nintendo.bus.ppu.debug_disabled_layers
+                        );
+                    }
+                }
                 _ => {}
             },
             _ => (),
