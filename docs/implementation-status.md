@@ -23,7 +23,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | WRAM ($7E0000–$7FFFFF) | ✅ Complete | |
 | WRAM mirror ($00–$3F, $80–$BF, offsets $0000–$1FFF) | ✅ Complete | |
 | WRAM access ports ($2180–$2183) | ✅ Complete | Auto-increment, 17-bit wrap |
-| Bank normalization ($80–$BF → $00–$3F) | ✅ Complete | |
+| System Area mirroring ($00–$3F / $80–$BF, offsets $0000–$5FFF) | ✅ Complete | Internal WRAM and I/O addresses normalize to bank $00; cartridge-dependent $6000+ offsets retain their bank |
 | LoROM mapping | ✅ Complete | |
 | HiROM mapping | ✅ Complete | $80–$BF mirror fixed |
 | ExHiROM mapping | ⚠️ Stubbed | |
@@ -58,9 +58,9 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | COLDATA ($2132) | ✅ Complete | |
 | SETINI ($2133) | ✅ Complete | |
 | Mode 7 registers ($211A–$2120) | ✅ Complete | M7SEL, M7A–D, M7X/M7Y, M7HOFS/M7VOFS; double-write via m7_old latch; 13-bit sign-extend for center/scroll |
-| SLHV ($2137) | ❌ Not implemented | Software H/V counter latch trigger |
-| OPHCT / OPVCT ($213C–$213D) | ❌ Not implemented | Latched H/V counter reads with 1st/2nd-read flipflops (storage in place on Ppu, cleared on $213F read) |
-| STAT77 ($213E) | ❌ Not implemented | PPU1 status; OBJ overflow flags require sprite-eval refactor |
+| SLHV ($2137) | ✅ Complete | Latches current_x and current_scanline into ophct_latch/opvct_latch; returns 0 (open bus) |
+| OPHCT / OPVCT ($213C–$213D) | ✅ Complete | Two-read flipflop: 1st read = low 8 bits, 2nd read = high bit; flipflops reset on $213F read |
+| STAT77 ($213E) | 🟡 Partial | Returns 0x01 (PPU1 version 1); OBJ overflow flags not implemented |
 | STAT78 ($213F) | ✅ Complete | `Stat78` bitfield (`src/ppu/stat78.rs`); defaults to 0x03 (PPU2 v3, NTSC); read clears latch_flag + both OPHCT/OPVCT flipflops; interlace_frame_counter toggles per frame when SETINI bit 0 set, forced 0 otherwise |
 
 ### Rendering
@@ -90,6 +90,8 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Color math — fixed color | ✅ Complete | CGWSEL, CGADSUB, COLDATA; add/subtract, half-math |
 | Color math — sub-screen blending | ✅ Complete | Sub screen rendered independently; suppress_div2 |
 | Color math — window gating | ✅ Complete | WOBJSEL instance 2 + WOBJLOG math_combine_logic |
+| Color math — OBJ palette split | ✅ Complete | Palettes 0-3 (CGRAM <192) exempt from color math; only palettes 4-7 respect CGADSUB bit 4 |
+| Color math — force main screen black | ✅ Complete | CGWSEL bits 7-6; evaluates math window; forces color to Rgb(0) before blend; suppresses half-math |
 | Master brightness | ✅ Complete | `channel * (brightness + 1) / 16` |
 | VRAM write guard | ✅ Complete | Blocks writes during active rendering unless forced_blank |
 
@@ -168,19 +170,21 @@ This file tracks what has been implemented, what is stubbed, and what still need
 - **Where to look next**: see `docs/bugs/fzero-mode7-gradient.md`. Most likely: subtle bug in Mode 7 affine math or per-scanline M7B accumulation. NOT a register-write timing issue.
 - **Investigation tooling in place**: `Ppu::scanline_trace` now captures per-scanline Mode 7 register state (m7a/b/c/d/x/y, m7hofs/vofs, m7sel) when `bg_mode==7`. Surfaces in debug_dump.txt via P+D.
 
+## Recently Resolved
+
 ### LttP Triforce intro — missing Triforce graphic
-- **Symptom**: The "1991, 1992" copyright text renders at the bottom, but the Triforce above it is missing. The rest of the intro works fine.
-- **Root cause (suspected)**: The Triforce is NOT a static asset or Mode 7 — it is **CPU-rasterized polygons written directly into VRAM each frame** (15 polygons at 60fps, software-rendered by the CPU). The game's CPU calculates triangle fill during VBlank and writes the pixel data into VRAM as tile data. The PPU renders it as normal BG tiles.
-- **Likely culprit**: VRAM write guard timing. `write_data_lo`/`write_data_hi` gate writes on `!rendering_active || forced_blank()`. If `rendering_active` isn't being cleared at the right time during VBlank, CPU-driven VRAM writes are silently dropped.
-- **How to investigate**: Add a trace to `write_data_lo`/`write_data_hi` during the Triforce screen to see if writes are being blocked. Check that `rendering_active` transitions align with VBlank timing.
+- **Symptom**: The copyright text rendered, but the CPU-rasterized Triforce polygons were missing.
+- **Root cause**: System Area I/O mirroring was incomplete. LttP reads the Mode 7 multiplication result through `$09:2135`, but the bus only routed `$00:2135` to the PPU. The bad multiplication results collapsed every projected vertex to one point, so the game generated blank OBJ tile data.
+- **Fix**: Normalize internal System Area addresses in banks `$00–$3F` and `$80–$BF` to bank `$00`, while preserving cartridge-dependent offsets at `$6000` and above.
 
 ---
 
 ## Next Steps (Priority Order)
 
-1. **PPU status registers ($2137/$213C/$213D/$213E)** — LttP black-screens after name selection because it reads these. $2137 (SLHV) latches H/V counters; $213C/$213D (OPHCT/OPVCT) return latched values with first/second read flipflops (booleans already on Ppu, $213F reset logic already wired); $213E (STAT77) needs to return version=1 in bits 0-3. V counter = `current_scanline`; H counter needs deriving from master_clocks within scanline (or approximate for now). This is the most likely fix for LttP.
-2. **SMW visual bugs** — overworld: Mario's colors appear oversaturated (color math issue?). In-game: Yoshi's tongue doesn't fully extend (sprite positioning?).
-3. **Mode 7 gradient defect (F-Zero scanlines 47–83)** — narrowed to Mode 7 affine math or per-scanline M7B handling, NOT register write timing. See `docs/bugs/fzero-mode7-gradient.md` for full investigation history and the diagnostic fingerprint.
-4. **LttP Triforce intro — missing Triforce graphic** — suspected VRAM write guard timing issue (see Known Bugs section).
-5. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
-6. **DSP / audio output** — needed for actual sound
+1. **LttP overworld garbled tiles — IRQ timing bug** — per-scanline trace shows NO register changes across 224 scanlines. LttP's IRQ (VMatch at scanline 144) should fire mid-frame to change BG3 scroll/TM/etc. between HUD and game area. IRQ total fire count is >0 but "last frame" shows 0 entries. BG3 has priority boost (BGMODE bit 3), so unclipped BG3 HUD tiles appear over the entire screen. Investigate: why does the IRQ not fire during the rendered frame? Check VMatch evaluation in `super_nintendo/mod.rs` step loop.
+2. **LttP text scrolling** — text doesn't scroll up; new text garbles into old. Game rewrites BG3 tilemap directly (NOT via VOFS). Likely a VRAM tilemap update issue — old tiles not being cleared. May be related to DMA or VRAM address handling.
+3. **Mode 7 color math missing** — Mode 7 renderer skips the entire color math pipeline (found via bsnes comparison). Needs to apply same CGWSEL/CGADSUB/sub-screen logic as modes 0-6.
+4. **SMW — Yoshi's tongue doesn't fully extend** — sprite positioning issue, not yet investigated.
+5. **Mode 7 gradient defect (F-Zero scanlines 47–83)** — narrowed to Mode 7 affine math or per-scanline M7B handling. See `docs/bugs/fzero-mode7-gradient.md`.
+6. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
+7. **DSP / audio output** — needed for actual sound
