@@ -154,9 +154,6 @@ impl Bus {
                 }
             }
             HDMAEN => {
-                if value != 0 {
-                    eprintln!("HDMAEN write: {:#04X}", value);
-                }
                 self.hdmaen = value;
             }
             addr if DMA_REGISTERS_RANGE.contains(&addr) => {
@@ -222,6 +219,39 @@ impl Bus {
                             let data = self.read(address + 1);
                             self.write(PPU_REGISTERS_START | ((bbad + 1) as u32), data);
                             bytes_consumed = 2;
+                        }
+                        2 => {
+                            self.write(PPU_REGISTERS_START | (bbad as u32), data);
+
+                            let data2 = self.read(address + 1);
+                            self.write(PPU_REGISTERS_START | (bbad as u32), data2);
+                            bytes_consumed = 2;
+                        }
+                        3 => {
+                            self.write(PPU_REGISTERS_START | (bbad as u32), data);
+
+                            let mut data = self.read(address + 1);
+                            self.write(PPU_REGISTERS_START | (bbad as u32), data);
+
+                            data = self.read(address + 2);
+                            self.write(PPU_REGISTERS_START | ((bbad + 1) as u32), data);
+
+                            data = self.read(address + 3);
+                            self.write(PPU_REGISTERS_START | ((bbad + 1) as u32), data);
+                            bytes_consumed = 4;
+                        }
+                        4 => {
+                            self.write(PPU_REGISTERS_START | (bbad as u32), data);
+
+                            let mut data = self.read(address + 1);
+                            self.write(PPU_REGISTERS_START | ((bbad + 1) as u32), data);
+
+                            data = self.read(address + 2);
+                            self.write(PPU_REGISTERS_START | ((bbad + 2) as u32), data);
+
+                            data = self.read(address + 3);
+                            self.write(PPU_REGISTERS_START | ((bbad + 3) as u32), data);
+                            bytes_consumed = 4;
                         }
                         _ => {}
                     }

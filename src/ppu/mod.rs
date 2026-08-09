@@ -258,7 +258,7 @@ impl Ppu {
         let brightness_factor = self.display.master_brightness() as u16 + 1;
 
         if self.bg_mode.bg_mode() == 7 {
-            self.mode_7_sample(y);
+            self.mode_7_sample(y, brightness_factor);
         } else {
             self.mode_0_6_sample(y, bpp_settings, palette_base, brightness_factor);
         }
@@ -372,7 +372,7 @@ impl Ppu {
         }
     }
 
-    fn mode_7_sample(&mut self, y: u16) {
+    fn mode_7_sample(&mut self, y: u16, brightness_factor: u16) {
         for x in 0u16..SCREEN_WIDTH {
             let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
             if self.display.forced_blank() {
@@ -416,9 +416,40 @@ impl Ppu {
             };
             let pixel_address =
                 (tile_number as usize * 64 + pixel_y as usize * 8 + pixel_x as usize) * 2 + 1;
-            let pixel_color = self.vram.read(pixel_address);
+            let bg1_pixel_color = self.vram.read(pixel_address);
+            let obj_sample = self.obj_sample(
+                x,
+                y,
+                self.is_enabled(
+                    self.main_screen_designation.obj_enable(),
+                    x as u8,
+                    self.wobjsel.instance_1_window_1(),
+                    self.wobjsel.instance_1_window_2(),
+                    self.wobjlog.obj_combine_logic(),
+                    self.tmw.obj_disable(),
+                ),
+            );
 
-            self.frame_buffer.0[index] = self.cgram.read_color(pixel_color as u16);
+            let pixel_color = match (obj_sample, bg1_pixel_color) {
+                (
+                    Some(ObjSample {
+                        cg_ram_index,
+                        priority: 3,
+                    }),
+                    _,
+                ) => cg_ram_index,
+                (_, pc) if pc != 0 => pc,
+                (Some(sample), _) => sample.cg_ram_index,
+                _ => 0,
+            };
+
+            let mut color = Rgb(self.cgram.read_color(pixel_color as u16));
+
+            color.set_red((color.red() * brightness_factor) / 16);
+            color.set_green((color.green() * brightness_factor) / 16);
+            color.set_blue((color.blue() * brightness_factor) / 16);
+
+            self.frame_buffer.0[index] = color.0;
         }
     }
 
