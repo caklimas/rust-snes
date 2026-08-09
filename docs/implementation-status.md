@@ -116,7 +116,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | SPC700 CONTROL ($F1) | ✅ Complete | `Control` bitfield: `ipl_rom_overlay` bit 7 (defaults on), `timer_enables` bits 0–2, `clear_cpuio_input_latch` bits 4–5 |
 | SPC700 CPUIO ($F4–$F7) | ✅ Complete | `Rc<RefCell<Apu>>` shared between Bus and Spc700; main CPU side via $2140–$2143, SPC700 side via $00F4–$00F7 |
 | SPC700 IPL ROM | ✅ Complete | 64-byte boot ROM embedded as `IPL_ROM` constant; IPL handshake verified working (LttP boots) |
-| SPC700 instruction decoder | 🟡 In progress | 23 IPL ROM opcodes implemented; unimplemented opcodes log and skip; integrated into main loop with clock accumulator (768 SPC clocks per 1364 main clocks) |
+| SPC700 instruction decoder | ✅ Complete | All 256 opcodes implemented; integrated into main loop with clock accumulator (768 SPC clocks per 1364 main clocks) |
 | SPC700 execution integration | ✅ Complete | `spc_clocks: i32` accumulator on `SuperNintendo`; SPC700 steps proportionally alongside main CPU |
 | SPC700 timers (T0–T2) | ❌ Not implemented | Divider/counter storage in place, no tick logic yet |
 | DSP / audio output | ❌ Not implemented | |
@@ -181,6 +181,6 @@ This file tracks what has been implemented, what is stubbed, and what still need
 1. **Mode 7 gradient defect (F-Zero scanlines 47–83)** — narrowed to Mode 7 affine math or per-scanline M7B handling, NOT register write timing. See `docs/bugs/fzero-mode7-gradient.md` for full investigation history and the diagnostic fingerprint.
 2. **LttP black screen after name selection** — game polls $213D/$213E/$2137 (now stubbed), reads $213F (now properly returning 0x03), but still black-screens. Needs PPU state dump at the failure point to triage (forced_blank, master_brightness, TM, CGRAM, or VRAM as candidates).
 3. **Remaining $213C-$213E PPU registers** — STAT78 done; SLHV/OPHCT/OPVCT/STAT77 not yet wired. Storage for OPHCT/OPVCT flipflops already in place.
-4. **SPC700 opcodes** — implement remaining opcodes as games hit them (currently logs unimplemented opcodes and skips)
-5. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
-6. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
+4. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
+5. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
+6. **DSP / audio output** — needed for actual sound
