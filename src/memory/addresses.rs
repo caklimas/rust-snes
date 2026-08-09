@@ -125,6 +125,17 @@ pub const CPU_IO_RANGE: RangeInclusive<u32> = CPU_IO_START..=CPU_IO_END;
 
 pub const NMITIMEN: u32 = 0x004200;
 
+// Hardware multiply/divide
+pub const WRMPYA: u32 = 0x004202;
+pub const WRMPYB: u32 = 0x004203;
+pub const WRDIVL: u32 = 0x004204;
+pub const WRDIVH: u32 = 0x004205;
+pub const WRDIVB: u32 = 0x004206;
+pub const RDDIVL: u32 = 0x004214;
+pub const RDDIVH: u32 = 0x004215;
+pub const RDMPYL: u32 = 0x004216;
+pub const RDMPYH: u32 = 0x004217;
+
 pub const JOY1L: u32 = 0x004218;
 pub const JOY1H: u32 = 0x004219;
 

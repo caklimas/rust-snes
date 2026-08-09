@@ -171,6 +171,54 @@ impl fmt::Debug for Ppu {
                     self.sub_screen_designation.obj_enable(),
                 ),
             )
+            .field(
+                "window_1",
+                &format_args!(
+                    "left={} right={}",
+                    self.window_bounds_1.left, self.window_bounds_1.right
+                ),
+            )
+            .field(
+                "window_2",
+                &format_args!(
+                    "left={} right={}",
+                    self.window_bounds_2.left, self.window_bounds_2.right
+                ),
+            )
+            .field(
+                "w12sel",
+                &format_args!("0x{:02X}", self.w12sel.0),
+            )
+            .field(
+                "w34sel",
+                &format_args!("0x{:02X}", self.w34sel.0),
+            )
+            .field(
+                "wobjsel",
+                &format_args!("0x{:02X}", self.wobjsel.0),
+            )
+            .field(
+                "tmw",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.tmw.bg1_disable(),
+                    self.tmw.bg2_disable(),
+                    self.tmw.bg3_disable(),
+                    self.tmw.bg4_disable(),
+                    self.tmw.obj_disable(),
+                ),
+            )
+            .field(
+                "tsw",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.tsw.bg1_disable(),
+                    self.tsw.bg2_disable(),
+                    self.tsw.bg3_disable(),
+                    self.tsw.bg4_disable(),
+                    self.tsw.obj_disable(),
+                ),
+            )
             .finish()
     }
 }

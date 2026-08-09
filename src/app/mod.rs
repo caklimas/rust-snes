@@ -1,5 +1,8 @@
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use softbuffer::{Context, Surface};
 use winit::{
@@ -187,12 +190,43 @@ impl ApplicationHandler for App {
                     .set_select(state.is_pressed()),
                 KeyCode::KeyD => {
                     if state.is_pressed() && self.paused {
-                        println!("{}", self.super_nintendo.debug_info());
+                        let path = "docs/bugs/debug_dump.txt";
+                        let timestamp = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis();
+                        let entry = format!(
+                            "=== DEBUG DUMP @ {} ===\n{}\n\n",
+                            timestamp,
+                            self.super_nintendo.debug_info()
+                        );
+                        match OpenOptions::new().create(true).append(true).open(path) {
+                            Ok(mut file) => {
+                                let _ = file.write_all(entry.as_bytes());
+                                eprintln!("Debug dump appended to {}", path);
+                            }
+                            Err(e) => eprintln!("Failed to write debug dump: {}", e),
+                        }
                     }
                 }
                 KeyCode::KeyF => {
                     if state.is_pressed() && self.paused {
-                        println!("{:?}", self.super_nintendo.frame_buffer());
+                        let timestamp = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis();
+                        let path = format!("docs/bugs/frame_{}.ppm", timestamp);
+                        let frame = self.super_nintendo.frame_buffer();
+                        let mut file = std::fs::File::create(&path).unwrap();
+                        let _ = write!(file, "P6\n256 224\n255\n");
+                        for &pixel in frame.iter() {
+                            let rgb = Rgb(pixel);
+                            let r = (rgb.red() << 3) as u8;
+                            let g = (rgb.green() << 3) as u8;
+                            let b = (rgb.blue() << 3) as u8;
+                            let _ = file.write_all(&[r, g, b]);
+                        }
+                        eprintln!("Frame dumped to {}", path);
                     }
                 }
                 KeyCode::KeyP => {
