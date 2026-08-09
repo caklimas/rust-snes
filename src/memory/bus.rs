@@ -100,7 +100,8 @@ impl Bus {
         match normalized_address {
             addr if UNUSED_IO_GAP_RANGE.contains(&addr) => {}
             WMDATA => {
-                self.wram.write(&self.get_wram_access_address(), value);
+                let wram_addr = self.get_wram_access_address();
+                self.wram.write(&wram_addr, value);
                 self.increment_wram_access_address();
             }
             WMADDL => self.wram_access_address.set_wmaddl(value as u32),
@@ -108,44 +109,48 @@ impl Bus {
             WMADDH => self.wram_access_address.set_wmaddh(value & 0b1 == 1),
             addr if UNUSED_UPPER_GAP_RANGE.contains(&addr) => {}
             MDMAEN => {
-                for i in 0u8..=7 {
-                    let channel = (value >> i) & 0x1 == 1;
+                for ch in 0u8..=7 {
+                    if (value >> ch) & 0x1 != 1 {
+                        continue;
+                    }
+                    let channel = self.dma_channels[ch as usize];
+                    let bank = (channel.a1b as u32) << 16;
+                    let mut a1t = channel.a1t;
+                    let destination = PPU_REGISTERS_START | (channel.bbad as u32);
+                    let dmap_mode = channel.dmap.0 & 0x07;
+                    let transfer_direction = channel.dmap.0 >> 7;
+                    let fixed = channel.dmap.fixed_transfer();
+                    let das = if channel.das == 0 {
+                        65536u32
+                    } else {
+                        channel.das as u32
+                    };
                     let mut incremented = false;
-                    if channel {
-                        let channel = self.dma_channels[i as usize];
-                        let source = (channel.a1b as u32) << 16 | (channel.a1t as u32);
-                        let destination = PPU_REGISTERS_START | (channel.bbad as u32);
-                        let dmap_mode = channel.dmap.0 & 0x07;
-                        let transfer_direction = channel.dmap.0 >> 7;
-                        let das = if channel.das == 0 {
-                            65536
+
+                    for _ in 0u32..das {
+                        let dest = if dmap_mode == 1 && incremented {
+                            destination + 1
                         } else {
-                            channel.das as u32
+                            destination
                         };
+                        incremented = !incremented;
 
-                        for i in 0u32..das {
-                            let destination = if dmap_mode == 1 && incremented {
-                                destination + 1
-                            } else {
-                                destination
-                            };
-
-                            incremented = !incremented;
-
-                            if transfer_direction == 0 {
-                                let source_address = if channel.dmap.fixed_transfer() {
-                                    source
-                                } else {
-                                    source + i
-                                };
-                                let value = self.read(source_address);
-                                self.write(destination, value);
-                            } else {
-                                let value = self.read(destination);
-                                self.write(source + i, value);
-                            }
+                        if transfer_direction == 0 {
+                            let source_address = bank | (a1t as u32);
+                            let value = self.read(source_address);
+                            self.write(dest, value);
+                        } else {
+                            let value = self.read(dest);
+                            let target = bank | (a1t as u32);
+                            self.write(target, value);
+                        }
+                        if !fixed {
+                            a1t = a1t.wrapping_add(1);
                         }
                     }
+
+                    self.dma_channels[ch as usize].a1t = a1t;
+                    self.dma_channels[ch as usize].das = 0;
                 }
             }
             HDMAEN => {
@@ -164,7 +169,9 @@ impl Bus {
                 let wram_addr = WRAM_START + (addr & 0xFFFF);
                 self.wram.write(&wram_addr, value)
             }
-            addr if PPU_REGISTERS_RANGE.contains(&addr) => self.ppu.write(addr, value),
+            addr if PPU_REGISTERS_RANGE.contains(&addr) => {
+                self.ppu.write(addr, value);
+            }
             addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.borrow_mut().write(addr, value),
             NMITIMEN => self.interrupt_enable.0 = value,
             MEMSEL => self.memory_select.0 = value,

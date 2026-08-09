@@ -5,6 +5,7 @@ pub struct Vram {
     pub rendering_active: bool,
     data: [u8; 65536],
     address_register: u16,
+    prefetch_buffer: u16,
 }
 
 impl Vram {
@@ -26,6 +27,19 @@ impl Vram {
 
     pub fn set_address_hi(&mut self, value: u8) {
         self.address_register = (self.address_register & 0x00FF) | (((value & 0x7F) as u16) << 8);
+        self.prefetch();
+    }
+
+    pub fn read_data_lo(&mut self) -> u8 {
+        let value = self.prefetch_buffer as u8;
+        self.increment_address_register(!self.vmain.increment_timing());
+        value
+    }
+
+    pub fn read_data_hi(&mut self) -> u8 {
+        let value = (self.prefetch_buffer >> 8) as u8;
+        self.increment_address_register(self.vmain.increment_timing());
+        value
     }
 
     pub fn write_data_lo(&mut self, value: u8, write_data: bool) {
@@ -46,11 +60,16 @@ impl Vram {
         self.increment_address_register(self.vmain.increment_timing());
     }
 
+    fn prefetch(&mut self) {
+        self.prefetch_buffer = self.read_word(self.address_register);
+    }
+
     fn increment_address_register(&mut self, increment: bool) {
         if increment {
             self.address_register = self
                 .address_register
                 .wrapping_add(self.get_increment_amount());
+            self.prefetch();
         }
     }
 
@@ -69,6 +88,7 @@ impl Default for Vram {
         Self {
             data: [0; 65536],
             address_register: Default::default(),
+            prefetch_buffer: 0,
             vmain: Default::default(),
             rendering_active: true,
         }

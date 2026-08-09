@@ -90,6 +90,8 @@ pub const VMADDL: u32 = 0x002116;
 pub const VMADDH: u32 = 0x002117;
 pub const VMDATAL: u32 = 0x002118;
 pub const VMDATAH: u32 = 0x002119;
+pub const RDVRAML: u32 = 0x002139;
+pub const RDVRAMH: u32 = 0x00213A;
 
 // CGRAM
 pub const CGADD: u32 = 0x002121;

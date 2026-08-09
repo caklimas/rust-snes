@@ -54,7 +54,7 @@ impl SuperNintendo {
 
         while self.spc_clocks > 0 {
             self.spc700.step();
-            self.spc_clocks -= 1; // refine with actual cycle counts later                                                                                
+            self.spc_clocks -= 1; // refine with actual cycle counts later
         }
 
         if self.master_clocks >= MASTER_CLOCKS_PER_SCANLINE {
