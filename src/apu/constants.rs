@@ -1,7 +1,7 @@
 // SPC700 instruction lengths in bytes (opcode + operands)
 // Index = opcode byte, value = total instruction length
 pub const INSTRUCTION_LENGTHS: [u8; 256] = [
-//  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+    //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     1, 2, 2, 3, 2, 3, 1, 2, 2, 3, 3, 2, 3, 1, 3, 3, // 0x
     2, 2, 2, 3, 2, 3, 3, 2, 3, 1, 2, 1, 1, 1, 3, 3, // 1x
     3, 2, 2, 3, 2, 3, 1, 2, 2, 3, 3, 2, 3, 1, 3, 3, // 2x

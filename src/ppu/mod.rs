@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{
     memory::addresses::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
@@ -7,17 +9,39 @@ use crate::{
         WOBJLOG, WOBJSEL,
     },
     ppu::{
-        bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_sample::BgSample,
-        bg_sample_params::BgSampleParams, bg_tilemap::BgTilemap,
-        bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings, cgadsub::Cgadsub,
-        cgram::Cgram, cgwsel::Cgwsel, coldata::Coldata, display::Display,
-        frame_buffer::FrameBuffer, mosaic::Mosaic, oam::Oam, obj_sample::ObjSample, obsel::Obsel,
-        palette_base::PaletteBase, priority_resolver::PriorityResolver, rgb::Rgb,
-        screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
-        tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
-        wbglog::Wbglog, window_bounds::WindowBounds, window_condition::WindowCondition,
-        window_layer_disable::WindowLayerDisable, window_mask_settings::WindowMaskSettings,
-        winning_layer::Layer, wobjlog::Wobjlog,
+        bg_horizontal_offset::BgHorizontalOffset,
+        bg_mode::BgMode,
+        bg_sample::BgSample,
+        bg_sample_params::{BgLayerConfig, BgSampleParams},
+        bg_tilemap::BgTilemap,
+        bg_vertical_offset::BgVerticalOffset,
+        bpp_settings::BppSettings,
+        cgadsub::Cgadsub,
+        cgram::Cgram,
+        cgwsel::Cgwsel,
+        coldata::Coldata,
+        display::Display,
+        frame_buffer::FrameBuffer,
+        mosaic::Mosaic,
+        mosaic_config::MosaicConfig,
+        oam::Oam,
+        obj_sample::ObjSample,
+        obsel::Obsel,
+        palette_base::PaletteBase,
+        priority_resolver::PriorityResolver,
+        rgb::Rgb,
+        screen_designation::ScreenDesignation,
+        screen_setting::ScreenSetting,
+        tile_graphic_base_address::TileGraphicBaseAddress,
+        tilemap_entry::TilemapEntry,
+        vram::Vram,
+        wbglog::Wbglog,
+        window_bounds::WindowBounds,
+        window_condition::WindowCondition,
+        window_layer_disable::WindowLayerDisable,
+        window_mask_settings::WindowMaskSettings,
+        winning_layer::Layer,
+        wobjlog::Wobjlog,
     },
 };
 
@@ -37,6 +61,7 @@ pub mod frame_buffer;
 pub mod high_table_sprite;
 pub mod low_table_sprite;
 pub mod mosaic;
+pub mod mosaic_config;
 pub mod oam;
 pub mod obj_sample;
 pub mod obsel;
@@ -99,6 +124,57 @@ pub struct Ppu {
     pub current_scanline: u16,
 }
 
+impl fmt::Debug for Ppu {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Ppu")
+            .field("mode", &self.bg_mode.bg_mode())
+            .field("forced_blank", &self.display.forced_blank())
+            .field("brightness", &self.display.master_brightness())
+            .field("scanline", &self.current_scanline)
+            .field(
+                "bg_hofs",
+                &[
+                    self.bg_horizontal_offset.bg1_offset,
+                    self.bg_horizontal_offset.bg2_offset,
+                    self.bg_horizontal_offset.bg3_offset,
+                    self.bg_horizontal_offset.bg4_offset,
+                ],
+            )
+            .field(
+                "bg_vofs",
+                &[
+                    self.bg_vertical_offset.bg1_offset,
+                    self.bg_vertical_offset.bg2_offset,
+                    self.bg_vertical_offset.bg3_offset,
+                    self.bg_vertical_offset.bg4_offset,
+                ],
+            )
+            .field(
+                "tm",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.main_screen_designation.bg1_enable(),
+                    self.main_screen_designation.bg2_enable(),
+                    self.main_screen_designation.bg3_enable(),
+                    self.main_screen_designation.bg4_enable(),
+                    self.main_screen_designation.obj_enable(),
+                ),
+            )
+            .field(
+                "ts",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.sub_screen_designation.bg1_enable(),
+                    self.sub_screen_designation.bg2_enable(),
+                    self.sub_screen_designation.bg3_enable(),
+                    self.sub_screen_designation.bg4_enable(),
+                    self.sub_screen_designation.obj_enable(),
+                ),
+            )
+            .finish()
+    }
+}
+
 impl Ppu {
     pub fn frame_buffer(&self) -> &FrameBuffer {
         &self.frame_buffer
@@ -138,6 +214,43 @@ impl Ppu {
         let palette_base = PaletteBase::new(&self.bg_mode);
         let brightness_factor = self.display.master_brightness() as u16 + 1;
 
+        let bg1_layer = BgLayerConfig {
+            bg_tilemap: &self.bg1,
+            horizontal_offset: self.bg_horizontal_offset.bg1_offset,
+            vertical_offset: self.bg_vertical_offset.bg1_offset,
+            char_base: self.tile_graphic12.first_vram_word_address(),
+            bpp_opt: bpp_settings.bg1,
+            palette_base: palette_base.bg1,
+            tile_size_16: self.bg_mode.tile_size_1(),
+        };
+        let bg2_layer = BgLayerConfig {
+            bg_tilemap: &self.bg2,
+            horizontal_offset: self.bg_horizontal_offset.bg2_offset,
+            vertical_offset: self.bg_vertical_offset.bg2_offset,
+            char_base: self.tile_graphic12.second_vram_word_address(),
+            bpp_opt: bpp_settings.bg2,
+            palette_base: palette_base.bg2,
+            tile_size_16: self.bg_mode.tile_size_2(),
+        };
+        let bg3_layer = BgLayerConfig {
+            bg_tilemap: &self.bg3,
+            horizontal_offset: self.bg_horizontal_offset.bg3_offset,
+            vertical_offset: self.bg_vertical_offset.bg3_offset,
+            char_base: self.tile_graphic34.first_vram_word_address(),
+            bpp_opt: bpp_settings.bg3,
+            palette_base: palette_base.bg3,
+            tile_size_16: self.bg_mode.tile_size_3(),
+        };
+        let bg4_layer = BgLayerConfig {
+            bg_tilemap: &self.bg4,
+            horizontal_offset: self.bg_horizontal_offset.bg4_offset,
+            vertical_offset: self.bg_vertical_offset.bg4_offset,
+            char_base: self.tile_graphic34.second_vram_word_address(),
+            bpp_opt: bpp_settings.bg4,
+            palette_base: palette_base.bg4,
+            tile_size_16: self.bg_mode.tile_size_4(),
+        };
+
         for x in 0u16..SCREEN_WIDTH {
             let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
             if self.display.forced_blank() {
@@ -146,6 +259,22 @@ impl Ppu {
             }
 
             let mosaic_size = self.mosaic.mosaic_size() as u16 + 1;
+            let bg1_mosaic = MosaicConfig {
+                enabled: self.mosaic.bg1_enable(),
+                size: mosaic_size,
+            };
+            let bg2_mosaic = MosaicConfig {
+                enabled: self.mosaic.bg2_enable(),
+                size: mosaic_size,
+            };
+            let bg3_mosaic = MosaicConfig {
+                enabled: self.mosaic.bg3_enable(),
+                size: mosaic_size,
+            };
+            let bg4_mosaic = MosaicConfig {
+                enabled: self.mosaic.bg4_enable(),
+                size: mosaic_size,
+            };
 
             let bg_1_params = BgSampleParams::new(
                 self.is_enabled(
@@ -166,15 +295,8 @@ impl Ppu {
                 ),
                 x,
                 y,
-                &self.bg1,
-                self.bg_horizontal_offset.bg1_offset,
-                self.bg_vertical_offset.bg1_offset,
-                self.tile_graphic12.first_vram_word_address(),
-                bpp_settings.bg1,
-                palette_base.bg1,
-                self.bg_mode.tile_size_1(),
-                self.mosaic.bg1_enable(),
-                mosaic_size,
+                &bg1_layer,
+                &bg1_mosaic,
             );
 
             let bg_2_params = BgSampleParams::new(
@@ -196,15 +318,8 @@ impl Ppu {
                 ),
                 x,
                 y,
-                &self.bg2,
-                self.bg_horizontal_offset.bg2_offset,
-                self.bg_vertical_offset.bg2_offset,
-                self.tile_graphic12.second_vram_word_address(),
-                bpp_settings.bg2,
-                palette_base.bg2,
-                self.bg_mode.tile_size_2(),
-                self.mosaic.bg2_enable(),
-                mosaic_size,
+                &bg2_layer,
+                &bg2_mosaic,
             );
 
             let bg_3_params = BgSampleParams::new(
@@ -226,15 +341,8 @@ impl Ppu {
                 ),
                 x,
                 y,
-                &self.bg3,
-                self.bg_horizontal_offset.bg3_offset,
-                self.bg_vertical_offset.bg3_offset,
-                self.tile_graphic34.first_vram_word_address(),
-                bpp_settings.bg3,
-                palette_base.bg3,
-                self.bg_mode.tile_size_3(),
-                self.mosaic.bg3_enable(),
-                mosaic_size,
+                &bg3_layer,
+                &bg3_mosaic,
             );
 
             let bg_4_params = BgSampleParams::new(
@@ -256,15 +364,8 @@ impl Ppu {
                 ),
                 x,
                 y,
-                &self.bg4,
-                self.bg_horizontal_offset.bg4_offset,
-                self.bg_vertical_offset.bg4_offset,
-                self.tile_graphic34.second_vram_word_address(),
-                bpp_settings.bg4,
-                palette_base.bg4,
-                self.bg_mode.tile_size_4(),
-                self.mosaic.bg4_enable(),
-                mosaic_size,
+                &bg4_layer,
+                &bg4_mosaic,
             );
 
             let bg1_sample_main = self.bg_sample(&bg_1_params, true);

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::apu::{
     Apu,
@@ -90,5 +90,13 @@ impl Spc700 {
 
     pub fn set_c(&mut self, left: u8, right: u8) {
         self.registers.psw.set_carry(left >= right);
+    }
+}
+
+impl fmt::Debug for Spc700 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Spc700")
+            .field("registers", &self.registers)
+            .finish()
     }
 }
