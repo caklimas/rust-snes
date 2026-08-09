@@ -12,6 +12,7 @@ use crate::{
 
 const MASTER_CLOCKS_PER_SCANLINE: u32 = 1364;
 const DRAM_REFRESH_MASTER_CLOCKS: u32 = 40;
+const HBLANK_START_MASTER_CLOCKS: u32 = 1096;
 
 pub struct SuperNintendo {
     pub bus: Bus,
@@ -26,6 +27,9 @@ pub struct SuperNintendo {
     pub irq_first_mode: Option<u8>,
     pub irq_first_vtime: Option<u16>,
     pub irq_first_htime: Option<u16>,
+    /// Scanlines at which IRQ fired during the most recent completed frame.
+    pub irq_fire_scanlines_this_frame: Vec<(u16, u16, u16)>, // (scanline, vtime, htime)
+    pub irq_fire_scanlines_last_frame: Vec<(u16, u16, u16)>,
 }
 
 impl SuperNintendo {
@@ -51,6 +55,8 @@ impl SuperNintendo {
             irq_first_mode: None,
             irq_first_vtime: None,
             irq_first_htime: None,
+            irq_fire_scanlines_this_frame: Vec::new(),
+            irq_fire_scanlines_last_frame: Vec::new(),
         }
     }
 
@@ -67,6 +73,13 @@ impl SuperNintendo {
                 self.irq_first_htime = Some(self.bus.htime);
             }
             self.irq_fire_count = self.irq_fire_count.saturating_add(1);
+            if self.irq_fire_scanlines_this_frame.len() < 64 {
+                self.irq_fire_scanlines_this_frame.push((
+                    self.current_scanline,
+                    self.bus.vtime,
+                    self.bus.htime,
+                ));
+            }
             self.cpu.irq(&mut self.bus);
         }
 
@@ -84,13 +97,12 @@ impl SuperNintendo {
             self.master_clocks -= MASTER_CLOCKS_PER_SCANLINE;
             // Account for DRAM refresh: charge 40 master clocks per scanline
             self.master_clocks += DRAM_REFRESH_MASTER_CLOCKS;
+            self.bus.hvbjoy.set_hblank(false);
 
             if self.current_scanline >= 1 && self.current_scanline <= 224 {
                 self.bus.run_hdma_scanline();
                 self.bus.ppu.render_scanline(self.current_scanline);
             }
-
-            self.current_scanline = (self.current_scanline + 1) % 262;
 
             match self.bus.interrupt_enable.h_v_irq_mode() {
                 HVIrqMode::Disabled => (),
@@ -101,6 +113,8 @@ impl SuperNintendo {
                     }
                 }
             }
+
+            self.current_scanline = (self.current_scanline + 1) % 262;
 
             self.bus.ppu.current_scanline = self.current_scanline;
 
@@ -120,7 +134,12 @@ impl SuperNintendo {
                 self.bus.init_hdma();
                 self.bus.hvbjoy.set_vblank(false);
                 self.frame_complete = true;
+
+                self.irq_fire_scanlines_last_frame =
+                    std::mem::take(&mut self.irq_fire_scanlines_this_frame);
             }
+        } else if self.master_clocks >= HBLANK_START_MASTER_CLOCKS && !self.bus.hvbjoy.hblank() {
+            self.bus.hvbjoy.set_hblank(true);
         }
     }
 
@@ -168,6 +187,16 @@ impl SuperNintendo {
             self.irq_first_vtime.unwrap_or(0xFFFF),
             self.bus.irq_pending,
         ));
+        hdma_dump.push_str(&format!(
+            "\nIRQ fires last complete frame ({} entries, fire_scanline | vtime_at_fire | htime_at_fire):",
+            self.irq_fire_scanlines_last_frame.len()
+        ));
+        for (scan, vt, ht) in &self.irq_fire_scanlines_last_frame {
+            hdma_dump.push_str(&format!(
+                "\n  V={:3} vtime=0x{:04X} htime=0x{:04X}",
+                scan, vt, ht
+            ));
+        }
 
         let irq_vec_lo = self.bus.read(0x00FFEE) as u16;
         let irq_vec_hi = self.bus.read(0x00FFEF) as u16;

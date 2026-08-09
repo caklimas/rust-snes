@@ -11,7 +11,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | All 256 opcodes (0x00–0xFF) | ✅ Complete |
 | Emulation mode / native mode switching | ✅ Complete |
 | NMI handling | ✅ Complete |
-| IRQ handling | ✅ Complete |
+| IRQ handling | ✅ Complete | Native ($FFEE/EF) + emulation ($FFFE/FF) vectors; shared `enter_interrupt` helper with NMI; dispatched from `SuperNintendo::step` when `irq_pending && !I` |
 | WAI / STP | ✅ Complete |
 
 ---
@@ -123,9 +123,12 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| NMITIMEN ($4200) | ✅ Complete | NMI enable, auto-joypad enable |
+| NMITIMEN ($4200) | ✅ Complete | NMI enable (bit 7), H/V-IRQ mode (bits 5-4, `HVIrqMode` enum), auto-joypad (bit 0). Write of 0 to bits 5-4 acknowledges pending IRQ |
 | NMI status ($4210) | ✅ Complete | Clears on read |
-| HVBJOY ($4212) | ✅ Complete | vblank/hblank flags |
+| HVBJOY ($4212) | 🟡 Partial | vblank set/cleared at scanline 225/0; hblank approximated via master-clock threshold (`HBLANK_START_MASTER_CLOCKS = 1096`, ~17% of scanline) — unblocks F-Zero spin loops; bit 0 (auto-joypad busy) not implemented |
+| HTIMEL/HTIMEH ($4207/$4208) | ✅ Complete | 9-bit H-count trigger |
+| VTIMEL/VTIMEH ($4209/$420A) | ✅ Complete | 9-bit V-count trigger |
+| TIMEUP ($4211) | ✅ Complete | Read returns H/V-IRQ pending flag in bit 7; read-to-clear. Hardware edge case (read during active 4–8 master cycles doesn't clear) not implemented |
 | MDMAEN ($420B) | ✅ Complete | |
 | HDMAEN ($420C) | ✅ Complete | |
 | Hardware multiply ($4202–$4203, $4216–$4217) | ✅ Complete | 8x8→16 unsigned, result instant on $4203 write |
@@ -133,7 +136,6 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Joypad auto-read ($4218–$421F) | ✅ Complete | Controller 1 via InputOutput struct |
 | Keyboard input (winit) | ✅ Complete | Arrows=d-pad, Z=B, X=A, A=Y, S=X, Q=L, W=R, Enter=Start, RShift=Select |
 | Joypad serial ($4016–$4017) | ❌ Not implemented | |
-| IRQ timer ($4207–$420A) | ❌ Not implemented | |
 | MEMSEL ($420D) | ✅ Complete | FastROM enable for WS2 banks |
 | CPU I/O range ($4200–$5FFF) remainder | ⚠️ Stubbed | Returns 0 |
 | Joypad I/O range ($4000–$41FF) | ⚠️ Stubbed | Returns 0 |
@@ -145,20 +147,21 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Window creation (winit 0.30) | ✅ Complete | |
-| Framebuffer rendering (softbuffer 0.4) | ✅ Complete | BGR555 → u32, nearest-neighbour scale |
+| Framebuffer rendering (softbuffer 0.4) | ✅ Complete | BGR555 → u32, nearest-neighbour scale. 5-bit→8-bit conversion uses canonical `(x<<3)\|(x>>2)` so channel extremes reach 0/255 |
 | Frame pacing (vblank-driven) | ✅ Complete | `frame_complete()` gates redraws |
 | Pause (P key) | ✅ Complete | Toggles emulation; completes current frame before stopping |
 | Debug dump (D key, paused) | ✅ Complete | Writes CPU, SPC700, PPU state + NMI handler bytes to `docs/bugs/debug_dump.txt` |
-| Frame buffer dump (F key, paused) | ✅ Complete | Writes PPM image to `docs/bugs/frame_<timestamp>.ppm` |
+| Frame buffer dump (F key, paused) | ✅ Complete | Writes PNG image to `docs/bugs/frame_<timestamp>.png` via the `png` crate |
 
 ---
 
 ## Known Bugs
 
-### F-Zero title screen — garbage in sky/road area
-- **Symptom**: Logo and menu text render correctly; the sky gradient and perspective road below render as garbage. See `docs/bugs/fzero-title-garbage.md` for full debug notes.
-- **Key finding**: F-Zero's title is pure Mode 1, not Mode 7. Only HDMA effect is BG1 scroll jumping from (224, 36) to (1008, 440) at y=48.
-- **Next step**: use the new layer toggle keys (1/2/3/4) to isolate which layer produces the garbage — we added the infrastructure but never actually ran the test.
+### F-Zero title screen — Mode 7 pixel defects on scanlines 47–71 and 94, 105–118
+- **Symptom**: Title screen renders at the correct overall layout (sky/logo/menu/road), but pixel diff against reference shows large channel deltas (max 255) concentrated in the Mode-7 scanline bands. Visible as subtle shading/color differences at and just below the horizon.
+- **Root cause (narrowed)**: Mode 7 rendering bug. This is the *same* Mode 7 defect tracked in `docs/bugs/mode7-fzero-white-screen.md` — affine math, coordinate system, or 13-bit origin clipping. Not an IRQ, hblank, or color-conversion issue.
+- **What's already fixed**: H/V-IRQ dispatch, indirect HDMA, HVBJOY hblank approximation, canonical 5→8 bit color conversion, IRQ-before-increment ordering. F-Zero now fires its 4 per-frame IRQs (at V=18, 28, 47, 86) and the Mode 1→Mode 7 switch at V=47 applies cleanly.
+- **Previous investigation**: see `docs/bugs/fzero-title-garbage.md` for the earlier narrative (pre-IRQ state showed compressed repeating BG2 bands — since resolved).
 
 ### LttP Triforce intro — missing Triforce graphic
 - **Symptom**: The "1991, 1992" copyright text renders at the bottom, but the Triforce above it is missing. The rest of the intro works fine.
@@ -170,8 +173,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Mode 7 rendering — debug F-Zero garbage output** — white screen fixed (HDMA non-repeat); brightness, OBJ compositing, PPU multiply all implemented; rendering shows garbled track — likely affine math, coordinate system, or 13-bit origin clipping issue; see `docs/bugs/mode7-fzero-white-screen.md`
+1. **Mode 7 rendering — debug F-Zero pixel defects (scanlines 47–71, 94, 105–118)** — IRQ, hblank, color conversion now correct; remaining F-Zero title defect is Mode 7 rendering itself. Likely affine math, coordinate system, or 13-bit origin clipping; see `docs/bugs/mode7-fzero-white-screen.md` and `docs/bugs/fzero-title-garbage.md`
 2. **SPC700 opcodes** — implement remaining opcodes as games hit them (currently logs unimplemented opcodes and skips)
 3. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
 4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
-5. **IRQ timer** — H/V count IRQ ($4207–$420A)
