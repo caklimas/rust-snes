@@ -78,6 +78,14 @@ pub const COLDATA: u32 = 0x002132;
 
 pub const SETINI: u32 = 0x002133;
 
+pub const SLHV: u32 = 0x002137;
+
+pub const OPHCT: u32 = 0x00213C;
+pub const OPVCT: u32 = 0x00213D;
+
+pub const STAT77: u32 = 0x00213E;
+pub const STAT78: u32 = 0x00213F;
+
 // OAM
 pub const OAMADD_LO: u32 = 0x002102;
 pub const OAMADD_HI: u32 = 0x002103;
@@ -90,6 +98,20 @@ pub const VMADDL: u32 = 0x002116;
 pub const VMADDH: u32 = 0x002117;
 pub const VMDATAL: u32 = 0x002118;
 pub const VMDATAH: u32 = 0x002119;
+
+// Mode 7
+pub const M7SEL: u32 = 0x00211A;
+pub const M7A: u32 = 0x00211B;
+pub const M7B: u32 = 0x00211C;
+pub const M7C: u32 = 0x00211D;
+pub const M7D: u32 = 0x00211E;
+pub const M7X: u32 = 0x00211F;
+pub const M7Y: u32 = 0x002120;
+pub const MPYL: u32 = 0x002134;
+pub const MPYM: u32 = 0x002135;
+pub const MPYH: u32 = 0x002136;
+pub const RDVRAML: u32 = 0x002139;
+pub const RDVRAMH: u32 = 0x00213A;
 
 // CGRAM
 pub const CGADD: u32 = 0x002121;
@@ -125,6 +147,24 @@ pub const CPU_IO_RANGE: RangeInclusive<u32> = CPU_IO_START..=CPU_IO_END;
 
 pub const NMITIMEN: u32 = 0x004200;
 
+// H/V-IRQ timer
+pub const HTIMEL: u32 = 0x004207;
+pub const HTIMEH: u32 = 0x004208;
+pub const VTIMEL: u32 = 0x004209;
+pub const VTIMEH: u32 = 0x00420A;
+pub const TIMEUP: u32 = 0x004211;
+
+// Hardware multiply/divide
+pub const WRMPYA: u32 = 0x004202;
+pub const WRMPYB: u32 = 0x004203;
+pub const WRDIVL: u32 = 0x004204;
+pub const WRDIVH: u32 = 0x004205;
+pub const WRDIVB: u32 = 0x004206;
+pub const RDDIVL: u32 = 0x004214;
+pub const RDDIVH: u32 = 0x004215;
+pub const RDMPYL: u32 = 0x004216;
+pub const RDMPYH: u32 = 0x004217;
+
 pub const JOY1L: u32 = 0x004218;
 pub const JOY1H: u32 = 0x004219;
 
@@ -148,6 +188,12 @@ pub const NMI_VECTOR_NATIVE_HI: u32 = 0x00FFEB;
 
 pub const NMI_VECTOR_EMULATOR_LO: u32 = 0x00FFFA;
 pub const NMI_VECTOR_EMULATOR_HI: u32 = 0x00FFFB;
+
+pub const IRQ_VECTOR_NATIVE_LO: u32 = 0x00FFEE;
+pub const IRQ_VECTOR_NATIVE_HI: u32 = 0x00FFEF;
+
+pub const IRQ_VECTOR_EMULATOR_LO: u32 = 0x00FFFE;
+pub const IRQ_VECTOR_EMULATOR_HI: u32 = 0x00FFFF;
 
 // Reset vectors
 pub const RESET_VECTOR_LO: u32 = 0x00FFFC;

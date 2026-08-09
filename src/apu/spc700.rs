@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::apu::{
     Apu,
@@ -30,8 +30,8 @@ impl Spc700 {
 
     pub fn step(&mut self) {
         let opcode = self.read_byte();
-
         execute_opcode(self, opcode);
+        self.io_ports.tick(1);
     }
 
     pub fn read_word_direct(&mut self, address: u32) -> u16 {
@@ -90,5 +90,37 @@ impl Spc700 {
 
     pub fn set_c(&mut self, left: u8, right: u8) {
         self.registers.psw.set_carry(left >= right);
+    }
+
+    pub fn push_byte(&mut self, value: u8) {
+        let address = 0x0100 | (self.registers.sp as u32);
+        self.write(address, value);
+        self.registers.sp = self.registers.sp.wrapping_sub(1);
+    }
+
+    pub fn pop_byte(&mut self) -> u8 {
+        self.registers.sp = self.registers.sp.wrapping_add(1);
+        let address = 0x0100 | (self.registers.sp as u32);
+        self.read(address)
+    }
+
+    pub fn push_word(&mut self, value: u16) {
+        let [lo, hi] = value.to_le_bytes();
+        self.push_byte(hi);
+        self.push_byte(lo);
+    }
+
+    pub fn pop_word(&mut self) -> u16 {
+        let lo = self.pop_byte();
+        let hi = self.pop_byte();
+        u16::from_le_bytes([lo, hi])
+    }
+}
+
+impl fmt::Debug for Spc700 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Spc700")
+            .field("registers", &self.registers)
+            .finish()
     }
 }

@@ -9,7 +9,8 @@ impl WindowBounds {
         match mode {
             0 => None,
             1 => Some(x >= self.left && x <= self.right),
-            2 => Some(x < self.left || x > self.right),
+            2 => None,
+            3 => Some(x < self.left || x > self.right),
             _ => unimplemented!(),
         }
     }

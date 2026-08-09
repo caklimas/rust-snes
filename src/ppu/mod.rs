@@ -1,23 +1,50 @@
+use std::{fmt, ops::RangeInclusive};
+
 use crate::{
     memory::addresses::{
         BG1HOFS, BG1SC, BG1VOFS, BG2HOFS, BG2SC, BG2VOFS, BG3HOFS, BG3SC, BG3VOFS, BG4HOFS, BG4SC,
         BG4VOFS, BG12NBA, BG34NBA, BGMODE, CGADD, CGADSUB, CGDATA, CGDATAREAD, CGWSEL, COLDATA,
-        INIDISP, MOSAIC, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL, SETINI, TM, TMW, TS,
-        TSW, VMADDH, VMADDL, VMAIN, VMDATAH, VMDATAL, W12SEL, W34SEL, WBGLOG, WH0, WH1, WH2, WH3,
-        WOBJLOG, WOBJSEL,
+        INIDISP, M7SEL, M7Y, MOSAIC, MPYH, MPYL, OAMADD_HI, OAMADD_LO, OAMDATA, OAMDATAREAD, OBSEL,
+        OPHCT, OPVCT, RDVRAMH, RDVRAML, SETINI, SLHV, STAT77, STAT78, TM, TMW, TS, TSW, VMADDH,
+        VMADDL, VMAIN, VMDATAH, VMDATAL, W12SEL, W34SEL, WBGLOG, WH0, WH1, WH2, WH3, WOBJLOG,
+        WOBJSEL,
     },
     ppu::{
-        bg_horizontal_offset::BgHorizontalOffset, bg_mode::BgMode, bg_sample::BgSample,
-        bg_sample_params::BgSampleParams, bg_tilemap::BgTilemap,
-        bg_vertical_offset::BgVerticalOffset, bpp_settings::BppSettings, cgadsub::Cgadsub,
-        cgram::Cgram, cgwsel::Cgwsel, coldata::Coldata, display::Display,
-        frame_buffer::FrameBuffer, mosaic::Mosaic, oam::Oam, obj_sample::ObjSample, obsel::Obsel,
-        palette_base::PaletteBase, priority_resolver::PriorityResolver, rgb::Rgb,
-        screen_designation::ScreenDesignation, screen_setting::ScreenSetting,
-        tile_graphic_base_address::TileGraphicBaseAddress, tilemap_entry::TilemapEntry, vram::Vram,
-        wbglog::Wbglog, window_bounds::WindowBounds, window_condition::WindowCondition,
-        window_layer_disable::WindowLayerDisable, window_mask_settings::WindowMaskSettings,
-        winning_layer::Layer, wobjlog::Wobjlog,
+        bg_horizontal_offset::BgHorizontalOffset,
+        bg_mode::BgMode,
+        bg_sample::BgSample,
+        bg_sample_params::{BgLayerConfig, BgSampleParams},
+        bg_tilemap::BgTilemap,
+        bg_vertical_offset::BgVerticalOffset,
+        bpp_settings::BppSettings,
+        cgadsub::Cgadsub,
+        cgram::Cgram,
+        cgwsel::Cgwsel,
+        coldata::Coldata,
+        display::Display,
+        frame_buffer::FrameBuffer,
+        mode_7::Mode7,
+        mosaic::Mosaic,
+        mosaic_config::MosaicConfig,
+        oam::Oam,
+        obj_sample::ObjSample,
+        obsel::Obsel,
+        palette_base::PaletteBase,
+        priority_resolver::PriorityResolver,
+        rgb::Rgb,
+        screen_designation::ScreenDesignation,
+        screen_setting::ScreenSetting,
+        stat78::Stat78,
+        tile_graphic_base_address::TileGraphicBaseAddress,
+        tilemap_entry::TilemapEntry,
+        vram::Vram,
+        wbglog::Wbglog,
+        window_bounds::WindowBounds,
+        window_condition::WindowCondition,
+        window_layer_disable::WindowLayerDisable,
+        window_mask_settings::WindowMaskSettings,
+        winning_layer::Layer,
+        wobjlog::Wobjlog,
     },
 };
 
@@ -36,7 +63,9 @@ pub mod display;
 pub mod frame_buffer;
 pub mod high_table_sprite;
 pub mod low_table_sprite;
+pub mod mode_7;
 pub mod mosaic;
+pub mod mosaic_config;
 pub mod oam;
 pub mod obj_sample;
 pub mod obsel;
@@ -46,6 +75,7 @@ pub mod priority_resolver;
 pub mod rgb;
 pub mod screen_designation;
 pub mod screen_setting;
+pub mod stat78;
 pub mod tile_graphic_base_address;
 pub mod tilemap_entry;
 pub mod vmain;
@@ -60,11 +90,16 @@ pub mod wobjlog;
 
 pub const SCREEN_WIDTH: u16 = 256;
 pub const SCREEN_HEIGHT: u16 = 224;
+pub const MODE_7_BOUNDS: RangeInclusive<i32> = 0..=1023;
 
 #[derive(Default)]
 pub struct Ppu {
+    pub cgram: Cgram,
+    pub current_scanline: u16,
+    pub debug_disabled_layers: u8,
     pub display: Display,
     pub oam: Oam,
+    pub scanline_trace: Vec<String>,
     pub vram: Vram,
     bg1: BgTilemap,
     bg2: BgTilemap,
@@ -75,15 +110,21 @@ pub struct Ppu {
     bg_mode: BgMode,
     bg_old: u8,
     cgadsub: Cgadsub,
-    cgram: Cgram,
     cgwsel: Cgwsel,
     coldata: Coldata,
+    current_x: u16,
     fixed_color: Rgb,
     frame_buffer: FrameBuffer,
     main_screen_designation: ScreenDesignation,
+    mode_7: Mode7,
     mosaic: Mosaic,
+    ophct_latch: u16,
+    opvct_latch: u16,
+    ophct_second_read: bool,
+    opvct_second_read: bool,
     obsel: Obsel,
     screen_setting: ScreenSetting,
+    stat78: Stat78,
     sub_screen_designation: ScreenDesignation,
     tile_graphic12: TileGraphicBaseAddress,
     tile_graphic34: TileGraphicBaseAddress,
@@ -96,7 +137,6 @@ pub struct Ppu {
     window_bounds_2: WindowBounds,
     wobjlog: Wobjlog,
     wobjsel: WindowMaskSettings,
-    pub current_scanline: u16,
 }
 
 impl Ppu {
@@ -138,240 +178,70 @@ impl Ppu {
         let palette_base = PaletteBase::new(&self.bg_mode);
         let brightness_factor = self.display.master_brightness() as u16 + 1;
 
-        for x in 0u16..SCREEN_WIDTH {
-            let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
-            if self.display.forced_blank() {
-                self.frame_buffer.0[index] = 0;
-                continue;
-            }
+        if y == 1 {
+            self.scanline_trace.clear();
+        }
+        self.scanline_trace.push(format!(
+            "y={:3} bgmode=0x{:02X}(m={} ts1={} ts2={}) bright={:2} \
+             bg1=0x{:02X}(base=0x{:04X} ms={}) bg2=0x{:02X}(base=0x{:04X} ms={}) \
+             nba12=0x{:02X} nba34=0x{:02X} \
+             bg1_hofs={:4} bg1_vofs={:4} bg2_hofs={:4} bg2_vofs={:4} \
+             bg3_hofs={:4} bg3_vofs={:4} \
+             tm=0x{:02X} ts=0x{:02X} \
+             cgwsel=0x{:02X} cgadsub=0x{:02X} coldata=0x{:02X} fixed=R{:02}G{:02}B{:02} \
+             bgdrop=0x{:04X}",
+            y,
+            self.bg_mode.0,
+            self.bg_mode.bg_mode(),
+            self.bg_mode.tile_size_1() as u8,
+            self.bg_mode.tile_size_2() as u8,
+            self.display.master_brightness(),
+            self.bg1.0,
+            self.bg1.get_vram_word_address(),
+            self.bg1.mirror_size(),
+            self.bg2.0,
+            self.bg2.get_vram_word_address(),
+            self.bg2.mirror_size(),
+            self.tile_graphic12.0,
+            self.tile_graphic34.0,
+            self.bg_horizontal_offset.bg1_offset,
+            self.bg_vertical_offset.bg1_offset,
+            self.bg_horizontal_offset.bg2_offset,
+            self.bg_vertical_offset.bg2_offset,
+            self.bg_horizontal_offset.bg3_offset,
+            self.bg_vertical_offset.bg3_offset,
+            self.main_screen_designation.0,
+            self.sub_screen_designation.0,
+            self.cgwsel.0,
+            self.cgadsub.0,
+            self.coldata.0,
+            self.fixed_color.red(),
+            self.fixed_color.green(),
+            self.fixed_color.blue(),
+            self.cgram.read_color(0),
+        ));
 
-            let mosaic_size = self.mosaic.mosaic_size() as u16 + 1;
-
-            let bg_1_params = BgSampleParams::new(
-                self.is_enabled(
-                    self.main_screen_designation.bg1_enable(),
-                    x as u8,
-                    self.w12sel.instance_1_window_1(),
-                    self.w12sel.instance_1_window_2(),
-                    self.wbglog.bg1_combine_logic(),
-                    self.tmw.bg1_disable(),
-                ),
-                self.is_enabled(
-                    self.sub_screen_designation.bg1_enable(),
-                    x as u8,
-                    self.w12sel.instance_1_window_1(),
-                    self.w12sel.instance_1_window_2(),
-                    self.wbglog.bg1_combine_logic(),
-                    self.tsw.bg1_disable(),
-                ),
-                x,
-                y,
-                &self.bg1,
-                self.bg_horizontal_offset.bg1_offset,
-                self.bg_vertical_offset.bg1_offset,
-                self.tile_graphic12.first_vram_word_address(),
-                bpp_settings.bg1,
-                palette_base.bg1,
-                self.bg_mode.tile_size_1(),
-                self.mosaic.bg1_enable(),
-                mosaic_size,
-            );
-
-            let bg_2_params = BgSampleParams::new(
-                self.is_enabled(
-                    self.main_screen_designation.bg2_enable(),
-                    x as u8,
-                    self.w12sel.instance_2_window_1(),
-                    self.w12sel.instance_2_window_2(),
-                    self.wbglog.bg2_combine_logic(),
-                    self.tmw.bg2_disable(),
-                ),
-                self.is_enabled(
-                    self.sub_screen_designation.bg2_enable(),
-                    x as u8,
-                    self.w12sel.instance_2_window_1(),
-                    self.w12sel.instance_2_window_2(),
-                    self.wbglog.bg2_combine_logic(),
-                    self.tsw.bg2_disable(),
-                ),
-                x,
-                y,
-                &self.bg2,
-                self.bg_horizontal_offset.bg2_offset,
-                self.bg_vertical_offset.bg2_offset,
-                self.tile_graphic12.second_vram_word_address(),
-                bpp_settings.bg2,
-                palette_base.bg2,
-                self.bg_mode.tile_size_2(),
-                self.mosaic.bg2_enable(),
-                mosaic_size,
-            );
-
-            let bg_3_params = BgSampleParams::new(
-                self.is_enabled(
-                    self.main_screen_designation.bg3_enable(),
-                    x as u8,
-                    self.w34sel.instance_1_window_1(),
-                    self.w34sel.instance_1_window_2(),
-                    self.wbglog.bg3_combine_logic(),
-                    self.tmw.bg3_disable(),
-                ),
-                self.is_enabled(
-                    self.sub_screen_designation.bg3_enable(),
-                    x as u8,
-                    self.w34sel.instance_1_window_1(),
-                    self.w34sel.instance_1_window_2(),
-                    self.wbglog.bg3_combine_logic(),
-                    self.tsw.bg3_disable(),
-                ),
-                x,
-                y,
-                &self.bg3,
-                self.bg_horizontal_offset.bg3_offset,
-                self.bg_vertical_offset.bg3_offset,
-                self.tile_graphic34.first_vram_word_address(),
-                bpp_settings.bg3,
-                palette_base.bg3,
-                self.bg_mode.tile_size_3(),
-                self.mosaic.bg3_enable(),
-                mosaic_size,
-            );
-
-            let bg_4_params = BgSampleParams::new(
-                self.is_enabled(
-                    self.main_screen_designation.bg4_enable(),
-                    x as u8,
-                    self.w34sel.instance_2_window_1(),
-                    self.w34sel.instance_2_window_2(),
-                    self.wbglog.bg4_combine_logic(),
-                    self.tmw.bg4_disable(),
-                ),
-                self.is_enabled(
-                    self.sub_screen_designation.bg4_enable(),
-                    x as u8,
-                    self.w34sel.instance_2_window_1(),
-                    self.w34sel.instance_2_window_2(),
-                    self.wbglog.bg4_combine_logic(),
-                    self.tsw.bg4_disable(),
-                ),
-                x,
-                y,
-                &self.bg4,
-                self.bg_horizontal_offset.bg4_offset,
-                self.bg_vertical_offset.bg4_offset,
-                self.tile_graphic34.second_vram_word_address(),
-                bpp_settings.bg4,
-                palette_base.bg4,
-                self.bg_mode.tile_size_4(),
-                self.mosaic.bg4_enable(),
-                mosaic_size,
-            );
-
-            let bg1_sample_main = self.bg_sample(&bg_1_params, true);
-            let bg2_sample_main = self.bg_sample(&bg_2_params, true);
-            let bg3_sample_main = self.bg_sample(&bg_3_params, true);
-            let bg4_sample_main = self.bg_sample(&bg_4_params, true);
-            let obj_sample_main = self.obj_sample(
-                x,
-                y,
-                self.is_enabled(
-                    self.main_screen_designation.obj_enable(),
-                    x as u8,
-                    self.wobjsel.instance_1_window_1(),
-                    self.wobjsel.instance_1_window_2(),
-                    self.wobjlog.obj_combine_logic(),
-                    self.tmw.obj_disable(),
-                ),
-            );
-
-            let priority_resolver_main = PriorityResolver::new(
-                bg1_sample_main,
-                bg2_sample_main,
-                bg3_sample_main,
-                bg4_sample_main,
-                obj_sample_main,
-            );
-            let sample_main = priority_resolver_main.get_sample(self.bg_mode);
-
-            let bg1_sample_sub = self.bg_sample(&bg_1_params, false);
-            let bg2_sample_sub = self.bg_sample(&bg_2_params, false);
-            let bg3_sample_sub = self.bg_sample(&bg_3_params, false);
-            let bg4_sample_sub = self.bg_sample(&bg_4_params, false);
-            let obj_sample_sub = self.obj_sample(
-                x,
-                y,
-                self.is_enabled(
-                    self.sub_screen_designation.obj_enable(),
-                    x as u8,
-                    self.wobjsel.instance_1_window_1(),
-                    self.wobjsel.instance_1_window_2(),
-                    self.wobjlog.obj_combine_logic(),
-                    self.tsw.obj_disable(),
-                ),
-            );
-
-            let priority_resolver_sub = PriorityResolver::new(
-                bg1_sample_sub,
-                bg2_sample_sub,
-                bg3_sample_sub,
-                bg4_sample_sub,
-                obj_sample_sub,
-            );
-            let sample_sub = priority_resolver_sub.get_sample(self.bg_mode);
-
-            let mut color = Rgb(match sample_main {
-                Some(wl) => self.cgram.read_color(wl.cgram_index as u16),
-                None => self.cgram.read_color(0),
-            });
-
-            let sub_color = match (self.cgwsel.sub_screen_enable(), sample_sub) {
-                (false, _) => self.fixed_color,
-                (true, Some(wl)) => Rgb(self.cgram.read_color(wl.cgram_index as u16)),
-                (true, None) => self.fixed_color,
-            };
-
-            let suppress_div2 = self.cgwsel.sub_screen_enable() && sample_sub.is_none();
-
-            let math_enabled = match &sample_main {
-                Some(wl) => match wl.layer {
-                    Layer::Bg1 => self.cgadsub.bg1(),
-                    Layer::Bg2 => self.cgadsub.bg2(),
-                    Layer::Bg3 => self.cgadsub.bg3(),
-                    Layer::Bg4 => self.cgadsub.bg4(),
-                    Layer::Obj => self.cgadsub.obj(),
-                },
-                None => self.cgadsub.backdrop(),
-            };
-
-            let math_window_active = self.is_layer_active(
-                x as u8,
-                self.wobjsel.instance_2_window_1(),
-                self.wobjsel.instance_2_window_2(),
-                self.wobjlog.math_combine_logic(),
-            );
-
-            match (
-                self.cgwsel.get_color_math_enable(),
-                math_window_active,
-                math_enabled,
-            ) {
-                (WindowCondition::Always, _, true) => {
-                    self.apply_color_math(&mut color, sub_color, suppress_div2)
-                }
-                (WindowCondition::MathWindow, true, true) => {
-                    self.apply_color_math(&mut color, sub_color, suppress_div2)
-                }
-                (WindowCondition::NotMathWin, false, true) => {
-                    self.apply_color_math(&mut color, sub_color, suppress_div2)
-                }
-                _ => {}
-            }
-
-            color.set_red((color.red() * brightness_factor) / 16);
-            color.set_green((color.green() * brightness_factor) / 16);
-            color.set_blue((color.blue() * brightness_factor) / 16);
-
-            self.frame_buffer.0[index] = color.0;
+        if self.bg_mode.bg_mode() == 7 {
+            self.scanline_trace.push(format!(
+                "  m7  m7sel=0x{:02X}(over={} vflip={} hflip={}) \
+                 m7a={:6} m7b={:6} m7c={:6} m7d={:6} \
+                 m7x={:5} m7y={:5} m7hofs={:5} m7vofs={:5}",
+                self.mode_7.m7sel.0,
+                self.mode_7.m7sel.screen_over_mode(),
+                self.mode_7.m7sel.vertical_flip() as u8,
+                self.mode_7.m7sel.horizontal_flip() as u8,
+                self.mode_7.affine_matrix.m7a,
+                self.mode_7.affine_matrix.m7b,
+                self.mode_7.affine_matrix.m7c,
+                self.mode_7.affine_matrix.m7d,
+                self.mode_7.rotation_scaling.m7x,
+                self.mode_7.rotation_scaling.m7y,
+                self.mode_7.scroll_offset.m7hofs,
+                self.mode_7.scroll_offset.m7vofs,
+            ));
+            self.mode_7_sample(y, brightness_factor);
+        } else {
+            self.mode_0_6_sample(y, bpp_settings, palette_base, brightness_factor);
         }
     }
 
@@ -389,10 +259,49 @@ impl Ppu {
             BG34NBA => self.tile_graphic34.0,
             TM => self.main_screen_designation.0,
             TS => self.sub_screen_designation.0,
+            MPYL..=MPYH => self.mode_7.read(address),
+            SLHV => {
+                self.ophct_latch = self.current_x;
+                self.opvct_latch = self.current_scanline;
+                0
+            }
+            OPHCT => {
+                let value = if self.ophct_second_read {
+                    (self.ophct_latch >> 8) as u8
+                } else {
+                    (self.ophct_latch & 0xFF) as u8
+                };
+
+                self.ophct_second_read = !self.ophct_second_read;
+
+                value
+            }
+            OPVCT => {
+                let value = if self.opvct_second_read {
+                    (self.opvct_latch >> 8) as u8
+                } else {
+                    (self.opvct_latch & 0xFF) as u8
+                };
+
+                self.opvct_second_read = !self.opvct_second_read;
+
+                value
+            }
+            STAT77 => 0x01,
+            STAT78 => {
+                let value = self.stat78;
+                self.stat78.set_latch_flag(false);
+                self.ophct_second_read = false;
+                self.opvct_second_read = false;
+
+                value.0
+            }
             OAMDATAREAD => self.oam.read_oamdata(),
             CGADD => 0,
             CGDATA => 0,
             CGDATAREAD => self.cgram.read_cgdata(),
+            RDVRAML => self.vram.read_data_lo(),
+            RDVRAMH => self.vram.read_data_hi(),
             _ => {
                 eprintln!("Unhandled PPU read: {:#06X}", address);
                 0
@@ -415,8 +324,14 @@ impl Ppu {
             BG4SC => self.bg4.0 = value,
             BG12NBA => self.tile_graphic12.0 = value,
             BG34NBA => self.tile_graphic34.0 = value,
-            BG1HOFS => self.set_horizontal_offset(1, value),
-            BG1VOFS => self.set_vertical_offset(1, value),
+            BG1HOFS => {
+                self.set_horizontal_offset(1, value);
+                self.mode_7.write(address, value);
+            }
+            BG1VOFS => {
+                self.set_vertical_offset(1, value);
+                self.mode_7.write(address, value);
+            }
             BG2HOFS => self.set_horizontal_offset(2, value),
             BG2VOFS => self.set_vertical_offset(2, value),
             BG3HOFS => self.set_horizontal_offset(3, value),
@@ -456,6 +371,7 @@ impl Ppu {
             }
             SETINI => self.screen_setting.0 = value,
             OAMDATAREAD => {}
+            STAT78 => {}
             VMAIN => self.vram.vmain.0 = value,
             VMADDL => self.vram.set_address_lo(value),
             VMADDH => self.vram.set_address_hi(value),
@@ -467,10 +383,397 @@ impl Ppu {
                 value,
                 !self.vram.rendering_active || self.display.forced_blank(),
             ),
+            M7SEL..=M7Y => self.mode_7.write(address, value),
             CGADD => self.cgram.write_cgadd(value),
             CGDATA => self.cgram.write_cgdata(value),
             CGDATAREAD => {}
             _ => eprintln!("Unhandled PPU write: {:#06X} = {:#04X}", address, value),
+        }
+    }
+
+    pub fn toggle_interlace_frame_counter(&mut self) {
+        let value = if self.screen_setting.screen_interlace() {
+            !self.stat78.interlace_frame_counter()
+        } else {
+            false
+        };
+
+        self.stat78.set_interlace_frame_counter(value);
+    }
+
+    fn mode_7_sample(&mut self, y: u16, brightness_factor: u16) {
+        for x in 0u16..SCREEN_WIDTH {
+            self.current_x = x;
+
+            let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
+            if self.display.forced_blank() {
+                self.frame_buffer.0[index] = 0;
+                continue;
+            }
+
+            let (sx, sy) = self.mode_7.m7sel.get_screen_flips(x, y);
+            let (vram_x, vram_y) = self.mode_7.get_vram_coords(sx, sy);
+
+            let mut int_x = vram_x >> 8;
+            let mut int_y = vram_y >> 8;
+            let mut force_tile_zero = false;
+
+            if !MODE_7_BOUNDS.contains(&int_x) || !MODE_7_BOUNDS.contains(&int_y) {
+                match self.mode_7.m7sel.screen_over_mode() {
+                    2 => {
+                        self.frame_buffer.0[index] = 0;
+                        continue;
+                    }
+                    3 => force_tile_zero = true,
+                    _ => (),
+                }
+            }
+
+            int_x &= 0x3FF;
+            int_y &= 0x3FF;
+
+            let pixel_x = int_x & 7;
+            let pixel_y = int_y & 7;
+
+            let tile_x = (int_x >> 3) & 127;
+            let tile_y = (int_y >> 3) & 127;
+
+            let tilemap_address = (tile_y as usize * 128 + tile_x as usize) * 2;
+            let tile_number = if force_tile_zero {
+                0
+            } else {
+                self.vram.read(tilemap_address)
+            };
+            let pixel_address =
+                (tile_number as usize * 64 + pixel_y as usize * 8 + pixel_x as usize) * 2 + 1;
+            let bg1_pixel_color = self.vram.read(pixel_address);
+            let obj_sample = self.obj_sample(
+                x,
+                y,
+                self.is_enabled(
+                    self.main_screen_designation.obj_enable(),
+                    x as u8,
+                    self.wobjsel.instance_1_window_1(),
+                    self.wobjsel.instance_1_window_2(),
+                    self.wobjlog.obj_combine_logic(),
+                    self.tmw.obj_disable(),
+                ),
+            );
+
+            let pixel_color = match (obj_sample, bg1_pixel_color) {
+                (
+                    Some(ObjSample {
+                        cg_ram_index,
+                        priority: 3,
+                    }),
+                    _,
+                ) => cg_ram_index,
+                (_, pc) if pc != 0 => pc,
+                (Some(sample), _) => sample.cg_ram_index,
+                _ => 0,
+            };
+
+            let mut color = Rgb(self.cgram.read_color(pixel_color as u16));
+
+            color.set_red((color.red() * brightness_factor) / 16);
+            color.set_green((color.green() * brightness_factor) / 16);
+            color.set_blue((color.blue() * brightness_factor) / 16);
+
+            self.frame_buffer.0[index] = color.0;
+        }
+    }
+
+    fn mode_0_6_sample(
+        &mut self,
+        y: u16,
+        bpp_settings: BppSettings,
+        palette_base: PaletteBase,
+        brightness_factor: u16,
+    ) {
+        let bg1_layer = BgLayerConfig {
+            bg_tilemap: &self.bg1,
+            horizontal_offset: self.bg_horizontal_offset.bg1_offset,
+            vertical_offset: self.bg_vertical_offset.bg1_offset,
+            char_base: self.tile_graphic12.first_vram_word_address(),
+            bpp_opt: bpp_settings.bg1,
+            palette_base: palette_base.bg1,
+            tile_size_16: self.bg_mode.tile_size_1(),
+        };
+        let bg2_layer = BgLayerConfig {
+            bg_tilemap: &self.bg2,
+            horizontal_offset: self.bg_horizontal_offset.bg2_offset,
+            vertical_offset: self.bg_vertical_offset.bg2_offset,
+            char_base: self.tile_graphic12.second_vram_word_address(),
+            bpp_opt: bpp_settings.bg2,
+            palette_base: palette_base.bg2,
+            tile_size_16: self.bg_mode.tile_size_2(),
+        };
+        let bg3_layer = BgLayerConfig {
+            bg_tilemap: &self.bg3,
+            horizontal_offset: self.bg_horizontal_offset.bg3_offset,
+            vertical_offset: self.bg_vertical_offset.bg3_offset,
+            char_base: self.tile_graphic34.first_vram_word_address(),
+            bpp_opt: bpp_settings.bg3,
+            palette_base: palette_base.bg3,
+            tile_size_16: self.bg_mode.tile_size_3(),
+        };
+        let bg4_layer = BgLayerConfig {
+            bg_tilemap: &self.bg4,
+            horizontal_offset: self.bg_horizontal_offset.bg4_offset,
+            vertical_offset: self.bg_vertical_offset.bg4_offset,
+            char_base: self.tile_graphic34.second_vram_word_address(),
+            bpp_opt: bpp_settings.bg4,
+            palette_base: palette_base.bg4,
+            tile_size_16: self.bg_mode.tile_size_4(),
+        };
+
+        for x in 0u16..SCREEN_WIDTH {
+            self.current_x = x;
+
+            let index = (((y - 1) * SCREEN_WIDTH) + x) as usize;
+            if self.display.forced_blank() {
+                self.frame_buffer.0[index] = 0;
+                continue;
+            }
+
+            let mosaic_size = self.mosaic.mosaic_size() as u16 + 1;
+            let bg1_mosaic = MosaicConfig {
+                enabled: self.mosaic.bg1_enable(),
+                size: mosaic_size,
+            };
+            let bg2_mosaic = MosaicConfig {
+                enabled: self.mosaic.bg2_enable(),
+                size: mosaic_size,
+            };
+            let bg3_mosaic = MosaicConfig {
+                enabled: self.mosaic.bg3_enable(),
+                size: mosaic_size,
+            };
+            let bg4_mosaic = MosaicConfig {
+                enabled: self.mosaic.bg4_enable(),
+                size: mosaic_size,
+            };
+
+            let bg1_mask = (self.debug_disabled_layers & 0x01) == 0;
+            let bg2_mask = (self.debug_disabled_layers & 0x02) == 0;
+            let bg3_mask = (self.debug_disabled_layers & 0x04) == 0;
+            let bg4_mask = (self.debug_disabled_layers & 0x08) == 0;
+            let obj_mask = (self.debug_disabled_layers & 0x10) == 0;
+
+            let bg_1_params = BgSampleParams::new(
+                self.is_enabled(
+                    bg1_mask && self.main_screen_designation.bg1_enable(),
+                    x as u8,
+                    self.w12sel.instance_1_window_1(),
+                    self.w12sel.instance_1_window_2(),
+                    self.wbglog.bg1_combine_logic(),
+                    self.tmw.bg1_disable(),
+                ),
+                self.is_enabled(
+                    bg1_mask && self.sub_screen_designation.bg1_enable(),
+                    x as u8,
+                    self.w12sel.instance_1_window_1(),
+                    self.w12sel.instance_1_window_2(),
+                    self.wbglog.bg1_combine_logic(),
+                    self.tsw.bg1_disable(),
+                ),
+                x,
+                y,
+                &bg1_layer,
+                &bg1_mosaic,
+            );
+
+            let bg_2_params = BgSampleParams::new(
+                self.is_enabled(
+                    bg2_mask && self.main_screen_designation.bg2_enable(),
+                    x as u8,
+                    self.w12sel.instance_2_window_1(),
+                    self.w12sel.instance_2_window_2(),
+                    self.wbglog.bg2_combine_logic(),
+                    self.tmw.bg2_disable(),
+                ),
+                self.is_enabled(
+                    bg2_mask && self.sub_screen_designation.bg2_enable(),
+                    x as u8,
+                    self.w12sel.instance_2_window_1(),
+                    self.w12sel.instance_2_window_2(),
+                    self.wbglog.bg2_combine_logic(),
+                    self.tsw.bg2_disable(),
+                ),
+                x,
+                y,
+                &bg2_layer,
+                &bg2_mosaic,
+            );
+
+            let bg_3_params = BgSampleParams::new(
+                self.is_enabled(
+                    bg3_mask && self.main_screen_designation.bg3_enable(),
+                    x as u8,
+                    self.w34sel.instance_1_window_1(),
+                    self.w34sel.instance_1_window_2(),
+                    self.wbglog.bg3_combine_logic(),
+                    self.tmw.bg3_disable(),
+                ),
+                self.is_enabled(
+                    bg3_mask && self.sub_screen_designation.bg3_enable(),
+                    x as u8,
+                    self.w34sel.instance_1_window_1(),
+                    self.w34sel.instance_1_window_2(),
+                    self.wbglog.bg3_combine_logic(),
+                    self.tsw.bg3_disable(),
+                ),
+                x,
+                y,
+                &bg3_layer,
+                &bg3_mosaic,
+            );
+
+            let bg_4_params = BgSampleParams::new(
+                self.is_enabled(
+                    bg4_mask && self.main_screen_designation.bg4_enable(),
+                    x as u8,
+                    self.w34sel.instance_2_window_1(),
+                    self.w34sel.instance_2_window_2(),
+                    self.wbglog.bg4_combine_logic(),
+                    self.tmw.bg4_disable(),
+                ),
+                self.is_enabled(
+                    bg4_mask && self.sub_screen_designation.bg4_enable(),
+                    x as u8,
+                    self.w34sel.instance_2_window_1(),
+                    self.w34sel.instance_2_window_2(),
+                    self.wbglog.bg4_combine_logic(),
+                    self.tsw.bg4_disable(),
+                ),
+                x,
+                y,
+                &bg4_layer,
+                &bg4_mosaic,
+            );
+
+            let bg1_sample_main = self.bg_sample(&bg_1_params, true);
+            let bg2_sample_main = self.bg_sample(&bg_2_params, true);
+            let bg3_sample_main = self.bg_sample(&bg_3_params, true);
+            let bg4_sample_main = self.bg_sample(&bg_4_params, true);
+            let obj_sample_main = self.obj_sample(
+                x,
+                y,
+                self.is_enabled(
+                    obj_mask && self.main_screen_designation.obj_enable(),
+                    x as u8,
+                    self.wobjsel.instance_1_window_1(),
+                    self.wobjsel.instance_1_window_2(),
+                    self.wobjlog.obj_combine_logic(),
+                    self.tmw.obj_disable(),
+                ),
+            );
+
+            let priority_resolver_main = PriorityResolver::new(
+                bg1_sample_main,
+                bg2_sample_main,
+                bg3_sample_main,
+                bg4_sample_main,
+                obj_sample_main,
+            );
+            let sample_main = priority_resolver_main.get_sample(self.bg_mode);
+
+            let bg1_sample_sub = self.bg_sample(&bg_1_params, false);
+            let bg2_sample_sub = self.bg_sample(&bg_2_params, false);
+            let bg3_sample_sub = self.bg_sample(&bg_3_params, false);
+            let bg4_sample_sub = self.bg_sample(&bg_4_params, false);
+            let obj_sample_sub = self.obj_sample(
+                x,
+                y,
+                self.is_enabled(
+                    obj_mask && self.sub_screen_designation.obj_enable(),
+                    x as u8,
+                    self.wobjsel.instance_1_window_1(),
+                    self.wobjsel.instance_1_window_2(),
+                    self.wobjlog.obj_combine_logic(),
+                    self.tsw.obj_disable(),
+                ),
+            );
+
+            let priority_resolver_sub = PriorityResolver::new(
+                bg1_sample_sub,
+                bg2_sample_sub,
+                bg3_sample_sub,
+                bg4_sample_sub,
+                obj_sample_sub,
+            );
+            let sample_sub = priority_resolver_sub.get_sample(self.bg_mode);
+
+            let mut color = Rgb(match sample_main {
+                Some(wl) => self.cgram.read_color(wl.cgram_index as u16),
+                None => self.cgram.read_color(0),
+            });
+
+            let math_window_active = self.is_layer_active(
+                x as u8,
+                self.wobjsel.instance_2_window_1(),
+                self.wobjsel.instance_2_window_2(),
+                self.wobjlog.math_combine_logic(),
+            );
+
+            let force_black = match self.cgwsel.get_force_main_screen_black() {
+                WindowCondition::Always => true,
+                WindowCondition::MathWindow => math_window_active,
+                WindowCondition::NotMathWin => !math_window_active,
+                WindowCondition::Never => false,
+            };
+
+            if force_black {
+                color = Rgb(0)
+            }
+
+            let sub_color = match (self.cgwsel.sub_screen_enable(), sample_sub) {
+                (false, _) => self.fixed_color,
+                (true, Some(wl)) => Rgb(self.cgram.read_color(wl.cgram_index as u16)),
+                (true, None) => self.fixed_color,
+            };
+
+            let suppress_div2 =
+                force_black || (self.cgwsel.sub_screen_enable() && sample_sub.is_none());
+
+            let math_enabled = match &sample_main {
+                Some(wl) => match wl.layer {
+                    Layer::Bg1 => self.cgadsub.bg1(),
+                    Layer::Bg2 => self.cgadsub.bg2(),
+                    Layer::Bg3 => self.cgadsub.bg3(),
+                    Layer::Bg4 => self.cgadsub.bg4(),
+                    Layer::Obj => {
+                        self.cgadsub.obj() && obj_sample_main.is_some_and(|s| s.cg_ram_index >= 192)
+                    }
+                },
+                None => self.cgadsub.backdrop(),
+            };
+
+            let math_globally_enabled = (self.debug_disabled_layers & 0x20) == 0;
+            if math_globally_enabled {
+                match (
+                    self.cgwsel.get_color_math_enable(),
+                    math_window_active,
+                    math_enabled,
+                ) {
+                    (WindowCondition::Always, _, true) => {
+                        self.apply_color_math(&mut color, sub_color, suppress_div2)
+                    }
+                    (WindowCondition::MathWindow, true, true) => {
+                        self.apply_color_math(&mut color, sub_color, suppress_div2)
+                    }
+                    (WindowCondition::NotMathWin, false, true) => {
+                        self.apply_color_math(&mut color, sub_color, suppress_div2)
+                    }
+                    _ => {}
+                }
+            }
+
+            color.set_red((color.red() * brightness_factor) / 16);
+            color.set_green((color.green() * brightness_factor) / 16);
+            color.set_blue((color.blue() * brightness_factor) / 16);
+
+            self.frame_buffer.0[index] = color.0;
         }
     }
 
@@ -794,5 +1097,95 @@ impl Ppu {
         color.set_red(r.clamp(0, 31) as u16);
         color.set_green(g.clamp(0, 31) as u16);
         color.set_blue(b.clamp(0, 31) as u16);
+    }
+}
+
+impl fmt::Debug for Ppu {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Ppu")
+            .field("mode", &self.bg_mode.bg_mode())
+            .field("forced_blank", &self.display.forced_blank())
+            .field("brightness", &self.display.master_brightness())
+            .field("scanline", &self.current_scanline)
+            .field(
+                "bg_hofs",
+                &[
+                    self.bg_horizontal_offset.bg1_offset,
+                    self.bg_horizontal_offset.bg2_offset,
+                    self.bg_horizontal_offset.bg3_offset,
+                    self.bg_horizontal_offset.bg4_offset,
+                ],
+            )
+            .field(
+                "bg_vofs",
+                &[
+                    self.bg_vertical_offset.bg1_offset,
+                    self.bg_vertical_offset.bg2_offset,
+                    self.bg_vertical_offset.bg3_offset,
+                    self.bg_vertical_offset.bg4_offset,
+                ],
+            )
+            .field(
+                "tm",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.main_screen_designation.bg1_enable(),
+                    self.main_screen_designation.bg2_enable(),
+                    self.main_screen_designation.bg3_enable(),
+                    self.main_screen_designation.bg4_enable(),
+                    self.main_screen_designation.obj_enable(),
+                ),
+            )
+            .field(
+                "ts",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.sub_screen_designation.bg1_enable(),
+                    self.sub_screen_designation.bg2_enable(),
+                    self.sub_screen_designation.bg3_enable(),
+                    self.sub_screen_designation.bg4_enable(),
+                    self.sub_screen_designation.obj_enable(),
+                ),
+            )
+            .field(
+                "window_1",
+                &format_args!(
+                    "left={} right={}",
+                    self.window_bounds_1.left, self.window_bounds_1.right
+                ),
+            )
+            .field(
+                "window_2",
+                &format_args!(
+                    "left={} right={}",
+                    self.window_bounds_2.left, self.window_bounds_2.right
+                ),
+            )
+            .field("w12sel", &format_args!("0x{:02X}", self.w12sel.0))
+            .field("w34sel", &format_args!("0x{:02X}", self.w34sel.0))
+            .field("wobjsel", &format_args!("0x{:02X}", self.wobjsel.0))
+            .field(
+                "tmw",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.tmw.bg1_disable(),
+                    self.tmw.bg2_disable(),
+                    self.tmw.bg3_disable(),
+                    self.tmw.bg4_disable(),
+                    self.tmw.obj_disable(),
+                ),
+            )
+            .field(
+                "tsw",
+                &format_args!(
+                    "BG1={} BG2={} BG3={} BG4={} OBJ={}",
+                    self.tsw.bg1_disable(),
+                    self.tsw.bg2_disable(),
+                    self.tsw.bg3_disable(),
+                    self.tsw.bg4_disable(),
+                    self.tsw.obj_disable(),
+                ),
+            )
+            .finish()
     }
 }

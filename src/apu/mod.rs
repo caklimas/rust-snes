@@ -37,7 +37,6 @@ impl Apu {
         match address {
             addr if APU_REGISTERS_RANGE.contains(&addr) => {
                 let index = self.get_index(address);
-                self.spc_to_cpu[index] = value;
                 self.cpu_to_spc[index] = value;
             }
             addr if CPU_IO_RANGE.contains(&addr) => {

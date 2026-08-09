@@ -7,6 +7,7 @@ pub struct DmaChannel {
     pub a1t: u16,
     pub a1b: u8,
     pub das: u16,
+    pub das_bank: u8,
     pub hdma_table_ptr: u16,
     pub hdma_line_counter: u8,
     pub hdma_do_transfer: bool,
@@ -22,6 +23,7 @@ impl DmaChannel {
             4 => self.a1b = value,
             5 => self.das = (self.das & 0xFF00) | (value as u16),
             6 => self.das = (self.das & 0x00FF) | ((value as u16) << 8),
+            7 => self.das_bank = value,
             _ => {}
         }
     }
