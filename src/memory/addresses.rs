@@ -78,6 +78,8 @@ pub const COLDATA: u32 = 0x002132;
 
 pub const SETINI: u32 = 0x002133;
 
+pub const STAT78: u32 = 0x00213F;
+
 // OAM
 pub const OAMADD_LO: u32 = 0x002102;
 pub const OAMADD_HI: u32 = 0x002103;

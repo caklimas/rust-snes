@@ -58,6 +58,10 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | COLDATA ($2132) | ✅ Complete | |
 | SETINI ($2133) | ✅ Complete | |
 | Mode 7 registers ($211A–$2120) | ✅ Complete | M7SEL, M7A–D, M7X/M7Y, M7HOFS/M7VOFS; double-write via m7_old latch; 13-bit sign-extend for center/scroll |
+| SLHV ($2137) | ❌ Not implemented | Software H/V counter latch trigger |
+| OPHCT / OPVCT ($213C–$213D) | ❌ Not implemented | Latched H/V counter reads with 1st/2nd-read flipflops (storage in place on Ppu, cleared on $213F read) |
+| STAT77 ($213E) | ❌ Not implemented | PPU1 status; OBJ overflow flags require sprite-eval refactor |
+| STAT78 ($213F) | ✅ Complete | `Stat78` bitfield (`src/ppu/stat78.rs`); defaults to 0x03 (PPU2 v3, NTSC); read clears latch_flag + both OPHCT/OPVCT flipflops; interlace_frame_counter toggles per frame when SETINI bit 0 set, forced 0 otherwise |
 
 ### Rendering
 

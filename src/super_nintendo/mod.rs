@@ -134,6 +134,7 @@ impl SuperNintendo {
                 self.bus.init_hdma();
                 self.bus.hvbjoy.set_vblank(false);
                 self.frame_complete = true;
+                self.bus.ppu.toggle_interlace_frame_counter();
 
                 self.irq_fire_scanlines_last_frame =
                     std::mem::take(&mut self.irq_fire_scanlines_this_frame);
