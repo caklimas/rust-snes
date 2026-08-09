@@ -709,13 +709,32 @@ impl Ppu {
                 None => self.cgram.read_color(0),
             });
 
+            let math_window_active = self.is_layer_active(
+                x as u8,
+                self.wobjsel.instance_2_window_1(),
+                self.wobjsel.instance_2_window_2(),
+                self.wobjlog.math_combine_logic(),
+            );
+
+            let force_black = match self.cgwsel.get_force_main_screen_black() {
+                WindowCondition::Always => true,
+                WindowCondition::MathWindow => math_window_active,
+                WindowCondition::NotMathWin => !math_window_active,
+                WindowCondition::Never => false,
+            };
+
+            if force_black {
+                color = Rgb(0)
+            }
+
             let sub_color = match (self.cgwsel.sub_screen_enable(), sample_sub) {
                 (false, _) => self.fixed_color,
                 (true, Some(wl)) => Rgb(self.cgram.read_color(wl.cgram_index as u16)),
                 (true, None) => self.fixed_color,
             };
 
-            let suppress_div2 = self.cgwsel.sub_screen_enable() && sample_sub.is_none();
+            let suppress_div2 =
+                force_black || (self.cgwsel.sub_screen_enable() && sample_sub.is_none());
 
             let math_enabled = match &sample_main {
                 Some(wl) => match wl.layer {
@@ -723,17 +742,12 @@ impl Ppu {
                     Layer::Bg2 => self.cgadsub.bg2(),
                     Layer::Bg3 => self.cgadsub.bg3(),
                     Layer::Bg4 => self.cgadsub.bg4(),
-                    Layer::Obj => self.cgadsub.obj(),
+                    Layer::Obj => {
+                        self.cgadsub.obj() && obj_sample_main.is_some_and(|s| s.cg_ram_index >= 192)
+                    }
                 },
                 None => self.cgadsub.backdrop(),
             };
-
-            let math_window_active = self.is_layer_active(
-                x as u8,
-                self.wobjsel.instance_2_window_1(),
-                self.wobjsel.instance_2_window_2(),
-                self.wobjlog.math_combine_logic(),
-            );
 
             let math_globally_enabled = (self.debug_disabled_layers & 0x20) == 0;
             if math_globally_enabled {
