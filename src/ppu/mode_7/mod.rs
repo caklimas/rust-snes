@@ -36,6 +36,25 @@ impl Mode7 {
         }
     }
 
+    pub fn get_origin_relative_coords(&self, sx: u16, sy: u16) -> (i32, i32) {
+        let org_x = sx as i32 + self.scroll_offset.m7hofs as i32 - self.rotation_scaling.m7x as i32;
+        let org_y = sy as i32 + self.scroll_offset.m7vofs as i32 - self.rotation_scaling.m7y as i32;
+
+        (org_x, org_y)
+    }
+
+    pub fn get_affine_transform(&self, org_x: i32, org_y: i32) -> (i32, i32) {
+        let vram_x = self.affine_matrix.m7a as i32 * org_x
+            + self.affine_matrix.m7b as i32 * org_y
+            + ((self.rotation_scaling.m7x as i32) << 8);
+
+        let vram_y = self.affine_matrix.m7c as i32 * org_x
+            + self.affine_matrix.m7d as i32 * org_y
+            + ((self.rotation_scaling.m7y as i32) << 8);
+
+        (vram_x, vram_y)
+    }
+
     fn get_affine_value(&mut self, value: u8) -> i16 {
         let updated_value = ((value as i16) << 8) | (self.m7_old as i16);
         self.m7_old = value;

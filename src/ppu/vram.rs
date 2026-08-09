@@ -13,6 +13,10 @@ impl Vram {
         self.address_register
     }
 
+    pub fn read(&self, address: usize) -> u8 {
+        self.data[address]
+    }
+
     pub fn read_word(&self, address: u16) -> u16 {
         let index = (address * 2) as usize;
         let lo = self.data[index];
