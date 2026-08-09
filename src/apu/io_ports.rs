@@ -49,6 +49,14 @@ impl IoPorts {
         }
     }
 
+    pub fn tick(&mut self, spc_ticks: u8) {
+        for (index, timer) in self.timers.iter_mut().enumerate() {
+            if self.control.is_timer_enabled(index) {
+                timer.tick(spc_ticks);
+            }
+        }
+    }
+
     fn get_dsp_address(&self) -> usize {
         (self.dsp_address & 0x7F) as usize
     }
@@ -73,7 +81,7 @@ impl Default for IoPorts {
             control: Default::default(),
             dsp_address: Default::default(),
             dsp_registers: [0; 128],
-            timers: Default::default(),
+            timers: [Timer::new(128), Timer::new(128), Timer::new(16)],
         }
     }
 }

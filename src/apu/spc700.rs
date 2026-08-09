@@ -30,8 +30,8 @@ impl Spc700 {
 
     pub fn step(&mut self) {
         let opcode = self.read_byte();
-
         execute_opcode(self, opcode);
+        self.io_ports.tick(1);
     }
 
     pub fn read_word_direct(&mut self, address: u32) -> u16 {

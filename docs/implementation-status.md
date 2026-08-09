@@ -118,7 +118,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | SPC700 IPL ROM | ✅ Complete | 64-byte boot ROM embedded as `IPL_ROM` constant; IPL handshake verified working (LttP boots) |
 | SPC700 instruction decoder | ✅ Complete | All 256 opcodes implemented; integrated into main loop with clock accumulator (768 SPC clocks per 1364 main clocks) |
 | SPC700 execution integration | ✅ Complete | `spc_clocks: i32` accumulator on `SuperNintendo`; SPC700 steps proportionally alongside main CPU |
-| SPC700 timers (T0–T2) | ❌ Not implemented | Divider/counter storage in place, no tick logic yet |
+| SPC700 timers (T0–T2) | ✅ Complete | Tick logic in `Timer::tick()`; T0/T1 every 128 SPC clocks (8 kHz), T2 every 16 (64 kHz); enable gated by CONTROL bits 0–2; ticked from `Spc700::step()` |
 | DSP / audio output | ❌ Not implemented | |
 
 ---
@@ -181,6 +181,5 @@ This file tracks what has been implemented, what is stubbed, and what still need
 1. **Mode 7 gradient defect (F-Zero scanlines 47–83)** — narrowed to Mode 7 affine math or per-scanline M7B handling, NOT register write timing. See `docs/bugs/fzero-mode7-gradient.md` for full investigation history and the diagnostic fingerprint.
 2. **LttP black screen after name selection** — game polls $213D/$213E/$2137 (now stubbed), reads $213F (now properly returning 0x03), but still black-screens. Needs PPU state dump at the failure point to triage (forced_blank, master_brightness, TM, CGRAM, or VRAM as candidates).
 3. **Remaining $213C-$213E PPU registers** — STAT78 done; SLHV/OPHCT/OPVCT/STAT77 not yet wired. Storage for OPHCT/OPVCT flipflops already in place.
-4. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
-5. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
-6. **DSP / audio output** — needed for actual sound
+4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
+5. **DSP / audio output** — needed for actual sound
