@@ -53,10 +53,15 @@ The initial cursor position is on H, but selecting a character selects the one t
 - **Hardware multiply/divide was missing** — implemented ($4202-$4206 write, $4214-$4217 read), but did not fix this bug
 - **Conclusion**: the game's NMI handler reaches OAM DMA (sprites update) but never reaches the code that writes BG1HOFS. Some game logic condition is not being met, likely due to a read returning an incorrect value from an unimplemented or stubbed register
 
+## Registers ruled out
+- **$4211 (TIMEUP)** is the ONLY unhandled CPU I/O read (confirmed by adding logging to InputOutput catch-all). Returns 0 which is correct for no IRQ pending.
+- All PPU reads are handled — no "Unhandled PPU read" messages on the name screen
+- Hardware multiply/divide ($4202-$4206, $4214-$4217) was missing and has been implemented, but did NOT fix this bug
+
 ## Next steps
-- Trace what the NMI handler actually executes — disassemble the code at the NMI vector and step through to find where it branches away from the scroll update
-- Check if the game reads any I/O register ($4200-$5FFF) that returns 0 from the `InputOutput` catch-all and uses it for a branch decision
-- Compare against a reference emulator (bsnes trace log) to find the divergence point
+- **Debug dump now includes NMI handler bytes** — press D on name screen to capture the NMI vector address and first 32 bytes of handler code. Disassemble to find where the handler branches away from the scroll/tilemap update.
+- The game's NMI handler reaches OAM DMA (sprites update) but never writes to BG1HOFS or updates the BG1 tilemap in VRAM. Something in the handler's control flow skips the scroll update path.
+- Could also be a DMA issue for transfer modes 3-5 (only 0/1/2 implemented) — unlikely but worth checking if the handler disassembly shows a DMA-based tilemap update
 
 ## Debug infrastructure added
 - `D` key (while paused) writes CPU/SPC700/PPU state to `docs/bugs/debug_dump.txt`
