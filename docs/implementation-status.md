@@ -178,8 +178,9 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Mode 7 gradient defect (F-Zero scanlines 47–83)** — narrowed to Mode 7 affine math or per-scanline M7B handling, NOT register write timing. See `docs/bugs/fzero-mode7-gradient.md` for full investigation history and the diagnostic fingerprint.
-2. **LttP black screen after name selection** — game polls $213D/$213E/$2137 (now stubbed), reads $213F (now properly returning 0x03), but still black-screens. Needs PPU state dump at the failure point to triage (forced_blank, master_brightness, TM, CGRAM, or VRAM as candidates).
-3. **Remaining $213C-$213E PPU registers** — STAT78 done; SLHV/OPHCT/OPVCT/STAT77 not yet wired. Storage for OPHCT/OPVCT flipflops already in place.
-4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
-5. **DSP / audio output** — needed for actual sound
+1. **PPU status registers ($2137/$213C/$213D/$213E)** — LttP black-screens after name selection because it reads these. $2137 (SLHV) latches H/V counters; $213C/$213D (OPHCT/OPVCT) return latched values with first/second read flipflops (booleans already on Ppu, $213F reset logic already wired); $213E (STAT77) needs to return version=1 in bits 0-3. V counter = `current_scanline`; H counter needs deriving from master_clocks within scanline (or approximate for now). This is the most likely fix for LttP.
+2. **SMW visual bugs** — overworld: Mario's colors appear oversaturated (color math issue?). In-game: Yoshi's tongue doesn't fully extend (sprite positioning?).
+3. **Mode 7 gradient defect (F-Zero scanlines 47–83)** — narrowed to Mode 7 affine math or per-scanline M7B handling, NOT register write timing. See `docs/bugs/fzero-mode7-gradient.md` for full investigation history and the diagnostic fingerprint.
+4. **LttP Triforce intro — missing Triforce graphic** — suspected VRAM write guard timing issue (see Known Bugs section).
+5. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
+6. **DSP / audio output** — needed for actual sound
