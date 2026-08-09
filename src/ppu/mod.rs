@@ -269,7 +269,9 @@ impl Ppu {
              nba12=0x{:02X} nba34=0x{:02X} \
              bg1_hofs={:4} bg1_vofs={:4} bg2_hofs={:4} bg2_vofs={:4} \
              bg3_hofs={:4} bg3_vofs={:4} \
-             tm=0x{:02X} ts=0x{:02X}",
+             tm=0x{:02X} ts=0x{:02X} \
+             cgwsel=0x{:02X} cgadsub=0x{:02X} coldata=0x{:02X} fixed=R{:02}G{:02}B{:02} \
+             bgdrop=0x{:04X}",
             y,
             self.bg_mode.0,
             self.bg_mode.bg_mode(),
@@ -292,6 +294,13 @@ impl Ppu {
             self.bg_vertical_offset.bg3_offset,
             self.main_screen_designation.0,
             self.sub_screen_designation.0,
+            self.cgwsel.0,
+            self.cgadsub.0,
+            self.coldata.0,
+            self.fixed_color.red(),
+            self.fixed_color.green(),
+            self.fixed_color.blue(),
+            self.cgram.read_color(0),
         ));
 
         if self.bg_mode.bg_mode() == 7 {
@@ -741,21 +750,24 @@ impl Ppu {
                 self.wobjlog.math_combine_logic(),
             );
 
-            match (
-                self.cgwsel.get_color_math_enable(),
-                math_window_active,
-                math_enabled,
-            ) {
-                (WindowCondition::Always, _, true) => {
-                    self.apply_color_math(&mut color, sub_color, suppress_div2)
+            let math_globally_enabled = (self.debug_disabled_layers & 0x20) == 0;
+            if math_globally_enabled {
+                match (
+                    self.cgwsel.get_color_math_enable(),
+                    math_window_active,
+                    math_enabled,
+                ) {
+                    (WindowCondition::Always, _, true) => {
+                        self.apply_color_math(&mut color, sub_color, suppress_div2)
+                    }
+                    (WindowCondition::MathWindow, true, true) => {
+                        self.apply_color_math(&mut color, sub_color, suppress_div2)
+                    }
+                    (WindowCondition::NotMathWin, false, true) => {
+                        self.apply_color_math(&mut color, sub_color, suppress_div2)
+                    }
+                    _ => {}
                 }
-                (WindowCondition::MathWindow, true, true) => {
-                    self.apply_color_math(&mut color, sub_color, suppress_div2)
-                }
-                (WindowCondition::NotMathWin, false, true) => {
-                    self.apply_color_math(&mut color, sub_color, suppress_div2)
-                }
-                _ => {}
             }
 
             color.set_red((color.red() * brightness_factor) / 16);

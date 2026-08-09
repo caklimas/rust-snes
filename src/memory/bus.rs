@@ -6,15 +6,15 @@ use crate::{
     memory::{
         addresses::{
             APU_REGISTERS_RANGE, CPU_IO_RANGE, DMA_REGISTERS_RANGE, DMA_REGISTERS_START, HDMAEN,
-            HVBJOY, MDMAEN, MEMSEL, NMI_STATUS_REGISTER, NMITIMEN, PPU_REGISTERS_RANGE,
-            PPU_REGISTERS_START, UNUSED_IO_GAP_RANGE, UNUSED_UPPER_GAP_RANGE, WMADDH, WMADDL,
-            WMADDM, WMDATA, WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE,
-            WRAM_START,
+            HTIMEH, HTIMEL, HVBJOY, MDMAEN, MEMSEL, NMI_STATUS_REGISTER, NMITIMEN,
+            PPU_REGISTERS_RANGE, PPU_REGISTERS_START, TIMEUP, UNUSED_IO_GAP_RANGE,
+            UNUSED_UPPER_GAP_RANGE, VTIMEH, VTIMEL, WMADDH, WMADDL, WMADDM, WMDATA,
+            WRAM_MIRROR_OFFSET_END, WRAM_MIRROR_OFFSET_START, WRAM_RANGE, WRAM_START,
         },
         cartridge::Cartridge,
         dma_channel::DmaChannel,
         hvbjoy::Hvbjoy,
-        interrupt_enable::InterruptEnable,
+        interrupt_enable::{HVIrqMode, InterruptEnable},
         memory_bus::MemoryBus,
         memory_region::MemoryRegion,
         memory_select::MemorySelect,
@@ -29,17 +29,20 @@ const SYSTEM_MIRROR_MASK: u32 = 0x7FFFFF;
 const WRAM_ACCESS_MASK: u32 = 0x1FFFF;
 
 pub struct Bus {
+    pub dma_channels: [DmaChannel; 8],
+    pub hdmaen: u8,
+    pub htime: u16,
     pub hvbjoy: Hvbjoy,
     pub input_output: InputOutput,
     pub interrupt_enable: InterruptEnable,
+    pub irq_pending: bool,
     pub memory_select: MemorySelect,
     pub nmi_status: NmiStatus,
     pub ppu: Ppu,
+    pub vtime: u16,
 
     apu: Rc<RefCell<Apu>>,
     cartridge: Cartridge,
-    pub dma_channels: [DmaChannel; 8],
-    pub hdmaen: u8,
     wram: MemoryRegion,
     wram_access_address: WramAccessAddress,
 }
@@ -51,12 +54,15 @@ impl Bus {
             cartridge: Cartridge::new(data),
             dma_channels: [Default::default(); 8],
             hdmaen: 0,
+            htime: 0x01FF,
             hvbjoy: Default::default(),
             input_output: Default::default(),
             interrupt_enable: Default::default(),
+            irq_pending: false,
             memory_select: Default::default(),
             nmi_status: Default::default(),
             ppu: Default::default(),
+            vtime: 0x01FF,
             wram: MemoryRegion::new(vec![0; 131072], WRAM_START),
             wram_access_address: WramAccessAddress::default(),
         }
@@ -89,6 +95,12 @@ impl Bus {
             addr if PPU_REGISTERS_RANGE.contains(&addr) => self.ppu.read(addr),
             addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.borrow_mut().read(addr),
             NMITIMEN => 0,
+            HTIMEL..=VTIMEH => 0,
+            TIMEUP => {
+                let value = (self.irq_pending as u8) << 7;
+                self.irq_pending = false;
+                value
+            }
             HVBJOY => (self.hvbjoy.vblank() as u8) << 7,
             addr if CPU_IO_RANGE.contains(&addr) => self.input_output.read(addr),
             _ => self.cartridge.read(address),
@@ -170,7 +182,16 @@ impl Bus {
                 self.ppu.write(addr, value);
             }
             addr if APU_REGISTERS_RANGE.contains(&addr) => self.apu.borrow_mut().write(addr, value),
-            NMITIMEN => self.interrupt_enable.0 = value,
+            NMITIMEN => {
+                self.interrupt_enable.0 = value;
+                if matches!(self.interrupt_enable.h_v_irq_mode(), HVIrqMode::Disabled) {
+                    self.irq_pending = false;
+                }
+            }
+            HTIMEL => self.htime = (self.htime & 0xFF00) | (value as u16),
+            HTIMEH => self.htime = (self.htime & 0xFF) | (((value & 0x01) as u16) << 8),
+            VTIMEL => self.vtime = (self.vtime & 0xFF00) | (value as u16),
+            VTIMEH => self.vtime = (self.vtime & 0xFF) | (((value & 0x01) as u16) << 8),
             MEMSEL => self.memory_select.0 = value,
             addr if CPU_IO_RANGE.contains(&addr) => self.input_output.write(addr, value),
             _ => self.cartridge.write(address, value),
@@ -183,13 +204,31 @@ impl Bus {
             if channel_enabled {
                 let a1b = self.dma_channels[i as usize].a1b;
                 let a1t = self.dma_channels[i as usize].a1t;
+                let indirect = self.dma_channels[i as usize].dmap.indirect_hdma();
                 let address = ((a1b as u32) << 16) | (a1t as u32);
                 let line_counter = self.read(address);
-                let channel = &mut self.dma_channels[i as usize];
 
-                channel.hdma_table_ptr = a1t + 1;
+                let table_ptr_after_counter = a1t.wrapping_add(1);
+                let (new_das, new_table_ptr) = if indirect {
+                    let ptr_lo = self.read(((a1b as u32) << 16) | (table_ptr_after_counter as u32));
+                    let ptr_hi = self.read(
+                        ((a1b as u32) << 16) | (table_ptr_after_counter.wrapping_add(1) as u32),
+                    );
+                    (
+                        Some(u16::from_le_bytes([ptr_lo, ptr_hi])),
+                        table_ptr_after_counter.wrapping_add(2),
+                    )
+                } else {
+                    (None, table_ptr_after_counter)
+                };
+
+                let channel = &mut self.dma_channels[i as usize];
+                channel.hdma_table_ptr = new_table_ptr;
                 channel.hdma_line_counter = line_counter;
                 channel.hdma_do_transfer = true;
+                if let Some(das) = new_das {
+                    channel.das = das;
+                }
             }
         }
     }
@@ -202,10 +241,19 @@ impl Bus {
                 let hdma_table_ptr = self.dma_channels[i as usize].hdma_table_ptr;
                 let bbad = self.dma_channels[i as usize].bbad;
                 let dmap = self.dma_channels[i as usize].dmap;
+                let indirect = dmap.indirect_hdma();
 
                 if self.dma_channels[i as usize].hdma_do_transfer {
-                    let mut bytes_consumed = 0;
-                    let address = ((a1b as u32) << 16) | (hdma_table_ptr as u32);
+                    let mut bytes_consumed = 0u16;
+                    let (source_bank, source_offset) = if indirect {
+                        (
+                            self.dma_channels[i as usize].das_bank,
+                            self.dma_channels[i as usize].das,
+                        )
+                    } else {
+                        (a1b, hdma_table_ptr)
+                    };
+                    let address = ((source_bank as u32) << 16) | (source_offset as u32);
                     let data = self.read(address);
 
                     match dmap.transfer_mode() {
@@ -256,32 +304,48 @@ impl Bus {
                         _ => {}
                     }
 
-                    self.dma_channels[i as usize].hdma_table_ptr = self.dma_channels[i as usize]
-                        .hdma_table_ptr
-                        .wrapping_add(bytes_consumed);
+                    let channel = &mut self.dma_channels[i as usize];
+                    if indirect {
+                        channel.das = channel.das.wrapping_add(bytes_consumed);
+                    } else {
+                        channel.hdma_table_ptr =
+                            channel.hdma_table_ptr.wrapping_add(bytes_consumed);
+                    }
                 }
 
-                self.dma_channels[i as usize].hdma_line_counter = self.dma_channels[i as usize]
-                    .hdma_line_counter
-                    .wrapping_sub(1);
-
-                self.dma_channels[i as usize].hdma_do_transfer =
-                    self.dma_channels[i as usize].hdma_line_counter & 0x80 != 0;
+                let channel = &mut self.dma_channels[i as usize];
+                channel.hdma_line_counter = channel.hdma_line_counter.wrapping_sub(1);
+                channel.hdma_do_transfer = channel.hdma_line_counter & 0x80 != 0;
 
                 if self.dma_channels[i as usize].hdma_line_counter & 0x7F == 0 {
-                    let value = self.read(
-                        ((a1b as u32) << 16)
-                            | (self.dma_channels[i as usize].hdma_table_ptr as u32),
-                    );
-
-                    self.dma_channels[i as usize].hdma_table_ptr =
-                        self.dma_channels[i as usize].hdma_table_ptr.wrapping_add(1);
+                    let table_ptr = self.dma_channels[i as usize].hdma_table_ptr;
+                    let value = self.read(((a1b as u32) << 16) | (table_ptr as u32));
+                    let after_counter = table_ptr.wrapping_add(1);
 
                     if value == 0 {
+                        self.dma_channels[i as usize].hdma_table_ptr = after_counter;
                         self.hdmaen &= !(1 << i);
                     } else {
-                        self.dma_channels[i as usize].hdma_line_counter = value;
-                        self.dma_channels[i as usize].hdma_do_transfer = true;
+                        let (new_das, new_table_ptr) = if indirect {
+                            let ptr_lo = self.read(((a1b as u32) << 16) | (after_counter as u32));
+                            let ptr_hi = self.read(
+                                ((a1b as u32) << 16) | (after_counter.wrapping_add(1) as u32),
+                            );
+                            (
+                                Some(u16::from_le_bytes([ptr_lo, ptr_hi])),
+                                after_counter.wrapping_add(2),
+                            )
+                        } else {
+                            (None, after_counter)
+                        };
+
+                        let channel = &mut self.dma_channels[i as usize];
+                        channel.hdma_table_ptr = new_table_ptr;
+                        channel.hdma_line_counter = value;
+                        channel.hdma_do_transfer = true;
+                        if let Some(das) = new_das {
+                            channel.das = das;
+                        }
                     }
                 }
             }

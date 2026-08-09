@@ -215,17 +215,28 @@ impl ApplicationHandler for App {
                             .duration_since(SystemTime::UNIX_EPOCH)
                             .unwrap()
                             .as_millis();
-                        let path = format!("docs/bugs/frame_{}.ppm", timestamp);
+                        let path = format!("docs/bugs/frame_{}.png", timestamp);
                         let frame = self.super_nintendo.frame_buffer();
-                        let mut file = std::fs::File::create(&path).unwrap();
-                        let _ = write!(file, "P6\n256 224\n255\n");
+
+                        let mut rgb_bytes = Vec::with_capacity(
+                            (SCREEN_WIDTH as usize) * (SCREEN_HEIGHT as usize) * 3,
+                        );
                         for &pixel in frame.iter() {
                             let rgb = Rgb(pixel);
-                            let r = (rgb.red() << 3) as u8;
-                            let g = (rgb.green() << 3) as u8;
-                            let b = (rgb.blue() << 3) as u8;
-                            let _ = file.write_all(&[r, g, b]);
+                            rgb_bytes.push((rgb.red() << 3) as u8);
+                            rgb_bytes.push((rgb.green() << 3) as u8);
+                            rgb_bytes.push((rgb.blue() << 3) as u8);
                         }
+
+                        let file = std::fs::File::create(&path).unwrap();
+                        let writer = std::io::BufWriter::new(file);
+                        let mut encoder =
+                            png::Encoder::new(writer, SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
+                        encoder.set_color(png::ColorType::Rgb);
+                        encoder.set_depth(png::BitDepth::Eight);
+                        let mut png_writer = encoder.write_header().unwrap();
+                        png_writer.write_image_data(&rgb_bytes).unwrap();
+
                         eprintln!("Frame dumped to {}", path);
                     }
                 }
@@ -266,6 +277,15 @@ impl ApplicationHandler for App {
                         self.super_nintendo.bus.ppu.debug_disabled_layers ^= 0x10;
                         eprintln!(
                             "debug_disabled_layers = 0x{:02X}",
+                            self.super_nintendo.bus.ppu.debug_disabled_layers
+                        );
+                    }
+                }
+                KeyCode::KeyM => {
+                    if state.is_pressed() {
+                        self.super_nintendo.bus.ppu.debug_disabled_layers ^= 0x20;
+                        eprintln!(
+                            "debug_disabled_layers = 0x{:02X} (bit 5 = color math)",
                             self.super_nintendo.bus.ppu.debug_disabled_layers
                         );
                     }
