@@ -90,6 +90,15 @@ pub const VMADDL: u32 = 0x002116;
 pub const VMADDH: u32 = 0x002117;
 pub const VMDATAL: u32 = 0x002118;
 pub const VMDATAH: u32 = 0x002119;
+
+// Mode 7
+pub const M7SEL: u32 = 0x00211A;
+pub const M7A: u32 = 0x00211B;
+pub const M7B: u32 = 0x00211C;
+pub const M7C: u32 = 0x00211D;
+pub const M7D: u32 = 0x00211E;
+pub const M7X: u32 = 0x00211F;
+pub const M7Y: u32 = 0x002120;
 pub const RDVRAML: u32 = 0x002139;
 pub const RDVRAMH: u32 = 0x00213A;
 
