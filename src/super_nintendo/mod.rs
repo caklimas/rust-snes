@@ -104,6 +104,8 @@ impl SuperNintendo {
                 self.bus.ppu.render_scanline(self.current_scanline);
             }
 
+            self.current_scanline = (self.current_scanline + 1) % 262;
+
             match self.bus.interrupt_enable.h_v_irq_mode() {
                 HVIrqMode::Disabled => (),
                 HVIrqMode::HMatch => self.bus.irq_pending = true,
@@ -113,8 +115,6 @@ impl SuperNintendo {
                     }
                 }
             }
-
-            self.current_scanline = (self.current_scanline + 1) % 262;
 
             self.bus.ppu.current_scanline = self.current_scanline;
 

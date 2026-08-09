@@ -223,9 +223,9 @@ impl ApplicationHandler for App {
                         );
                         for &pixel in frame.iter() {
                             let rgb = Rgb(pixel);
-                            rgb_bytes.push((rgb.red() << 3) as u8);
-                            rgb_bytes.push((rgb.green() << 3) as u8);
-                            rgb_bytes.push((rgb.blue() << 3) as u8);
+                            rgb_bytes.push(((rgb.red() << 3) | (rgb.red() >> 2)) as u8);
+                            rgb_bytes.push(((rgb.green() << 3) | (rgb.green() >> 2)) as u8);
+                            rgb_bytes.push(((rgb.blue() << 3) | (rgb.blue() >> 2)) as u8);
                         }
 
                         let file = std::fs::File::create(&path).unwrap();

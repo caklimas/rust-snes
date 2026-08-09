@@ -161,11 +161,12 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Known Bugs
 
-### F-Zero title screen — Mode 7 pixel defects on scanlines 47–71 and 94, 105–118
-- **Symptom**: Title screen renders at the correct overall layout (sky/logo/menu/road), but pixel diff against reference shows large channel deltas (max 255) concentrated in the Mode-7 scanline bands. Visible as subtle shading/color differences at and just below the horizon.
-- **Root cause (narrowed)**: Mode 7 rendering bug. This is the *same* Mode 7 defect tracked in `docs/bugs/mode7-fzero-white-screen.md` — affine math, coordinate system, or 13-bit origin clipping. Not an IRQ, hblank, or color-conversion issue.
-- **What's already fixed**: H/V-IRQ dispatch, indirect HDMA, HVBJOY hblank approximation, canonical 5→8 bit color conversion, IRQ-before-increment ordering. F-Zero now fires its 4 per-frame IRQs (at V=18, 28, 47, 86) and the Mode 1→Mode 7 switch at V=47 applies cleanly.
-- **Previous investigation**: see `docs/bugs/fzero-title-garbage.md` for the earlier narrative (pre-IRQ state showed compressed repeating BG2 bands — since resolved).
+### F-Zero title screen — Mode 7 gradient defect on scanlines 47–83
+- **Symptom**: Pixel diff against reference shows a smooth descending gradient of channel deltas: 124 at row 47 (horizon), decreasing by ~8 per scanline down to 9 at row 83. ~3,400 differing pixels total. Visually subtle but cleanly localized to the Mode 7 region.
+- **What's confirmed NOT the cause**: HDMA off-by-one (tested by shifting all HDMA timing by 1 scanline — made things much worse, 8,302 differing pixels, broke the COLDATA gradient and rows 80-159). IRQ timing (now fires at correct scanline; verified V=47/86 IRQs land correctly). 5→8-bit color conversion (canonical formula in both live + dump paths).
+- **Diagnostic fingerprint**: smooth-gradient delta scaling with perspective compression. Largest at horizon (where many VRAM coords map to few screen pixels), shrinks toward foreground. Each step is ~8 in 8-bit space = 1 in 5-bit CGRAM space.
+- **Where to look next**: see `docs/bugs/fzero-mode7-gradient.md`. Most likely: subtle bug in Mode 7 affine math or per-scanline M7B accumulation. NOT a register-write timing issue.
+- **Investigation tooling in place**: `Ppu::scanline_trace` now captures per-scanline Mode 7 register state (m7a/b/c/d/x/y, m7hofs/vofs, m7sel) when `bg_mode==7`. Surfaces in debug_dump.txt via P+D.
 
 ### LttP Triforce intro — missing Triforce graphic
 - **Symptom**: The "1991, 1992" copyright text renders at the bottom, but the Triforce above it is missing. The rest of the intro works fine.
@@ -177,7 +178,9 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Mode 7 rendering — debug F-Zero pixel defects (scanlines 47–71, 94, 105–118)** — IRQ, hblank, color conversion now correct; remaining F-Zero title defect is Mode 7 rendering itself. Likely affine math, coordinate system, or 13-bit origin clipping; see `docs/bugs/mode7-fzero-white-screen.md` and `docs/bugs/fzero-title-garbage.md`
-2. **SPC700 opcodes** — implement remaining opcodes as games hit them (currently logs unimplemented opcodes and skips)
-3. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
-4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets
+1. **Mode 7 gradient defect (F-Zero scanlines 47–83)** — narrowed to Mode 7 affine math or per-scanline M7B handling, NOT register write timing. See `docs/bugs/fzero-mode7-gradient.md` for full investigation history and the diagnostic fingerprint.
+2. **LttP black screen after name selection** — game polls $213D/$213E/$2137 (now stubbed), reads $213F (now properly returning 0x03), but still black-screens. Needs PPU state dump at the failure point to triage (forced_blank, master_brightness, TM, CGRAM, or VRAM as candidates).
+3. **Remaining $213C-$213E PPU registers** — STAT78 done; SLHV/OPHCT/OPVCT/STAT77 not yet wired. Storage for OPHCT/OPVCT flipflops already in place.
+4. **SPC700 opcodes** — implement remaining opcodes as games hit them (currently logs unimplemented opcodes and skips)
+5. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
+6. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets

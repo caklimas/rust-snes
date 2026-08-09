@@ -218,6 +218,23 @@ impl Ppu {
         ));
 
         if self.bg_mode.bg_mode() == 7 {
+            self.scanline_trace.push(format!(
+                "  m7  m7sel=0x{:02X}(over={} vflip={} hflip={}) \
+                 m7a={:6} m7b={:6} m7c={:6} m7d={:6} \
+                 m7x={:5} m7y={:5} m7hofs={:5} m7vofs={:5}",
+                self.mode_7.m7sel.0,
+                self.mode_7.m7sel.screen_over_mode(),
+                self.mode_7.m7sel.vertical_flip() as u8,
+                self.mode_7.m7sel.horizontal_flip() as u8,
+                self.mode_7.affine_matrix.m7a,
+                self.mode_7.affine_matrix.m7b,
+                self.mode_7.affine_matrix.m7c,
+                self.mode_7.affine_matrix.m7d,
+                self.mode_7.rotation_scaling.m7x,
+                self.mode_7.rotation_scaling.m7y,
+                self.mode_7.scroll_offset.m7hofs,
+                self.mode_7.scroll_offset.m7vofs,
+            ));
             self.mode_7_sample(y, brightness_factor);
         } else {
             self.mode_0_6_sample(y, bpp_settings, palette_base, brightness_factor);
