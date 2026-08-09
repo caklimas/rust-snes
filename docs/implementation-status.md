@@ -71,7 +71,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | BG rendering — Mode 4 | ✅ Complete | BG1 8bpp, BG2 2bpp |
 | BG rendering — Mode 5 | ✅ Complete | BG1 4bpp, BG2 2bpp |
 | BG rendering — Mode 6 | ✅ Complete | BG1 4bpp only |
-| BG rendering — Mode 7 | 🟡 In progress | Affine transform + tile/pixel lookup + brightness + OBJ compositing implemented; F-Zero renders white screen — HDMA writes reach PPU but matrix values are zero at render time (see `docs/bugs/mode7-fzero-white-screen.md`); color math not yet applied |
+| BG rendering — Mode 7 | 🟡 In progress | Affine transform + tile/pixel lookup + brightness + OBJ compositing implemented; F-Zero white screen fixed (HDMA non-repeat); rendering shows garbage — likely affine math or coordinate issues (see `docs/bugs/mode7-fzero-white-screen.md`); color math not yet applied |
 | Offset-per-tile (Modes 2, 4, 6) | ❌ Not implemented | BG3 used as per-tile offset source |
 | 16x16 tile support | ✅ Complete | Per-layer via BGMODE bits 4–7, quadrant flip |
 | Multi-screen tilemap layout | ✅ Complete | 64-wide/tall via SC register bits |
@@ -81,7 +81,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Priority compositing — Mode 1 | ✅ Complete | BG3 priority boost |
 | Priority compositing — Modes 2–5 | ✅ Complete | BG1/BG2 + OBJ |
 | Priority compositing — Mode 6 | ✅ Complete | BG1 only + OBJ |
-| Priority compositing — Mode 7 | ❌ Not implemented | Per-pixel priority for EXTBG |
+| Priority compositing — Mode 7 | ✅ Complete (non-EXTBG) | OBJ pri 3 > BG1 > OBJ pri 2/1/0 > backdrop; EXTBG not yet |
 | Windowing | ✅ Complete | W12SEL/W34SEL/WOBJSEL, WH0–WH3, WBGLOG/WOBJLOG, TMW/TSW |
 | Color math — fixed color | ✅ Complete | CGWSEL, CGADSUB, COLDATA; add/subtract, half-math |
 | Color math — sub-screen blending | ✅ Complete | Sub screen rendered independently; suppress_div2 |
@@ -96,7 +96,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 | Component | Status | Notes |
 |-----------|--------|-------|
 | DMA ($420B, $4300–$437F) | ✅ Complete | Modes 0/1/2/3/4, both directions, fixed transfer |
-| HDMA ($420C) | ✅ Complete | Direct mode, transfer modes 0-4; repeat mode always-transfer (refine later) |
+| HDMA ($420C) | ✅ Complete | Direct mode, transfer modes 0-4; non-repeat mode implemented (do_transfer = bit 7 of decremented counter) |
 
 ---
 
@@ -165,7 +165,7 @@ This file tracks what has been implemented, what is stubbed, and what still need
 
 ## Next Steps (Priority Order)
 
-1. **Mode 7 rendering — debug F-Zero white screen** — brightness and OBJ compositing added; HDMA transfer modes 2-4 implemented; F-Zero HDMA writes reach PPU but matrix stays zero at render time; see `docs/bugs/mode7-fzero-white-screen.md` for debug notes and next steps
+1. **Mode 7 rendering — debug F-Zero garbage output** — white screen fixed (HDMA non-repeat); brightness, OBJ compositing, PPU multiply all implemented; rendering shows garbled track — likely affine math, coordinate system, or 13-bit origin clipping issue; see `docs/bugs/mode7-fzero-white-screen.md`
 2. **SPC700 opcodes** — implement remaining opcodes as games hit them (currently logs unimplemented opcodes and skips)
 3. **SPC700 timers** — T0–T2 tick logic needed by most sound drivers (storage already in place)
 4. **Offset-per-tile** — modes 2, 4, 6 use BG3 data for per-tile column/row offsets

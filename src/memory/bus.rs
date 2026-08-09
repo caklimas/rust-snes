@@ -265,6 +265,9 @@ impl Bus {
                     .hdma_line_counter
                     .wrapping_sub(1);
 
+                self.dma_channels[i as usize].hdma_do_transfer =
+                    self.dma_channels[i as usize].hdma_line_counter & 0x80 != 0;
+
                 if self.dma_channels[i as usize].hdma_line_counter & 0x7F == 0 {
                     let value = self.read(
                         ((a1b as u32) << 16)
