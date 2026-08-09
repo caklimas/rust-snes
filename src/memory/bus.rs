@@ -26,6 +26,7 @@ use crate::{
 
 const SYSTEM_MIRROR_BANK_RANGE: RangeInclusive<u8> = 0x80..=0xBF;
 const SYSTEM_MIRROR_MASK: u32 = 0x7FFFFF;
+const INTERNAL_SYSTEM_AREA_END: u32 = 0x5FFF;
 const WRAM_ACCESS_MASK: u32 = 0x1FFFF;
 
 pub struct Bus {
@@ -398,8 +399,20 @@ impl Bus {
     }
 
     fn normalize_address(address: u32) -> u32 {
-        if Self::is_mirror_bank(address) {
+        // Mirror banks $80-$BF down to $00-$3F first.
+        let address = if Self::is_mirror_bank(address) {
             address & SYSTEM_MIRROR_MASK
+        } else {
+            address
+        };
+
+        let bank = (address >> 16) as u8;
+        let offset = address & 0xFFFF;
+
+        // Internal portion of the System Area is mirrored in every
+        // bank from $00-$3F.
+        if matches!(bank, 0x00..=0x3F) && offset <= INTERNAL_SYSTEM_AREA_END {
+            offset
         } else {
             address
         }
@@ -426,5 +439,26 @@ impl MemoryBus for Bus {
 
     fn write(&mut self, address: u32, value: u8) {
         self.write(address, value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Bus;
+
+    #[test]
+    fn normalizes_internal_system_area_mirrors_to_bank_zero() {
+        assert_eq!(Bus::normalize_address(0x09_2135), 0x00_2135);
+        assert_eq!(Bus::normalize_address(0x89_2135), 0x00_2135);
+        assert_eq!(Bus::normalize_address(0x3F_4200), 0x00_4200);
+        assert_eq!(Bus::normalize_address(0xBF_4200), 0x00_4200);
+    }
+
+    #[test]
+    fn preserves_cartridge_dependent_offsets_and_rom_banks() {
+        assert_eq!(Bus::normalize_address(0x09_6000), 0x09_6000);
+        assert_eq!(Bus::normalize_address(0x09_8000), 0x09_8000);
+        assert_eq!(Bus::normalize_address(0x89_6000), 0x09_6000);
+        assert_eq!(Bus::normalize_address(0x89_8000), 0x09_8000);
     }
 }
